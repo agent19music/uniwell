@@ -1,10 +1,11 @@
-import { View, Text, ScrollView, StyleSheet, useColorScheme, Dimensions, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, useColorScheme, Dimensions, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
 import { useMemo, useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { healthService } from '../services/healthService';
 import { sleepService } from '../services/sleepService';
+import { SleepRecord } from '../types/sleep';
 
 const MOCK_SLEEP_DATA = [
   { date: '2024-02-08', hours: 7, minutes: 45, quality: 85, deepSleep: 2.5, lightSleep: 4.5, rem: 0.75 },
@@ -20,8 +21,9 @@ export default function SleepStatsScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { width } = Dimensions.get('window');
-  const [healthData, setHealthData] = useState(null);
+  const [sleepData, setSleepData] = useState<SleepRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
 
   const chartData = useMemo(() => ({
@@ -42,6 +44,7 @@ export default function SleepStatsScreen() {
   const checkPermissionsAndLoadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const permitted = await healthService.requestPermissions();
       setHasPermission(permitted);
 
@@ -50,7 +53,7 @@ export default function SleepStatsScreen() {
       }
     } catch (error) {
       console.error('Error:', error);
-      Alert.alert('Error', 'Failed to load health data');
+      setError('Failed to check permissions');
     } finally {
       setLoading(false);
     }
@@ -58,28 +61,31 @@ export default function SleepStatsScreen() {
 
   const loadHealthData = async () => {
     try {
-      // Get last 7 days of sleep data
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7);
 
-      const sleepData = await healthService.getSleepData(startDate, endDate);
-      setHealthData(sleepData);
+      const healthData = await healthService.getSleepData(startDate, endDate);
+      
+      // Save to Supabase and update local state
+      const savedRecords = await Promise.all(
+        healthData.map(record => 
+          sleepService.addSleepRecord({
+            sleep_start: record.startDate,
+            sleep_end: record.endDate,
+            quality_rating: 0, // Will be calculated in service
+            deep_sleep_hours: record.sleepStages?.deep || 0,
+            light_sleep_hours: record.sleepStages?.light || 0,
+            rem_sleep_hours: record.sleepStages?.rem || 0,
+            notes: ''
+          })
+        )
+      );
 
-      // Save to Supabase if you want to keep a record
-      for (const record of sleepData) {
-        await sleepService.addSleepRecord({
-          sleep_start: record.startDate,
-          sleep_end: record.endDate,
-          quality_rating: calculateSleepQuality(record),
-          deep_sleep_hours: record.sleepStages?.deep || 0,
-          light_sleep_hours: record.sleepStages?.light || 0,
-          rem_sleep_hours: record.sleepStages?.rem || 0,
-        });
-      }
+      setSleepData(savedRecords);
     } catch (error) {
       console.error('Error loading health data:', error);
-      Alert.alert('Error', 'Failed to load health data');
+      setError('Failed to load sleep data');
     }
   };
 
@@ -92,11 +98,37 @@ export default function SleepStatsScreen() {
     return Math.round(quality);
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#FF7F50" />
+        <Text style={[styles.subtitle, isDark && styles.darkSubText]}>
+          Loading sleep data...
+        </Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={[styles.title, isDark && styles.darkText]}>Error</Text>
+        <Text style={[styles.subtitle, isDark && styles.darkSubText]}>{error}</Text>
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={checkPermissionsAndLoadData}
+        >
+          <Text style={styles.buttonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (!hasPermission) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Permission Required</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, isDark && styles.darkText]}>Permission Required</Text>
+        <Text style={[styles.subtitle, isDark && styles.darkSubText]}>
           Please grant access to health data to track your sleep.
         </Text>
         <TouchableOpacity 
@@ -108,6 +140,9 @@ export default function SleepStatsScreen() {
       </View>
     );
   }
+
+  const latestRecord = sleepData[0];
+  const averageQuality = sleepData.reduce((sum, record) => sum + record.quality_rating, 0) / sleepData.length;
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
@@ -125,24 +160,20 @@ export default function SleepStatsScreen() {
         {/* Sleep Quality Card */}
         <View style={[styles.qualityCard, isDark && styles.darkCard]}>
           <Text style={[styles.qualityTitle, isDark && styles.darkText]}>
-            Last Night's Sleep
+            Sleep Quality
           </Text>
           <View style={styles.qualityStats}>
             <View style={styles.qualityStat}>
               <Text style={[styles.statValue, isDark && styles.darkText]}>
-                {lastNight.hours}h {lastNight.minutes}m
+                {latestRecord?.quality_rating || 0}%
               </Text>
-              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>
-                Duration
-              </Text>
+              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Last Night</Text>
             </View>
             <View style={styles.qualityStat}>
               <Text style={[styles.statValue, isDark && styles.darkText]}>
-                {lastNight.quality}%
+                {Math.round(averageQuality)}%
               </Text>
-              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>
-                Quality
-              </Text>
+              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Weekly Avg</Text>
             </View>
           </View>
         </View>
@@ -154,14 +185,14 @@ export default function SleepStatsScreen() {
           </Text>
           <View style={styles.cycleStats}>
             {[
-              { label: 'Deep Sleep', value: lastNight.deepSleep, color: '#9B59B6' },
-              { label: 'Light Sleep', value: lastNight.lightSleep, color: '#3498DB' },
-              { label: 'REM', value: lastNight.rem, color: '#E74C3C' },
+              { label: 'Deep Sleep', value: latestRecord?.deep_sleep_hours.toFixed(1), color: '#9B59B6' },
+              { label: 'Light Sleep', value: latestRecord?.light_sleep_hours.toFixed(1), color: '#3498DB' },
+              { label: 'REM', value: latestRecord?.rem_sleep_hours.toFixed(1), color: '#E74C3C' },
             ].map((cycle, index) => (
               <View key={index} style={styles.cycleStat}>
                 <View style={styles.cycleHeader}>
                   <View style={[styles.cycleIndicator, { backgroundColor: cycle.color }]} />
-                  <Text style={[styles.cycleLabel, isDark && styles.darkSubText]}>
+                  <Text style={[styles.cycleLabel, isDark && styles.darkText]}>
                     {cycle.label}
                   </Text>
                 </View>

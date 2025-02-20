@@ -33,7 +33,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-health-connect"
+      "expo-health-connect",
+    
     ],
     "experiments": {
       "typedRoutes": true
