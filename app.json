@@ -17,14 +17,16 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.uniwell"
+      "bundleIdentifier": "com.yourname.uniwell",
+      "newArchEnabled": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yourname.uniwell"
+      "package": "com.yourname.uniwell",
+      "newArchEnabled": true
     },
     "web": {
       "bundler": "metro",
@@ -33,11 +35,11 @@
     },
     "plugins": [
       "expo-router",
-      "expo-health-connect",
-    
+      "expo-health-connect"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "tsconfigPaths": true
     },
     "extra": {
       "router": {

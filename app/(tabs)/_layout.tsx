@@ -79,16 +79,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="welcome"
-        options={{
-          title: 'Welcome',
-          tabBarIcon: ({ size, color }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      v
     </Tabs>
   );
 }

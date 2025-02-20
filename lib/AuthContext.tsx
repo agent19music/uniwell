@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from './supabase';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { useRouter, useSegments } from 'expo-router';
+import { supabase } from './supabase';
 
 interface AuthContextType {
   session: Session | null;
@@ -23,14 +23,14 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Check if we're in an auth screen
-    const inAuthGroup = segments[0] === '(auth)';
+    const inAuthGroup = segments[0] === '/(auth)';
 
     if (session && inAuthGroup) {
       // Redirect to home if signed in and in auth screen
-      router.replace('/(tabs)');
+      router.replace('/home');
     } else if (!session && !inAuthGroup) {
       // Redirect to welcome screen if not signed in
-      router.replace('/welcomescreen');
+      router.replace('/');
     }
   }, [session, segments]);
 
@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    router.replace('/welcomescreen');
+    router.replace('/');
   };
 
   return (

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 
-export default function WelcomeScreen() {
+export default function Index() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
@@ -14,15 +14,15 @@ export default function WelcomeScreen() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: 'yourapp://login-callback',
+          redirectTo: 'uniwell://login-callback',
         },
       });
 
       if (error) throw error;
       
       console.log('OAuth login successful:', data);
-    } catch (error) {
-      console.error('OAuth login error:', error.message);
+    } catch (error: unknown) {
+      console.error('OAuth login error:', error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
