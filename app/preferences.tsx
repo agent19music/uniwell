@@ -1,15 +1,8 @@
-import { View, Text, ScrollView, StyleSheet, useColorScheme, Switch, TouchableOpacity, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, useColorScheme, Switch, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-
-const MOCK_USER = {
-  name: 'Alex Johnson',
-  email: 'alex.johnson@example.com',
-  joinDate: 'February 2024',
-  streakCount: 15,
-  habitCount: 8,
-};
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase'; // Adjust path as needed
 
 const SettingItem = ({ icon, title, subtitle, value, onPress, isDark, type = 'navigate' }) => (
   <TouchableOpacity 
@@ -49,6 +42,13 @@ const SettingsSection = ({ title, children, isDark }) => (
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [userData, setUserData] = useState({
+    name: '',
+    email: '',
+    joinDate: '',
+    streakCount: 0,
+    habitCount: 0,
+  });
   const [notifications, setNotifications] = useState({
     reminders: true,
     achievements: true,
@@ -56,9 +56,34 @@ export default function ProfileScreen() {
     tips: false,
   });
 
-  const handleLogout = () => {
-    // Implement logout logic
-    console.log('Logging out...');
+  useEffect(() => {
+    async function getUserData() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Format join date
+        const joinDate = new Date(user.created_at).toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric'
+        });
+
+        setUserData({
+          name: user.user_metadata?.full_name || 'User',
+          email: user.email || '',
+          joinDate,
+          streakCount: 0, // You'll need to fetch these from your database
+          habitCount: 0,  // You'll need to fetch these from your database
+        });
+      }
+    }
+    getUserData();
+  }, []);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      Alert.alert('Error', error.message);
+    }
+    // Handle navigation after logout if needed
   };
 
   return (
@@ -78,16 +103,16 @@ export default function ProfileScreen() {
               <Ionicons name="camera" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.profileName, isDark && styles.darkText]}>{MOCK_USER.name}</Text>
-          <Text style={[styles.profileEmail, isDark && styles.darkSubText]}>{MOCK_USER.email}</Text>
+          <Text style={[styles.profileName, isDark && styles.darkText]}>{userData.name}</Text>
+          <Text style={[styles.profileEmail, isDark && styles.darkSubText]}>{userData.email}</Text>
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, isDark && styles.darkText]}>{MOCK_USER.streakCount}</Text>
+              <Text style={[styles.statValue, isDark && styles.darkText]}>{userData.streakCount}</Text>
               <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Day Streak</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, isDark && styles.darkText]}>{MOCK_USER.habitCount}</Text>
+              <Text style={[styles.statValue, isDark && styles.darkText]}>{userData.habitCount}</Text>
               <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Active Habits</Text>
             </View>
           </View>

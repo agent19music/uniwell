@@ -17,7 +17,8 @@ export default function RootLayout() {
   const isDark = colorScheme === 'dark';
 
   const [fontsLoaded] = Font.useFonts({
-    'Vercetti-Regular': require('../assets/fonts/Vercetti-Regular.ttf'),
+    'Vercetti-Regular': require('../assets/fonts/SFUIText-Regular.ttf'),
+    'SF-Regular': require('../assets/fonts/SFUIText-Regular.ttf'),
   });
 
   useEffect(() => {

@@ -23,6 +23,7 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',
+          fontFamily: 'SF-Regular',
         },
       }}>
       <Tabs.Screen
@@ -43,15 +44,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="journal"
-        options={{
-          title: 'Journal',
-          tabBarIcon: ({ size, color }) => (
-            <Ionicons name="book-outline" size={size} color={color} />
-          ),
-        }}
-      />
+     
       <Tabs.Screen
         name="community"
         options={{

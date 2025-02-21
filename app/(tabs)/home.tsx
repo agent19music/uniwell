@@ -1,9 +1,11 @@
+import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Image, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { Entypo } from '@expo/vector-icons';
+import { Ionicons, Entypo } from '@expo/vector-icons';
 import { useNavigation } from 'expo-router';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase'; // Adjust the import path as needed
+
 const MOOD_OPTIONS = [
   { id: 'happy', icon: '😊', label: 'Happy', color: '#FF69B4' },
   { id: 'calm', icon: '😌', label: 'Calm', color: '#8A8AFF' },
@@ -18,6 +20,7 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { height } = useWindowDimensions();
+  const [userName, setUserName] = useState('');
 
   const handleJournalPress = () => {
     router.push('/journals'); // Use router.push for navigation
@@ -25,6 +28,16 @@ export default function HomeScreen() {
   const handlePreferencesPress = () => {
     router.push('/preferences'); // Use router.push for navigation
   };
+
+  useEffect(() => {
+    async function getUserName() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.user_metadata?.full_name) {
+        setUserName(user.user_metadata.full_name.split(' ')[0]); // Get first name
+      }
+    }
+    getUserName();
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
@@ -49,7 +62,9 @@ export default function HomeScreen() {
               <View style={styles.notificationBadge} />
             </View>
           </View>
-          <Text style={[styles.greeting, isDark && styles.darkText]}>Good Afternoon,{'\n'}Sarah!</Text>
+          <Text style={[styles.greeting, isDark && styles.darkText]}>
+            Good Afternoon,{'\n'}{userName || 'Guest'}!
+          </Text>
           <Text style={[styles.question, isDark && styles.darkSubText]}>How are you feeling today?</Text>
         </View>
 

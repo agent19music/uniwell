@@ -37,7 +37,9 @@
     "react-native-screens": "~3.29.0",
     "react-native-svg": "14.1.0",
     "react-native-url-polyfill": "^2.0.0",
-    "react-native-web": "~0.19.10"
+    "react-native-web": "~0.19.10",
+    "expo-linear-gradient": "~12.7.2",
+    "expo-blur": "~12.9.2"
   },
   "devDependencies": {
     "@babel/core": "^7.23.7",
