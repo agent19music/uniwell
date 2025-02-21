@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-export default function SignUpScreen({ navigation }) {
+export default function SignUpScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [name, setName] = useState('');
@@ -18,7 +18,7 @@ export default function SignUpScreen({ navigation }) {
     console.log('Signing up...');
   };
 
-  const OAuthButton = ({ icon, provider, color }) => (
+  const OAuthButton = ({ icon, provider, color }: { icon: string; provider: string; color: string }) => (
     <TouchableOpacity 
       style={[styles.oauthButton, isDark && styles.darkCard, { borderColor: color }]}
       onPress={() => console.log(`${provider} signup`)}
@@ -111,11 +111,7 @@ export default function SignUpScreen({ navigation }) {
             provider="Google" 
             color="#DB4437"
           />
-          <OAuthButton 
-            icon="logo-github" 
-            provider="GitHub" 
-            color={isDark ? '#fff' : '#333'}
-          />
+         
         </View>
 
         <View style={styles.footer}>

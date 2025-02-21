@@ -3,7 +3,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Octicons } from '@expo/vector-icons';
-import { SleepCard } from '../components/sleepcard';
 import { useRouter } from 'expo-router';
 
 const SAMPLE_HABITS = [
@@ -91,15 +90,7 @@ export default function RoutinesScreen() {
           ))}
         </ScrollView>
         {/* Sleep Card */}
-<SleepCard 
-   onPress={handleSleepCardPress} 
-  isDark={isDark}
-  lastNightSleep={{
-    hours: 7,
-    minutes: 30,
-    quality: 80
-  }}
-/>
+
 
         {/* Calendar Strip */}
         <View style={styles.calendarStrip}>

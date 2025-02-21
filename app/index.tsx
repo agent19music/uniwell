@@ -9,7 +9,7 @@ export default function Index() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
 
-  const handleOAuthLogin = async (provider: 'google' | 'github' | 'twitter') => {
+  const handleOAuthLogin = async (provider: 'google' ) => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -66,19 +66,7 @@ export default function Index() {
                 <Ionicons name="logo-google" size={24} color="#DB4437" />
               </TouchableOpacity>
               
-              <TouchableOpacity 
-                style={[styles.oauthButton, isDark && styles.darkCard]}
-                onPress={() => handleOAuthLogin('github')}
-              >
-                <Ionicons name="logo-github" size={24} color={isDark ? '#ffffff' : '#333333'} />
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.oauthButton, isDark && styles.darkCard]}
-                onPress={() => handleOAuthLogin('twitter')}
-              >
-                <Ionicons name="logo-twitter" size={24} color="#1DA1F2" />
-              </TouchableOpacity>
+             
             </View>
           </View>
         </View>
@@ -98,10 +86,14 @@ const styles = StyleSheet.create({
     content: {
       flex: 1,
       padding: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     header: {
       alignItems: 'center',
       marginBottom: 40,
+      width: '100%',
+      maxWidth: 400,
     },
     title: {
       fontSize: 32,
@@ -120,6 +112,8 @@ const styles = StyleSheet.create({
     },
     buttonContainer: {
       gap: 16,
+      width: '100%',
+      maxWidth: 400,
     },
     button: {
       height: 56,

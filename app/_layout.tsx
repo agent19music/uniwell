@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme, Text, TextInput } from 'react-native';
+import { useColorScheme, Text, TextInput, Platform } from 'react-native';
 import * as Font from 'expo-font';
 import { AuthProvider } from '../lib/AuthContext';
+import { Camera } from 'expo-camera';
 
 declare global {
   interface Window {
@@ -35,6 +36,12 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      Camera.requestCameraPermissionsAsync();
+    }
+  }, []);
+
   if (!fontsLoaded) {
     return null;
   }
@@ -48,9 +55,9 @@ export default function RootLayout() {
         },
       }}>
         <Stack.Screen name="index" />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="loginscreen" />
         <Stack.Screen name="signupscreen" />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </AuthProvider>

@@ -23,13 +23,14 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Check if we're in an auth screen
-    const inAuthGroup = segments[0] === '/(auth)';
+    const inAuthGroup = segments[0] === '(auth)';
+    const isAuthScreen = ['loginscreen', 'signupscreen', 'index'].includes(segments[0] || '');
 
-    if (session && inAuthGroup) {
+    if (session && (inAuthGroup || isAuthScreen)) {
       // Redirect to home if signed in and in auth screen
-      router.replace('/home');
-    } else if (!session && !inAuthGroup) {
-      // Redirect to welcome screen if not signed in
+      router.replace('/(tabs)/home');
+    } else if (!session && !inAuthGroup && !isAuthScreen) {
+      // Only redirect to welcome screen if not signed in and not in auth screens
       router.replace('/');
     }
   }, [session, segments]);

@@ -17,38 +17,26 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.uniwell",
-      "newArchEnabled": true
+      "bundleIdentifier": "com.yourname.uniwell"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yourname.uniwell",
-      "newArchEnabled": true
+      "package": "com.sean.uniwell",
+      "permissions": [
+        "android.permission.DETECT_SCREEN_CAPTURE"
+      ]
     },
     "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "bundler": "metro"
     },
     "plugins": [
-      "expo-router",
-      "expo-health-connect"
+      "expo-router"
     ],
     "experiments": {
-      "typedRoutes": true,
       "tsconfigPaths": true
-    },
-    "extra": {
-      "router": {
-        "origin": false
-      },
-      "eas": {
-        "projectId": "577b2274-9c11-4801-af8d-a12055a11673"
-      }
-    },
-    "owner": "ufwsean"
+    }
   }
 }
