@@ -33,7 +33,18 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-build-properties",
+      "expo-image-picker",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "13.0"
+          }
+        }
+      ]   
+
     ],
     "experiments": {
       "tsconfigPaths": true

@@ -2,9 +2,21 @@ import { View, Text, ScrollView, StyleSheet, useColorScheme, Switch, TouchableOp
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase'; // Adjust path as needed
+import { supabase } from '../lib/supabase'; 
+import { useRouter } from 'expo-router';
+import { useAuth } from '@/lib/AuthContext';
 
-const SettingItem = ({ icon, title, subtitle, value, onPress, isDark, type = 'navigate' }) => (
+interface SettingItemProps {
+  icon: string;
+  title: string;
+  subtitle?: string;
+  value?: boolean;
+  onPress: () => void;
+  isDark: boolean;
+  type?: 'navigate' | 'toggle';
+}
+
+const SettingItem = ({ icon, title, subtitle, value, onPress, isDark, type = 'navigate' }: SettingItemProps) => (
   <TouchableOpacity 
     style={[styles.settingItem, isDark && styles.darkCard]}
     onPress={onPress}
@@ -30,7 +42,7 @@ const SettingItem = ({ icon, title, subtitle, value, onPress, isDark, type = 'na
   </TouchableOpacity>
 );
 
-const SettingsSection = ({ title, children, isDark }) => (
+const SettingsSection = ({ title, children, isDark }: { title: string; children: React.ReactNode; isDark: boolean }) => (
   <View style={styles.section}>
     <Text style={[styles.sectionTitle, isDark && styles.darkSubText]}>{title}</Text>
     <View style={styles.sectionContent}>
@@ -40,6 +52,7 @@ const SettingsSection = ({ title, children, isDark }) => (
 );
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [userData, setUserData] = useState({
@@ -49,6 +62,7 @@ export default function ProfileScreen() {
     streakCount: 0,
     habitCount: 0,
   });
+  const { profile, signOut } = useAuth();
   const [notifications, setNotifications] = useState({
     reminders: true,
     achievements: true,
@@ -78,13 +92,6 @@ export default function ProfileScreen() {
     getUserData();
   }, []);
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      Alert.alert('Error', error.message);
-    }
-    // Handle navigation after logout if needed
-  };
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
@@ -95,11 +102,14 @@ export default function ProfileScreen() {
         {/* Profile Header */}
         <View style={[styles.profileHeader, isDark && styles.darkCard]}>
           <View style={styles.profileImageContainer}>
-            <Image
-              source={{ uri: 'https://i.pravatar.cc/150' }}
-              style={styles.profileImage}
-            />
-            <TouchableOpacity style={styles.editImageButton}>
+             <Image
+                       source={profile.avatar_url ? { uri: profile.avatar_url } : require('../assets/default-avatar.png')}
+                       style={styles.profileImage}
+                     />
+            <TouchableOpacity 
+              style={styles.editImageButton}
+              onPress={() => router.push('/editprofile')}
+            >
               <Ionicons name="camera" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -124,7 +134,7 @@ export default function ProfileScreen() {
             icon="person-outline"
             title="Edit Profile"
             subtitle="Update your personal information"
-            onPress={() => {}}
+            onPress={() => router.push('/editprofile')}
             isDark={isDark}
           />
           <SettingItem
@@ -148,6 +158,7 @@ export default function ProfileScreen() {
           <SettingItem
             icon="notifications-outline"
             title="Daily Reminders"
+            subtitle="Receive daily reminders"
             type="toggle"
             value={notifications.reminders}
             onPress={() => setNotifications(prev => ({ ...prev, reminders: !prev.reminders }))}
@@ -156,6 +167,7 @@ export default function ProfileScreen() {
           <SettingItem
             icon="trophy-outline"
             title="Achievements"
+            subtitle="Receive achievement notifications"
             type="toggle"
             value={notifications.achievements}
             onPress={() => setNotifications(prev => ({ ...prev, achievements: !prev.achievements }))}
@@ -229,7 +241,7 @@ export default function ProfileScreen() {
         {/* Logout Button */}
         <TouchableOpacity 
           style={[styles.logoutButton, isDark && styles.darkCard]} 
-          onPress={handleLogout}
+          onPress={signOut}
         >
           <Ionicons name="log-out-outline" size={24} color="#E74C3C" />
           <Text style={styles.logoutText}>Log Out</Text>

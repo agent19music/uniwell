@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { supabase } from '../lib/supabase';
-import { Alert } from 'react-native';
+import * as burnt from 'burnt';
 
 export default function SignUpScreen() {
   const colorScheme = useColorScheme();
@@ -34,8 +34,20 @@ export default function SignUpScreen() {
       }
     })
 
-    if (error) Alert.alert(error.message)
-    if (!session) Alert.alert('Please check your inbox for email verification!')
+    if (error) {
+      burnt.toast({
+        title: 'Error',
+        message: error.message,
+        preset: 'error',
+      });
+    }
+    if (!session) {
+      burnt.toast({
+        title: 'Check your email',
+        message: 'Please check your inbox for email verification!',
+        preset: 'done',
+      });
+    }
     setLoading(false)
   }
 
