@@ -26,7 +26,7 @@ export default function LoginScreen() {
       
       router.push('/routines');
     } catch (error) {
-      console.error('Error signing in:', error.message);
+      console.error('Error signing in:', (error as Error).message);
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useRoutine } from '../../contexts/RoutineContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,8 @@ export default function AddRoutineModal() {
   const [title, setTitle] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('daily');
   const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const handleSave = async () => {
     try {
@@ -28,12 +30,12 @@ export default function AddRoutineModal() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && styles.darkContainer]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="close" size={24} color="#FF7F50" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Routine</Text>
+        <Text style={[styles.headerTitle, isDark && styles.darkText]}>New Routine</Text>
         <TouchableOpacity onPress={handleSave}>
           <Text style={styles.saveButton}>Save</Text>
         </TouchableOpacity>
@@ -41,7 +43,7 @@ export default function AddRoutineModal() {
 
       <View style={styles.form}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, isDark && styles.darkInput]}
           placeholder="Routine Title"
           value={title}
           onChangeText={setTitle}
@@ -49,7 +51,7 @@ export default function AddRoutineModal() {
         />
 
         <View style={styles.frequencySection}>
-          <Text style={styles.sectionTitle}>Frequency</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Frequency</Text>
           <TouchableOpacity 
             style={[styles.frequencyButton, frequency === 'daily' && styles.selectedFrequency]}
             onPress={() => setFrequency('daily')}
@@ -72,10 +74,10 @@ export default function AddRoutineModal() {
 
         {frequency === 'custom' && (
           <View style={styles.daysSection}>
-            <Text style={styles.sectionTitle}>Select Days</Text>
+            <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Days</Text>
             {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
               <View key={day} style={styles.dayRow}>
-                <Text style={styles.dayText}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
+                <Text style={[styles.dayText, isDark && styles.darkText]}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
                 <Switch
                   value={selectedDays.includes(day as DayOfWeek)}
                   onValueChange={(value) => {
@@ -100,6 +102,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f8f8',
+    marginTop: 12,
+  },
+  darkContainer: {
+    backgroundColor: '#121212',
   },
   header: {
     flexDirection: 'row',
@@ -114,6 +120,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     fontFamily: 'Vercetti-Regular',
+  },
+  darkText: {
+    color: '#ffffff',
   },
   saveButton: {
     color: '#FF7F50',
@@ -131,6 +140,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     fontFamily: 'Vercetti-Regular',
+  },
+  darkInput: {
+    backgroundColor: '#1e1e1e',
+    color: '#ffffff',
   },
   frequencySection: {
     marginBottom: 20,
@@ -173,4 +186,4 @@ const styles = StyleSheet.create({
     color: '#333',
     fontFamily: 'Vercetti-Regular',
   },
-}); 
+});

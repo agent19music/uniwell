@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useRoutine } from '../../contexts/RoutineContext';
 import { Ionicons, Octicons } from '@expo/vector-icons';
@@ -15,6 +15,8 @@ export default function AddStreakModal() {
   const [startDate, setStartDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const handleSave = async () => {
     try {
@@ -50,12 +52,12 @@ export default function AddStreakModal() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && styles.darkContainer]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="close" size={24} color="#FF7F50" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Streak</Text>
+        <Text style={[styles.headerTitle, isDark && styles.darkText]}>New Streak</Text>
         <TouchableOpacity onPress={handleSave}>
           <Text style={styles.saveButton}>Save</Text>
         </TouchableOpacity>
@@ -63,14 +65,14 @@ export default function AddStreakModal() {
 
       <View style={styles.form}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, isDark && styles.darkInput]}
           placeholder="Streak Title"
           value={title}
           onChangeText={setTitle}
           placeholderTextColor="#666"
         />
 
-        <Text style={styles.sectionTitle}>Streak Type</Text>
+        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Streak Type</Text>
         <View style={styles.typeContainer}>
           <TouchableOpacity 
             style={[styles.typeButton, type === 'build' && styles.selectedType]}
@@ -101,7 +103,7 @@ export default function AddStreakModal() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>Start Date & Time</Text>
+        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Start Date & Time</Text>
         <View style={styles.dateTimeContainer}>
           <TouchableOpacity 
             style={[styles.dateTimeButton, styles.dateButton]}
@@ -152,6 +154,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f8f8',
+    marginTop: 12,
+  },
+  darkContainer: {
+    backgroundColor: '#121212',
   },
   header: {
     flexDirection: 'row',
@@ -166,6 +172,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     fontFamily: 'Vercetti-Regular',
+  },
+  darkText: {
+    color: '#ffffff',
   },
   saveButton: {
     color: '#FF7F50',
@@ -183,6 +192,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 24,
     fontFamily: 'Vercetti-Regular',
+  },
+  darkInput: {
+    backgroundColor: '#1e1e1e',
+    color: '#ffffff',
   },
   sectionTitle: {
     fontSize: 16,
@@ -250,4 +263,4 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
   },
-}); 
+});

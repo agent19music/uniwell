@@ -49,6 +49,9 @@ export default function HomeScreen() {
   const handlePreferencesPress = () => {
     router.push('/preferences'); // Use router.push for navigation
   };
+  const handleNotificationsPress = () => {
+    router.push('/notifications'); // Use router.push for navigation
+  };
 
   useEffect(() => {
     async function getUserName() {
@@ -78,10 +81,12 @@ export default function HomeScreen() {
               
             />
             </TouchableOpacity>
+            <TouchableOpacity onPress={handleNotificationsPress}>
             <View style={styles.notificationIcon}>
               <Ionicons name="notifications-outline" size={24} color={isDark ? '#ffffff' : '#000000'} />
               <View style={styles.notificationBadge} />
             </View>
+            </TouchableOpacity>
           </View>
           <Text style={[styles.greeting, isDark && styles.darkText]}>
             Good Afternoon,{'\n'}{userName || 'Guest'}!
@@ -204,8 +209,8 @@ const styles = StyleSheet.create({
   moodOption: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 70,
-    height: 70,
+    width: 63,
+    height: 63,
     borderRadius: 16,
   },
   moodEmoji: {
