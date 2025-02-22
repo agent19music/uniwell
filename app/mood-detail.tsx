@@ -1,80 +1,130 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import React, { useMemo, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Animated, Dimensions } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const MOOD_CONFIG = {
   happy: {
-    colors: ['#FFD700', '#FFA500'],
-    title: 'Feeling Happy',
+    colors: ['#FFE259', '#FFA751', '#FFD700'],
+    icon: 'emoticon-excited-outline',
+    title: 'Radiating Happy Vibes! ✨',
     insights: [
-      'Embrace this positive energy!',
-      'Your happiness is contagious.',
-      'Take a moment to appreciate your joy.'
+      "You're basically a human sunshine factory right now! ☀️",
+      "Your dopamine levels are doing the cha-cha. Keep that dance going!",
+      "Warning: Your smile might be contagious. Use responsibly. 😊"
     ],
     suggestions: [
-      'Share your happiness with others',
-      'Capture this moment in a journal',
-      'Do something that amplifies your good mood'
+      "Spread the joy! High-five a friend (or a willing stranger)",
+      "Take a ridiculous selfie to remember this moment",
+      "Do that happy dance you've been holding in (no one's watching... probably)"
     ]
   },
   calm: {
-    colors: ['#87CEEB', '#4682B4'],
-    title: 'Feeling Calm',
+    colors: ['#89f7fe', '#66a6ff', '#4682B4'],
+    icon: 'weather-cloudy',
+    title: 'Zen Mode: Activated 🧘‍♂️',
     insights: [
-      'Your inner peace is powerful.',
-      'Tranquility brings clarity.',
-      'Cherish this serene moment.'
+      "You're so chill, cucumbers are taking notes 🥒",
+      "Your zen level is over 9000! (Yes, that's still a reference)",
+      "Inner peace level: Successfully adulting ✌️"
     ],
     suggestions: [
-      'Practice mindfulness meditation',
-      'Take a peaceful walk',
-      'Reflect on what brings you peace'
+      "Maybe teach a masterclass in chilling out?",
+      "Float like a cloud (metaphorically, please stay grounded)",
+      "Write a haiku about your tranquility... or just nap"
     ]
   },
   stressed: {
-    colors: ['#FF6347', '#DC143C'],
-    title: 'Feeling Stressed',
+    colors: ['#ff6b6b', '#ff8e8e', '#ff4757'],
+    icon: 'lightning-bolt',
+    title: 'Code Red: Stress Alert ⚡',
     insights: [
-      'It\'s okay to feel overwhelmed.',
-      'Stress is temporary.',
-      'You have the strength to overcome challenges.'
+      "Your stress level isn't just high, it's having coffee ☕",
+      "Remember: Even rubber bands need to relax sometimes",
+      "You're handling this better than a cat handles a cucumber 🐱"
     ],
     suggestions: [
-      'Practice deep breathing exercises',
-      'Break tasks into smaller steps',
-      'Reach out to a supportive friend'
+      "Breathe like Darth Vader (minus the dark side parts)",
+      "Stress-ball wrestling championship: You vs. Anxiety",
+      "List three things you can control (your hair doesn't count today)"
     ]
   },
   sad: {
-    colors: ['#4169E1', '#1E90FF'],
-    title: 'Feeling Sad',
+    colors: ['#4b6cb7', '#182848', '#1e3c72'],
+    icon: 'cloud-rain',
+    title: 'Feeling Blue (But That is Okay) 💙',
     insights: [
-      'Your emotions are valid.',
-      'Sadness is a natural part of life.',
-      'This feeling will not last forever.'
+      "Even the Pixar movie 'Inside Out' showed sadness has value 💙",
+      "You're not alone - even rainbow clouds rain sometimes",
+      "This too shall pass (it's not just a coffee mug quote)"
     ],
     suggestions: [
-      'Practice self-compassion',
-      'Engage in a comforting activity',
-      'Consider talking to someone you trust'
+      "Wrap yourself in a blanket burrito of comfort",
+      "Watch cute animal videos (doctor's orders)",
+      "Text a friend - even if it's just to share sad face emojis"
     ]
   },
-  angry : {
-    colors: ['#9370DB', '#8A2BE2'],
-    title: 'Feeling Angry',
+  angry: {
+    colors: ['#833ab4', '#fd1d1d', '#7303c0'],
+    icon: 'fire',
+    title: 'Spicy Mood Activated 🌶️',
     insights: [
-      'You are stronger than your anger.',
-      'Anger doesn\'t define you.',
-      'Small steps can lead to big progress.'
+      "Your inner volcano is having a moment. Respect. 🌋",
+      "Plot twist: Your anger is actually your boundaries speaking up",
+      "Channel this energy - you could probably power a small city"
     ],
     suggestions: [
-      'Use grounding techniques',
-      'Practice positive self-talk',
-      'Create a calming routine'
+      "Punch a pillow (pillows can take it, they're tough)",
+      "Write an angry letter, then make it into a paper airplane",
+      "Do some rage cleaning (your room could use it anyway)"
     ]
   }
+};
+
+const AnimatedGradientBackground = ({ colors }: { colors: string[] }) => {
+  const animatedValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animate = () => {
+      Animated.sequence([
+        Animated.timing(animatedValue, {
+          toValue: 1,
+          duration: 5000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(animatedValue, {
+          toValue: 0,
+          duration: 5000,
+          useNativeDriver: false,
+        })
+      ]).start(() => animate());
+    };
+    animate();
+  }, []);
+
+  const interpolatedColors = colors.map((color: string, index: number) => {
+    return animatedValue.interpolate({
+      inputRange: [0, 0.5, 1], 
+      outputRange: [
+        colors[index],
+        colors[(index + 1) % colors.length],
+        colors[index]
+      ],
+    });
+  });
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill]}>
+      <LinearGradient
+        colors={interpolatedColors}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+    </Animated.View>
+  );
 };
 
 export default function MoodDetailPage() {
@@ -83,36 +133,40 @@ export default function MoodDetailPage() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={moodData.colors}
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      <AnimatedGradientBackground colors={moodData.colors} />
+      
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>{moodData.title}</Text>
-          </View>
+        <View style={styles.titleContainer}>
+          <MaterialCommunityIcons 
+            name={moodData.icon} 
+            size={40} 
+            color="white" 
+            style={styles.icon}
+          />
+          <Text style={styles.title}>{moodData.title}</Text>
+        </View>
 
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Insights</Text>
-            {moodData.insights.map((insight, index) => (
-              <Text key={index} style={styles.insightText}>
-                • {insight}
-              </Text>
-            ))}
-          </View>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Real Talk Insights</Text>
+          {moodData.insights.map((insight, index) => (
+            <Text key={index} style={styles.contentText}>
+              • {insight}
+            </Text>
+          ))}
+        </View>
 
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Suggestions</Text>
-            {moodData.suggestions.map((suggestion, index) => (
-              <Text key={index} style={styles.suggestionText}>
-                • {suggestion}
-              </Text>
-            ))}
-          </View>
-        </ScrollView>
-      </LinearGradient>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>What Now?</Text>
+          {moodData.suggestions.map((suggestion, index) => (
+            <Text key={index} style={styles.contentText}>
+              • {suggestion}
+            </Text>
+          ))}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -121,28 +175,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  gradient: {
-    flex: 1,
-  },
   scrollContent: {
     padding: 20,
-    paddingTop: 40,
+    paddingTop: 20,
   },
   titleContainer: {
-    marginBottom: 30,
+    marginBottom: 20,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  icon: {
+    marginRight: 10,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: 'white',
     textAlign: 'center',
   },
-  sectionContainer: {
+  card: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 15,
     padding: 20,
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   sectionTitle: {
     fontSize: 20,
@@ -150,17 +214,10 @@ const styles = StyleSheet.create({
     color: 'white',
     marginBottom: 15,
   },
-  insightText: {
+  contentText: {
     color: 'white',
     fontSize: 16,
-    marginBottom: 10,
-    lineHeight: 24,
-  },
-  suggestionText: {
-    color: 'white',
-    fontSize: 16,
-    marginBottom: 10,
+    marginBottom: 12,
     lineHeight: 24,
   }
 });
-
