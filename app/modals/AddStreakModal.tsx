@@ -14,6 +14,7 @@ export default function AddStreakModal() {
   const [type, setType] = useState<StreakType>('build');
   const [startDate, setStartDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const handleSave = async () => {
     try {
@@ -32,6 +33,19 @@ export default function AddStreakModal() {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setStartDate(selectedDate);
+      if (Platform.OS === 'android') {
+        setShowTimePicker(true);
+      }
+    }
+  };
+
+  const onTimeChange = (event: any, selectedTime?: Date) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedTime) {
+      const newDateTime = new Date(startDate);
+      newDateTime.setHours(selectedTime.getHours());
+      newDateTime.setMinutes(selectedTime.getMinutes());
+      setStartDate(newDateTime);
     }
   };
 
@@ -87,16 +101,28 @@ export default function AddStreakModal() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>Start Date</Text>
-        <TouchableOpacity 
-          style={styles.dateButton}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Ionicons name="calendar-outline" size={24} color="#666" />
-          <Text style={styles.dateText}>
-            {startDate.toLocaleDateString()}
-          </Text>
-        </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Start Date & Time</Text>
+        <View style={styles.dateTimeContainer}>
+          <TouchableOpacity 
+            style={[styles.dateTimeButton, styles.dateButton]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Ionicons name="calendar-outline" size={24} color="#666" />
+            <Text style={styles.dateTimeText}>
+              {startDate.toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.dateTimeButton, styles.timeButton]}
+            onPress={() => setShowTimePicker(true)}
+          >
+            <Ionicons name="time-outline" size={24} color="#666" />
+            <Text style={styles.dateTimeText}>
+              {startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {showDatePicker && (
           <DateTimePicker
@@ -105,6 +131,16 @@ export default function AddStreakModal() {
             display="default"
             onChange={onDateChange}
             maximumDate={new Date()}
+          />
+        )}
+
+        {showTimePicker && (
+          <DateTimePicker
+            value={startDate}
+            mode="time"
+            display="default"
+            onChange={onTimeChange}
+            is24Hour={false}
           />
         )}
       </View>
@@ -180,6 +216,24 @@ const styles = StyleSheet.create({
   selectedText: {
     color: 'white',
   },
+  dateTimeContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dateTimeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
+  },
+  dateTimeText: {
+    fontSize: 16,
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+  },
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -188,9 +242,12 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
   },
-  dateText: {
-    fontSize: 16,
-    color: '#333',
-    fontFamily: 'Vercetti-Regular',
+  timeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
   },
 }); 
