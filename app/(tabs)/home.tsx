@@ -183,8 +183,8 @@ const styles = StyleSheet.create({
   moodOption: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 60,
-    height: 60,
+    width: 70,
+    height: 70,
     borderRadius: 16,
   },
   moodEmoji: {

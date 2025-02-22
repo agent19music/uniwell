@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { useRouter, useSegments } from 'expo-router';
-import { supabase } from './supabase';
+import { supabase } from '../lib/supabase';
 import * as burnt from 'burnt';
 
 interface AuthContextType {
@@ -137,4 +137,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => useContext(AuthContext); 

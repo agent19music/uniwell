@@ -24,8 +24,7 @@ export default function LoginScreen() {
 
       if (error) throw error;
       
-      // Handle successful sign in
-      console.log('Signed in:', data);
+      router.push('/routines');
     } catch (error) {
       console.error('Error signing in:', error.message);
     }

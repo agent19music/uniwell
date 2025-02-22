@@ -3,8 +3,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme, Text, TextInput, Platform } from 'react-native';
 import * as Font from 'expo-font';
-import { AuthProvider } from '../lib/AuthContext';
+import { AuthProvider } from '../contexts/AuthContext';
 import { Camera } from 'expo-camera';
+import { RoutineProvider } from '@/contexts/RoutineContext';
 
 declare global {
   interface Window {
@@ -49,9 +50,10 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <Stack screenOptions={{
-        headerShown: false,
-        contentStyle: {
+      <RoutineProvider>
+        <Stack screenOptions={{
+          headerShown: false,
+          contentStyle: {
           backgroundColor: isDark ? '#121212' : '#f5f5f5',
         },
       }}>
@@ -59,7 +61,8 @@ export default function RootLayout() {
         <Stack.Screen name="loginscreen" />
         <Stack.Screen name="signupscreen" />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
+          </Stack>
+      </RoutineProvider>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </AuthProvider>
   );

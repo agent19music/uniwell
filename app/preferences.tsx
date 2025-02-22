@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase'; 
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SettingItemProps {
   icon: string;
@@ -352,7 +352,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 16,
     marginHorizontal: 20,
-    marginBottom: 1,
     borderRadius: 16,
     marginBottom: 8,
   },
