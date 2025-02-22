@@ -85,7 +85,7 @@ uniwell/
 
 ## 📞 Support
 
-Encountering issues? Please file an issue on our GitHub repository or contact support@uniwell.com.
+Encountering issues? Please file an issue on our GitHub repository or contact seanmotanya@gmail.com.
 
 ## 📄 License
 
