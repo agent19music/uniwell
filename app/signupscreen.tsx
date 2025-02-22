@@ -51,6 +51,23 @@ export default function SignUpScreen() {
     setLoading(false)
   }
 
+  const handleOAuthLogin = async (provider: 'google') => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: 'uniwell://login-callback',
+          scopes: 'email profile',
+        },
+      });
+  
+      if (error) throw error;
+      console.log('Redirecting to consent screen');
+    } catch (error: unknown) {
+      console.error('OAuth login error:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  };
+
   return (
     <ImageBackground
       source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-99.png')}
@@ -145,7 +162,7 @@ export default function SignUpScreen() {
 
                 <TouchableOpacity
                   style={styles.googleButton}
-                  onPress={() => console.log('Google signup')}
+                  onPress={() => handleOAuthLogin('google')}
                 >
                   <BlurView intensity={30} style={styles.googleButtonContent}>
                     <Ionicons name="logo-google" size={24} color="#DB4437" />
