@@ -104,13 +104,17 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
             key={day} 
             style={[
               styles.dayButton, 
+              isDark && styles.darkDayButton,
               selectedDays.includes(day) && styles.selectedDayButton,
-              isDark && styles.darkDayButton
             ]}
             onPress={() => toggleDay(day)}
           >
-            <Text style={[styles.dayButtonText, isDark && styles.darkText]}>
-              {day.substring(0, 3)}
+            <Text style={[
+              styles.dayButtonText,
+              isDark && styles.darkText,
+              selectedDays.includes(day) && styles.selectedDayButtonText
+            ]}>
+              {day.charAt(0).toUpperCase() + day.slice(1).toLowerCase().substring(0, 2)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -157,9 +161,10 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
               {Object.values(ClassType).map(type => (
                 <Picker.Item 
                   key={type} 
-                  label={type} 
+                  label={type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} 
                   value={type}
                   color={isDark ? '#fff' : '#333'}
+                  style={{ backgroundColor: isDark ? '#1e1e1e' : 'white' }}
                 />
               ))}
             </Picker>
@@ -174,17 +179,25 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
               {Object.values(ClassFrequency).map(freq => (
                 <Picker.Item 
                   key={freq} 
-                  label={freq} 
+                  label={freq.charAt(0).toUpperCase() + freq.slice(1).toLowerCase()} 
                   value={freq}
                   color={isDark ? '#fff' : '#333'}
+                  style={{ backgroundColor: isDark ? '#1e1e1e' : 'white' }}
                 />
               ))}
             </Picker>
           </View>
+          <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <View style={styles.dividerLine} />
+              </View>
           
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Days</Text>
           {renderDayButtons()}
-          
+          <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <View style={styles.dividerLine} />
+              </View>
           <View style={styles.timePickerContainer}>
             <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Class Time</Text>
             
@@ -244,7 +257,10 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
             value={location}
             onChangeText={setLocation}
           />
-          
+          <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <View style={styles.dividerLine} />
+              </View>
           <View style={styles.notificationSection}>
             <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Notifications</Text>
             <View style={styles.notificationRow}>
@@ -283,7 +299,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: '#f8f8f8',
-    marginTop: 100,
+    marginTop: 12
   },
   darkModalContainer: {
     backgroundColor: '#121212',
@@ -308,7 +324,7 @@ const styles = StyleSheet.create({
   saveButton: {
     color: '#FF7F50',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '400',
     fontFamily: 'SF-Regular',
   },
   modalContent: {
@@ -335,21 +351,39 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     overflow: 'hidden',
   },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  dividerText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    paddingHorizontal: 16,
+    fontSize: 14,
+    fontFamily: 'SF-Regular',
+  },
   darkPickerContainer: {
     backgroundColor: '#1e1e1e',
   },
   picker: {
     height: 50,
+    backgroundColor: 'transparent',
   },
   darkPicker: {
     color: '#ffffff',
+    backgroundColor: '#1e1e1e',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
-    marginBottom: 12,
     color: '#333',
-    fontFamily: 'SF-Regular',
+    marginBottom: 16,
+    fontFamily: 'Vercetti-Regular',
   },
   dayButtonContainer: {
     flexDirection: 'row',
@@ -373,6 +407,7 @@ const styles = StyleSheet.create({
   },
   selectedDayButton: {
     backgroundColor: '#FF7F50',
+    borderColor: '#FF7F50',
   },
   dayButtonText: {
     color: '#FF7F50',
