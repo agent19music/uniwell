@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: '#f8f8f8',
-    marginTop: 12,
+    marginTop: 100,
   },
   darkModalContainer: {
     backgroundColor: '#121212',
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    fontFamily: 'Vercetti-Regular',
+    fontFamily: 'SF-Regular',
   },
   darkText: {
     color: '#ffffff',
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     color: '#FF7F50',
     fontSize: 16,
     fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
+    fontFamily: 'SF-Regular',
   },
   modalContent: {
     padding: 20,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     fontSize: 16,
     marginBottom: 20,
-    fontFamily: 'Vercetti-Regular',
+    fontFamily: 'SF-Regular',
   },
   darkInput: {
     backgroundColor: '#1e1e1e',
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     color: '#333',
-    fontFamily: 'Vercetti-Regular',
+    fontFamily: 'SF-Regular',
   },
   dayButtonContainer: {
     flexDirection: 'row',
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   },
   dayButtonText: {
     color: '#FF7F50',
-    fontFamily: 'Vercetti-Regular',
+    fontFamily: 'SF-Regular',
   },
   selectedDayButtonText: {
     color: 'white',
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     width: 80,
     fontSize: 16,
     color: '#333',
-    fontFamily: 'Vercetti-Regular',
+    fontFamily: 'SF-Regular',
   },
   timeButton: {
     flex: 1,
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   timeButtonText: {
     fontSize: 16,
     color: '#333',
-    fontFamily: 'Vercetti-Regular',
+    fontFamily: 'SF-Regular',
   },
   notificationSection: {
     marginBottom: 20,
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#333',
-    fontFamily: 'Vercetti-Regular',
+    fontFamily: 'SF-Regular',
   },
   notificationInput: {
     width: 80,
