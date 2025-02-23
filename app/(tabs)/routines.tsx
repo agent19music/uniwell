@@ -48,6 +48,10 @@ export default function RoutinesScreen() {
     router.push('/sleepstats'); // Use router.push for navigation
   };
 
+  const handleTimetableCardPress = () => {
+    router.push('/modals/StudyTimetableModal');
+  };  
+
   const handleAddRoutine = () => {
     router.push('/modals/AddRoutineModal');
   };
@@ -123,7 +127,13 @@ export default function RoutinesScreen() {
           )}
         </ScrollView>
         {/* Sleep Card */}
-
+        <TouchableOpacity 
+          style={[styles.routineCard, { marginLeft: 12 }]} 
+          onPress={handleTimetableCardPress}
+        >
+          <Text style={[styles.routineTitle,]}>Timetable entry</Text>
+          <Text style={styles.routineFrequency}>Test</Text>
+        </TouchableOpacity>
 
         {/* Calendar Strip */}
         <View style={styles.calendarStrip}>
