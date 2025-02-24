@@ -17,7 +17,8 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.uniwell"
+      "bundleIdentifier": "com.yourname.uniwell",
+      "minVersion": "13.4"
     },
     "android": {
       "adaptiveIcon": {
@@ -40,11 +41,10 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "13.0"
+            "deploymentTarget": "13.4"
           }
         }
       ]   
-
     ],
     "experiments": {
       "tsconfigPaths": true

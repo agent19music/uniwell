@@ -1,6 +1,9 @@
+import React from 'react';
 import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+
 
 const CATEGORIES = [
   { id: 'trending', label: 'Trending', active: true },
@@ -34,9 +37,17 @@ const POSTS = [
 ];
 
 export default function CommunityScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  // const handlePostPress = (postId: number) => {
+  //   router.push(`/post/${postId}`);
+  // };
+
+  function handlePostPress(){
+    router.push('/PostScreen')
+  }
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -76,7 +87,11 @@ export default function CommunityScreen() {
 
         <View style={styles.posts}>
           {POSTS.map((post) => (
-            <View key={post.id} style={[styles.postCard, isDark && styles.darkCard]}>
+            <TouchableOpacity
+              key={post.id}
+              style={[styles.postCard, isDark && styles.darkCard]}
+              onPress={() => handlePostPress()}
+            >
               <View style={styles.postHeader}>
                 <View style={styles.userInfo}>
                   <Image source={{ uri: post.user.image }} style={styles.userImage} />
@@ -103,13 +118,14 @@ export default function CommunityScreen() {
                   <Ionicons name="share-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
                 </TouchableOpacity>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
