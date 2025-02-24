@@ -53,7 +53,10 @@ export default function CommunityScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={[styles.title, isDark && styles.darkText]}>Wellness Hub</Text>
-          <TouchableOpacity style={styles.writeButton}>
+          <TouchableOpacity 
+            style={styles.writeButton}
+            onPress={() => setIsModalVisible(true)}
+          >
             <Ionicons name="create-outline" size={24} color={isDark ? '#ffffff' : '#000000'} />
           </TouchableOpacity>
         </View>
@@ -122,6 +125,41 @@ export default function CommunityScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* New Post Modal */}
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, isDark && styles.darkCard]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDark && styles.darkText]}>Create New Post</Text>
+              <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                <Ionicons name="close" size={24} color={isDark ? '#fff' : '#333'} />
+              </TouchableOpacity>
+            </View>
+            
+            <TextInput
+              style={[styles.input, isDark && styles.darkInput]}
+              multiline
+              placeholder="Share your thoughts..."
+              placeholderTextColor={isDark ? '#666' : '#999'}
+              value={postText}
+              onChangeText={setPostText}
+            />
+
+            <TouchableOpacity 
+              style={styles.submitButton}
+              onPress={handlePostSubmit}
+            >
+              <Text style={styles.submitButtonText}>Post</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -262,6 +300,56 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 14,
     color: '#666',
+    fontFamily: 'Vercetti-Regular',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    minHeight: '50%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+  },
+  input: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    padding: 16,
+    minHeight: 150,
+    fontSize: 16,
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+  },
+  darkInput: {
+    backgroundColor: '#2a2a2a',
+    color: '#ffffff',
+  },
+  submitButton: {
+    backgroundColor: '#FF7F50',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  submitButtonText: {
+    color: 'white',
+    fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
   },
 });

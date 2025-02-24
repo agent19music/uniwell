@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { useRouter, useSegments } from 'expo-router';
 import { supabase } from './supabase';
@@ -13,6 +13,11 @@ interface AuthContextType {
     full_name: string;
     avatar_url: string | null;
   };
+  setProfile: React.Dispatch<React.SetStateAction<{
+    username: string;
+    full_name: string;
+    avatar_url: string | null;
+  }>>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -24,6 +29,7 @@ const AuthContext = createContext<AuthContextType>({
     full_name: '',
     avatar_url: null,
   },
+  setProfile: () => {},
 });
 
 import { ReactNode } from 'react';
@@ -33,7 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const segments = useSegments();
-  const [profile, setProfile] = useState({
+  const [profile, setProfile] = useState<{
+    username: string;
+    full_name: string;
+    avatar_url: string | null;
+  }>({
     username: '',
     full_name: '',
     avatar_url: null,
@@ -121,10 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
 
   return (
-    <AuthContext.Provider value={{ session, loading, signOut, profile }}>
+    <AuthContext.Provider value={{ session, loading, signOut, profile, setProfile }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => useContext(AuthContext); 
+export const useAuth = () => useContext(AuthContext);

@@ -41,7 +41,11 @@
         "expo-build-properties",
         {
           "ios": {
+<<<<<<< HEAD
             "deploymentTarget": "13.4"
+=======
+            "deploymentTarget": "15.1"
+>>>>>>> main
           }
         }
       ]   

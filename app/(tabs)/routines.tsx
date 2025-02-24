@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useRoutine } from '../../contexts/RoutineContext';
 
 const SAMPLE_HABITS = [
   {
@@ -22,7 +23,14 @@ const SAMPLE_HABITS = [
   }
 ];
 
-const ROUTINE_TASKS = [
+type RoutineTask = {
+  id: string;
+  title: string;
+  frequency: string;
+  completed: string[];
+};
+
+const ROUTINE_TASKS: RoutineTask[] = [
   { id: '1', title: 'Morning Meditation', frequency: 'Daily', completed: [] },
   { id: '2', title: 'Gym Session', frequency: '3x Week', completed: [] },
   { id: '3', title: 'Read 30 mins', frequency: 'Daily', completed: [] },
@@ -34,12 +42,33 @@ export default function RoutinesScreen() {
   const { height } = Dimensions.get('window');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const router = useRouter();
+  const { habits, completeHabit, streaks } = useRoutine();
 
   const handleSleepCardPress = () => {
     router.push('/sleepstats'); // Use router.push for navigation
   };
 
-  
+  const handleTimetableCardPress = () => {
+    router.push('/modals/StudyTimetableModal');
+  };  
+
+  const handleAddRoutine = () => {
+    router.push('/modals/AddRoutineModal');
+  };
+
+  const handleAddStreak = () => {
+    router.push('/modals/AddStreakModal');
+  };  
+
+  const handleCompleteTask = async (habitId: string) => {
+    try {
+      await completeHabit(habitId, selectedDate);
+      // Refresh habits list or update UI as needed
+    } catch (error) {
+      console.error('Error completing habit:', error);
+    }
+  };
+
   // Generate last 7 days for the calendar strip
   const getDates = () => {
     const dates = [];
@@ -69,28 +98,42 @@ export default function RoutinesScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.streaksContainer}
         >
-          {SAMPLE_HABITS.map((habit) => (
-            <View 
-              key={habit.id} 
-              style={[styles.streakCard, { backgroundColor: habit.color + '15' }]}
-            >
-              <View style={styles.streakHeader}>
-                <Octicons 
-                  name={habit.type === 'break' ? 'flame' : 'rocket'} 
-                  size={56}
-                  color={habit.color} 
-                />
-                <Text style={[styles.streakCount, isDark&& styles.darkText]}>{habit.streak}</Text>
-              </View>
-              <Text style={[styles.streakTitle, isDark && styles.darkText]}>
-                {habit.type === 'break' ? `${habit.streak} days ${habit.title}` : habit.title}
-              </Text>
-              <Text style={[styles.streakSubtext, isDark&& styles.darkText]}>Keep it up!</Text>
-            </View>
-          ))}
+          {streaks.length > 0 ? (
+            streaks.map((streak) => (
+              <TouchableOpacity 
+                key={streak.habitId} 
+                style={[styles.streakCard, { backgroundColor: streak.color + '15' }]}
+                onPress={() => router.push(`/streak-details/${streak.habitId}`)}
+              >
+                <View style={styles.streakHeader}>
+                  <Octicons 
+                    name={streak.type === 'break' ? 'flame' : 'rocket'} 
+                    size={56}
+                    color={streak.color} 
+                  />
+                  <Text style={[styles.streakCount, isDark && styles.darkText]}>{streak.streak}</Text>
+                </View>
+                <Text style={[styles.streakTitle, isDark && styles.darkText]}>
+                  {streak.type === 'break' ? `${streak.streak} days ${streak.habitId}` : streak.habitId}
+                </Text>
+                <Text style={[styles.streakSubtext, isDark && styles.darkText]}>Keep it up!</Text>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <TouchableOpacity style={styles.addStreakButton} onPress={handleAddStreak}>
+              <Ionicons name="add-circle" size={24} color="#FF7F50" />
+              <Text style={styles.addButtonText}>Add New Streak</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
         {/* Sleep Card */}
-
+        <TouchableOpacity 
+          style={[styles.routineCard, { marginLeft: 12 }]} 
+          onPress={handleTimetableCardPress}
+        >
+          <Text style={[styles.routineTitle,]}>Timetable entry</Text>
+          <Text style={styles.routineFrequency}>Test</Text>
+        </TouchableOpacity>
 
         {/* Calendar Strip */}
         <View style={styles.calendarStrip}>
@@ -127,6 +170,7 @@ export default function RoutinesScreen() {
               </View>
               <TouchableOpacity 
                 style={[styles.checkButton, task.completed.includes(selectedDate.toDateString()) && styles.checkedButton]}
+                onPress={() => handleCompleteTask(task.id)}
               >
                 <Ionicons 
                   name={task.completed.includes(selectedDate.toDateString()) ? "checkmark-circle" : "checkmark-circle-outline"} 
@@ -139,7 +183,7 @@ export default function RoutinesScreen() {
         </View>
 
         {/* Add New Button */}
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddRoutine}>
           <Ionicons name="add-circle" size={24} color="#FF7F50" />
           <Text style={styles.addButtonText}>Add New Routine</Text>
         </TouchableOpacity>
@@ -306,5 +350,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
+  },
+  addStreakButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    gap: 8,
   },
 });

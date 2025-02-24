@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Image, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Image, useWindowDimensions, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Entypo } from '@expo/vector-icons';
 import { useNavigation } from 'expo-router';
@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase'; // Adjust the import path as need
 const MOOD_OPTIONS = [
   { id: 'happy', icon: '😊', label: 'Happy', color: '#FF69B4' },
   { id: 'calm', icon: '😌', label: 'Calm', color: '#8A8AFF' },
-  { id: 'manic', icon: '😵‍💫', label: 'Manic', color: '#7FFFD4' },
+  { id: 'stressed', icon: '😵‍💫', label: 'Stressed', color: '#7FFFD4' },
   { id: 'angry', icon: '😠', label: 'Angry', color: '#FFA07A' },
   { id: 'sad', icon: '😢', label: 'Sad', color: '#98FB98' },
 ];
@@ -21,12 +21,36 @@ export default function HomeScreen() {
   const isDark = colorScheme === 'dark';
   const { height } = useWindowDimensions();
   const [userName, setUserName] = useState('');
+  const [scaleValue, setScaleValue] = useState(new Animated.Value(1));
+  const [colorValue, setColorValue] = useState(new Animated.Value(0));
+
+  const handleMoodSelection = (mood: typeof MOOD_OPTIONS[0]) => {
+    // Animated selection logic
+    Animated.parallel([
+        Animated.spring(scaleValue, {
+            toValue: 1.1,
+            friction: 3,
+            useNativeDriver: true
+        }),
+        Animated.timing(colorValue, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: false
+        })
+    ]).start(() => {
+        // Navigate to mood detail or tracking screen
+        router.push(`/mood-detail?mood=${mood.id}`);
+    });
+};
 
   const handleJournalPress = () => {
     router.push('/journals'); // Use router.push for navigation
   };
   const handlePreferencesPress = () => {
     router.push('/preferences'); // Use router.push for navigation
+  };
+  const handleNotificationsPress = () => {
+    router.push('/notifications'); // Use router.push for navigation
   };
 
   useEffect(() => {
@@ -57,10 +81,12 @@ export default function HomeScreen() {
               
             />
             </TouchableOpacity>
+            <TouchableOpacity onPress={handleNotificationsPress}>
             <View style={styles.notificationIcon}>
               <Ionicons name="notifications-outline" size={24} color={isDark ? '#ffffff' : '#000000'} />
               <View style={styles.notificationBadge} />
             </View>
+            </TouchableOpacity>
           </View>
           <Text style={[styles.greeting, isDark && styles.darkText]}>
             Good Afternoon,{'\n'}{userName || 'Guest'}!
@@ -70,7 +96,7 @@ export default function HomeScreen() {
 
         <View style={styles.moodContainer}>
           {MOOD_OPTIONS.map((mood) => (
-            <TouchableOpacity key={mood.id} style={[styles.moodOption, { backgroundColor: mood.color + '20' }]}>
+            <TouchableOpacity key={mood.id} style={[styles.moodOption, { backgroundColor: mood.color + '20' }]} onPress={() => handleMoodSelection(mood)}>
               <Text style={styles.moodEmoji}>{mood.icon}</Text>
               <Text style={[styles.moodLabel, isDark && styles.darkText]}>{mood.label}</Text>
             </TouchableOpacity>
@@ -183,8 +209,8 @@ const styles = StyleSheet.create({
   moodOption: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 60,
-    height: 60,
+    width: 63,
+    height: 63,
     borderRadius: 16,
   },
   moodEmoji: {

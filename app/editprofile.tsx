@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import * as burnt from 'burnt';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 export default function EditProfileScreen() {
@@ -15,7 +15,7 @@ export default function EditProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [loading, setLoading] = useState(false);
-  const { profile } = useAuth();
+  const { profile, setProfile } = useAuth();
   
 
   async function uploadAvatar() {
@@ -36,6 +36,7 @@ export default function EditProfileScreen() {
       if (!result.canceled && result.assets[0].base64) {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No user found');
         const filePath = `${user.id}/${Date.now()}.jpg`;
 
         const { error: uploadError, data } = await supabase.storage
@@ -63,7 +64,7 @@ export default function EditProfileScreen() {
     } catch (error) {
       burnt.toast({
         title: 'Error',
-        message: error.message,
+        message: (error as Error).message,
         preset: 'error',
       });
     } finally {
@@ -102,7 +103,7 @@ export default function EditProfileScreen() {
     } catch (error) {
       burnt.toast({
         title: 'Error',
-        message: error.message,
+        message: (error as Error).message,
         preset: 'error',
       });
     } finally {

@@ -17,11 +17,17 @@ export default function Index() {
         provider,
         options: {
           redirectTo: 'uniwell://login-callback',
+          scopes: 'email profile',
         },
       });
 
       if (error) throw error;
-      console.log('OAuth login successful:', data);
+
+      if (data) {
+        console.log('OAuth initiated, redirecting...', data);
+      } else {
+        console.log('Failed to initiate OAuth flow');
+      }
     } catch (error: unknown) {
       console.error('OAuth login error:', error instanceof Error ? error.message : 'Unknown error');
     }
@@ -29,7 +35,7 @@ export default function Index() {
 
   return (
     <ImageBackground
-      source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-99.png')}
+      source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-532.png')}
       style={styles.container}
     >
       <LinearGradient
@@ -83,10 +89,6 @@ export default function Index() {
                 onPress={() => handleOAuthLogin('google')}
               >
                 <BlurView intensity={30} style={styles.googleButtonContent}>
-                  {/* <Image 
-                    source={require('../assets/google-icons/icons8-google-48.png')} 
-                    style={{ width: 24, height: 24 }}
-                  /> */}
                   <Ionicons name="logo-google" size={24} color="#ffffff" />
                   <Text style={styles.googleButtonText}>Sign in with Google</Text>
                 </BlurView>

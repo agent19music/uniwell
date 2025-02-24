@@ -24,17 +24,44 @@ export default function LoginScreen() {
 
       if (error) throw error;
       
-      // Handle successful sign in
-      console.log('Signed in:', data);
+      router.push('/routines');
     } catch (error) {
-      console.error('Error signing in:', error.message);
+      console.error('Error signing in:', (error as Error).message);
     }
   };
 
-  const OAuthButton = ({ icon, provider, color }) => (
+  const handleOAuthLogin = async (provider: 'google') => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: 'uniwell://login-callback',
+          scopes: 'email profile',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.url) {
+        console.log('Redirecting to consent screen:', data.url);
+      } else {
+        console.log('OAuth login error: No redirect URL received');
+      }
+    } catch (error: unknown) {
+      console.error('OAuth login error:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  };
+
+  interface OAuthButtonProps {
+    icon: keyof typeof Ionicons.glyphMap;
+    provider: string;
+    color: string;
+  }
+
+  const OAuthButton: React.FC<OAuthButtonProps> = ({ icon, provider, color }) => (
     <TouchableOpacity 
       style={[styles.oauthButton, isDark && styles.darkCard, { borderColor: color }]}
-      onPress={() => console.log(`${provider} login`)}
+      onPress={() => handleOAuthLogin(provider as 'google')}
     >
       <Ionicons name={icon} size={24} color={color} />
       <Text style={[styles.oauthButtonText, isDark && styles.darkText]}>
@@ -55,7 +82,7 @@ export default function LoginScreen() {
       // Handle successful sign up
       console.log('Signed up:', data);
     } catch (error) {
-      console.error('Error signing up:', error.message);
+      console.error('Error signing up:', (error as Error).message);
     }
   }
 
@@ -146,7 +173,7 @@ export default function LoginScreen() {
 
                 <TouchableOpacity
                   style={styles.googleButton}
-                  onPress={() => console.log('Google login')}
+                  onPress={() => handleOAuthLogin('google')}
                 >
                   <BlurView intensity={30} style={styles.googleButtonContent}>
                     <Ionicons name="logo-google" size={24} color="#DB4437" />
@@ -316,4 +343,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: 'SF-Regular',
   },
+  darkCard: {
+    backgroundColor: '#121212',
+  },
+  darkText: {
+    color: '#ffffff',
+  },
+  oauthButton: {
+    height: 56,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  oauthButtonText: {  
+    fontFamily: 'SF-Regular',
+    fontSize: 16,
+    color: '#ffffff',
+  },
+
 });
