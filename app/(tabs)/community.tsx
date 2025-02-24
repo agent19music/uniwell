@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { Modal, TextInput } from 'react-native';
 
 
 const CATEGORIES = [
@@ -41,6 +42,20 @@ export default function CommunityScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  // Add state variables
+  const [modalVisible, setModalVisible] = useState(false);
+  const [postText, setPostText] = useState('');
+
+  // Add handlePostSubmit function
+  const handlePostSubmit = () => {
+    // Here you would typically send the post to your backend
+    console.log('Submitting post:', postText);
+    
+    // Clear the input and close modal
+    setPostText('');
+    setModalVisible(false);
+  };
+
   // const handlePostPress = (postId: number) => {
   //   router.push(`/post/${postId}`);
   // };
@@ -55,7 +70,7 @@ export default function CommunityScreen() {
           <Text style={[styles.title, isDark && styles.darkText]}>Wellness Hub</Text>
           <TouchableOpacity 
             style={styles.writeButton}
-            onPress={() => setIsModalVisible(true)}
+            onPress={() => setModalVisible(true)}
           >
             <Ionicons name="create-outline" size={24} color={isDark ? '#ffffff' : '#000000'} />
           </TouchableOpacity>
@@ -128,16 +143,16 @@ export default function CommunityScreen() {
 
       {/* New Post Modal */}
       <Modal
-        visible={isModalVisible}
+        visible={modalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setIsModalVisible(false)}
+        onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, isDark && styles.darkCard]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isDark && styles.darkText]}>Create New Post</Text>
-              <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color={isDark ? '#fff' : '#333'} />
               </TouchableOpacity>
             </View>
