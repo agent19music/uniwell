@@ -70,7 +70,7 @@ export default function SignUpScreen() {
 
   return (
     <ImageBackground
-      source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-99.png')}
+      source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-188.png')}
       style={styles.container}
     >
       <LinearGradient

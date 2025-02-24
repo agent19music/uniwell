@@ -1,4 +1,4 @@
 declare module '@env' {
-  export const SUPABASE_URL: string;
-  export const SUPABASE_ANON_KEY: string;
+  export const EXPO_PUBLIC_SUPABASE_URL: 'https://jspliuclmihxjbwidjib.supabase.co';
+  export const EXPO_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzcGxpdWNsbWloeGpid2lkamliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk4NzIxMzEsImV4cCI6MjA1NTQ0ODEzMX0.OsoRWAmm3vpHjo3WGH_REjN_cnUuUr4B6bkBI_TUTyw';
 } 
