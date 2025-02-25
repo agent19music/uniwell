@@ -4,7 +4,7 @@ import {
   ClassType, 
   ClassFrequency,
   EditableClass 
-} from '../types/TimetableTypes';
+} from '@/types/TimetableTypes';
 
 interface ClassEditFormProps {
   data: EditableClass | null;
