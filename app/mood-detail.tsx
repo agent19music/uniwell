@@ -1,15 +1,18 @@
-import React, { useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated, Dimensions } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, useColorScheme } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { LineChart } from 'react-native-chart-kit';
+import { useMood, MoodType } from '../contexts/MoodContext';
+import { format, startOfWeek, addDays } from 'date-fns';
 
 const MOOD_CONFIG = {
   happy: {
     colors: ['#FFE259', '#FFA751', '#FFD700'],
-    icon: 'emoticon-excited-outline',
+    icon: 'happy-outline',
     title: 'Radiating Happy Vibes! ✨',
+    value: 5,
     insights: [
       "You're basically a human sunshine factory right now! ☀️",
       "Your dopamine levels are doing the cha-cha. Keep that dance going!",
@@ -23,8 +26,9 @@ const MOOD_CONFIG = {
   },
   calm: {
     colors: ['#89f7fe', '#66a6ff', '#4682B4'],
-    icon: 'weather-cloudy',
+    icon: 'water-outline',
     title: 'Zen Mode: Activated 🧘‍♂️',
+    value: 4,
     insights: [
       "You're so chill, cucumbers are taking notes 🥒",
       "Your zen level is over 9000! (Yes, that's still a reference)",
@@ -37,135 +41,278 @@ const MOOD_CONFIG = {
     ]
   },
   stressed: {
-    colors: ['#ff6b6b', '#ff8e8e', '#ff4757'],
-    icon: 'lightning-bolt',
-    title: 'Code Red: Stress Alert ⚡',
+    colors: ['#A8E063', '#56AB2F', '#7FFFD4'],
+    icon: 'pulse-outline',
+    title: 'Stress Detected: Breathe 🌬️',
+    value: 2,
     insights: [
-      "Your stress level isn't just high, it's having coffee ☕",
-      "Remember: Even rubber bands need to relax sometimes",
-      "You're handling this better than a cat handles a cucumber 🐱"
+      "Your brain is currently running more tabs than Chrome",
+      "Your shoulders are trying to become earrings. Let them down gently.",
+      "Remember: This too shall pass (and then something else stressful will happen, but let's focus on now)"
     ],
     suggestions: [
-      "Breathe like Darth Vader (minus the dark side parts)",
-      "Stress-ball wrestling championship: You vs. Anxiety",
-      "List three things you can control (your hair doesn't count today)"
-    ]
-  },
-  sad: {
-    colors: ['#4b6cb7', '#182848', '#1e3c72'],
-    icon: 'cloud-rain',
-    title: 'Feeling Blue (But That is Okay) 💙',
-    insights: [
-      "Even the Pixar movie 'Inside Out' showed sadness has value 💙",
-      "You're not alone - even rainbow clouds rain sometimes",
-      "This too shall pass (it's not just a coffee mug quote)"
-    ],
-    suggestions: [
-      "Wrap yourself in a blanket burrito of comfort",
-      "Watch cute animal videos (doctor's orders)",
-      "Text a friend - even if it's just to share sad face emojis"
+      "Try the 4-7-8 breathing technique: inhale for 4, hold for 7, exhale for 8",
+      "Write down what's stressing you, then prioritize what you can control",
+      "Go for a 10-minute walk without your phone"
     ]
   },
   angry: {
-    colors: ['#833ab4', '#fd1d1d', '#7303c0'],
-    icon: 'fire',
-    title: 'Spicy Mood Activated 🌶️',
+    colors: ['#FF416C', '#FF4B2B', '#FFA07A'],
+    icon: 'flame-outline',
+    title: 'Spicy Mood Detected 🌶️',
+    value: 1,
     insights: [
-      "Your inner volcano is having a moment. Respect. 🌋",
-      "Plot twist: Your anger is actually your boundaries speaking up",
-      "Channel this energy - you could probably power a small city"
+      "Your inner volcano is bubbling. Careful where you direct that lava!",
+      "Your patience has left the chat. Want to invite it back?",
+      "Fun fact: Anger is just passion with bad PR"
     ],
     suggestions: [
-      "Punch a pillow (pillows can take it, they're tough)",
-      "Write an angry letter, then make it into a paper airplane",
-      "Do some rage cleaning (your room could use it anyway)"
+      "Count to 10 before responding to anything or anyone",
+      "Channel that energy into physical activity (punching pillows is underrated)",
+      "Write an angry letter, then delete it without sending"
+    ]
+  },
+  sad: {
+    colors: ['#4CA1AF', '#2C3E50', '#98FB98'],
+    icon: 'rainy-outline',
+    title: 'Blue Skies After Rain 🌧️',
+    value: 3,
+    insights: [
+      "Your heart's having a cloudy day. That's okay, clouds pass.",
+      "Sadness is just the body's way of processing life's plot twists",
+      "Even the happiest people feel sad sometimes. You're in good company."
+    ],
+    suggestions: [
+      "Be gentle with yourself today. What would you tell a friend feeling this way?",
+      "Try the 'opposite action' technique: do something that usually makes you happy",
+      "Express your feelings through art, music, or writing"
     ]
   }
 };
 
-const AnimatedGradientBackground = ({ colors }: { colors: string[] }) => {
-  const animatedValue = useRef(new Animated.Value(0)).current;
+export default function MoodDetailScreen() {
+  const { mood, view } = useLocalSearchParams();
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const { width } = Dimensions.get('window');
+  const { weeklyMoods, weeklySummary, fetchWeeklyMoods } = useMood();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const animate = () => {
-      Animated.sequence([
-        Animated.timing(animatedValue, {
-          toValue: 1,
-          duration: 5000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(animatedValue, {
-          toValue: 0,
-          duration: 5000,
-          useNativeDriver: false,
-        })
-      ]).start(() => animate());
+    const loadData = async () => {
+      setLoading(true);
+      await fetchWeeklyMoods();
+      setLoading(false);
     };
-    animate();
+    loadData();
   }, []);
 
-  const interpolatedColors = colors.map((color: string, index: number) => {
-    return animatedValue.interpolate({
-      inputRange: [0, 0.5, 1], 
-      outputRange: [
-        colors[index],
-        colors[(index + 1) % colors.length],
-        colors[index]
-      ],
+  const selectedMood = mood ? MOOD_CONFIG[mood as MoodType] : null;
+  const isHistoryView = view === 'history';
+
+  // Generate days of the week for chart labels
+  const getDaysOfWeek = () => {
+    const today = new Date();
+    const startDay = startOfWeek(today);
+    const days = [];
+    
+    for (let i = 0; i < 7; i++) {
+      const day = addDays(startDay, i);
+      days.push(format(day, 'EEE'));
+    }
+    
+    return days;
+  };
+
+  // Map mood types to numerical values for the chart
+  const getMoodValue = (moodType: MoodType) => {
+    return MOOD_CONFIG[moodType].value;
+  };
+
+  // Prepare data for the mood chart
+  const prepareMoodChartData = () => {
+    const daysOfWeek = getDaysOfWeek();
+    const moodValues = Array(7).fill(null); // Start with null values for all days
+    
+    // Fill in recorded moods
+    weeklyMoods.forEach(mood => {
+      const dayIndex = mood.dayOfWeek;
+      if (dayIndex >= 0 && dayIndex < 7) {
+        moodValues[dayIndex] = getMoodValue(mood.moodType);
+      }
     });
-  });
+    
+    return {
+      labels: daysOfWeek,
+      datasets: [
+        {
+          data: moodValues,
+          color: (opacity = 1) => `rgba(255, 127, 80, ${opacity})`, // Coral color
+          strokeWidth: 2
+        }
+      ],
+      legend: ["Your Mood"]
+    };
+  };
+
+  const renderMoodDetail = () => {
+    if (!selectedMood) return null;
+    
+    return (
+      <View style={styles.moodDetailContainer}>
+        <Text style={[styles.moodTitle, isDark && styles.darkText]}>
+          {selectedMood.title}
+        </Text>
+        
+        <View style={[styles.insightsContainer, isDark && styles.darkCard]}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Insights</Text>
+          {selectedMood.insights.map((insight, index) => (
+            <View key={`insight-${index}`} style={styles.insightItem}>
+              <Ionicons name="bulb-outline" size={20} color="#FF7F50" />
+              <Text style={[styles.insightText, isDark && styles.darkText]}>
+                {insight}
+              </Text>
+            </View>
+          ))}
+        </View>
+        
+        <View style={[styles.suggestionsContainer, isDark && styles.darkCard]}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Try This</Text>
+          {selectedMood.suggestions.map((suggestion, index) => (
+            <View key={`suggestion-${index}`} style={styles.suggestionItem}>
+              <Ionicons name="checkmark-circle-outline" size={20} color="#FF7F50" />
+              <Text style={[styles.suggestionText, isDark && styles.darkText]}>
+                {suggestion}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderWeeklySummary = () => {
+    if (!weeklySummary) return null;
+    
+    const dominantMoodConfig = MOOD_CONFIG[weeklySummary.dominantMood];
+    
+    return (
+      <View style={styles.weeklySummaryContainer}>
+        <Text style={[styles.summaryTitle, isDark && styles.darkText]}>
+          Weekly Mood Summary
+        </Text>
+        
+        <View style={[styles.dominantMoodCard, { backgroundColor: dominantMoodConfig.colors[2] + '30' }]}>
+          <Ionicons name={dominantMoodConfig.icon} size={32} color={dominantMoodConfig.colors[1]} />
+          <View style={styles.dominantMoodContent}>
+            <Text style={[styles.dominantMoodLabel, isDark && styles.darkText]}>
+              Dominant Mood: {weeklySummary.dominantMood.charAt(0).toUpperCase() + weeklySummary.dominantMood.slice(1)}
+            </Text>
+            <Text style={[styles.dominantMoodDesc, isDark && styles.darkSubText]}>
+              Your emotions have been {weeklySummary.moodFluctuation > 3 ? 'quite variable' : 'relatively stable'} this week.
+            </Text>
+          </View>
+        </View>
+        
+        <View style={[styles.insightsContainer, isDark && styles.darkCard]}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Insights</Text>
+          {weeklySummary.insights.map((insight, index) => (
+            <View key={`weekly-insight-${index}`} style={styles.insightItem}>
+              <Ionicons name="analytics-outline" size={20} color="#FF7F50" />
+              <Text style={[styles.insightText, isDark && styles.darkText]}>
+                {insight}
+              </Text>
+            </View>
+          ))}
+        </View>
+        
+        <View style={[styles.suggestionsContainer, isDark && styles.darkCard]}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Recommendations</Text>
+          {weeklySummary.recommendations.map((recommendation, index) => (
+            <View key={`weekly-recommendation-${index}`} style={styles.suggestionItem}>
+              <Ionicons name="compass-outline" size={20} color="#FF7F50" />
+              <Text style={[styles.suggestionText, isDark && styles.darkText]}>
+                {recommendation}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill]}>
-      <LinearGradient
-        colors={interpolatedColors}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-    </Animated.View>
-  );
-};
-
-export default function MoodDetailPage() {
-  const { mood } = useLocalSearchParams<{ mood: keyof typeof MOOD_CONFIG }>();
-  const moodData = useMemo(() => MOOD_CONFIG[mood] || MOOD_CONFIG.calm, [mood]);
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <AnimatedGradientBackground colors={moodData.colors} />
+    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#FF7F50" />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, isDark && styles.darkText]}>
+          {isHistoryView ? 'Mood History' : 'Mood Details'}
+        </Text>
+        <View style={styles.placeholder} />
+      </View>
       
       <ScrollView 
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.titleContainer}>
-          <MaterialCommunityIcons 
-            name={moodData.icon} 
-            size={40} 
-            color="white" 
-            style={styles.icon}
-          />
-          <Text style={styles.title}>{moodData.title}</Text>
+        <View style={[styles.chartContainer, isDark && styles.darkCard]}>
+          <Text style={[styles.chartTitle, isDark && styles.darkText]}>
+            Your Week in Moods
+          </Text>
+          <Text style={[styles.chartSubtitle, isDark && styles.darkSubText]}>
+            Higher = More Positive
+          </Text>
+          
+          {weeklyMoods.length > 0 ? (
+            <LineChart
+              data={prepareMoodChartData()}
+              width={width - 72} // Account for padding
+              height={220}
+              chartConfig={{
+                backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
+                backgroundGradientFrom: isDark ? '#1e1e1e' : '#ffffff',
+                backgroundGradientTo: isDark ? '#1e1e1e' : '#ffffff',
+                decimalPlaces: 0,
+                color: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                style: {
+                  borderRadius: 16
+                },
+                propsForDots: {
+                  r: "6",
+                  strokeWidth: "2",
+                  stroke: "#FF7F50"
+                }
+              }}
+              bezier
+              style={{
+                marginVertical: 8,
+                borderRadius: 16
+              }}
+              fromZero
+              yAxisSuffix=""
+              yAxisLabel=""
+              withInnerLines={false}
+              withOuterLines={true}
+              withVerticalLines={false}
+              withHorizontalLines={true}
+              yLabelsOffset={12}
+              hidePointsAtIndex={weeklyMoods.map((_, i) => i).filter(i => !weeklyMoods[i])}
+            />
+          ) : (
+            <View style={styles.noDataContainer}>
+              <Text style={[styles.noDataText, isDark && styles.darkSubText]}>
+                No mood data recorded this week.{'\n'}Start tracking your moods to see trends!
+              </Text>
+            </View>
+          )}
         </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Real Talk Insights</Text>
-          {moodData.insights.map((insight, index) => (
-            <Text key={index} style={styles.contentText}>
-              • {insight}
-            </Text>
-          ))}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>What Now?</Text>
-          {moodData.suggestions.map((suggestion, index) => (
-            <Text key={index} style={styles.contentText}>
-              • {suggestion}
-            </Text>
-          ))}
-        </View>
+        
+        {isHistoryView ? renderWeeklySummary() : renderMoodDetail()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -174,50 +321,168 @@ export default function MoodDetailPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8f8f8',
+  },
+  darkContainer: {
+    backgroundColor: '#121212',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  placeholder: {
+    width: 32,
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingTop: 20,
+    paddingBottom: 40,
   },
-  titleContainer: {
-    marginBottom: 20,
-    alignItems: 'center',
-    flexDirection: 'row',
+  chartContainer: {
+    marginHorizontal: 20,
+    marginVertical: 16,
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  darkCard: {
+    backgroundColor: '#1e1e1e',
+    shadowColor: '#000',
+  },
+  darkText: {
+    color: '#ffffff',
+  },
+  darkSubText: {
+    color: '#aaaaaa',
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  chartSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  noDataContainer: {
+    height: 220,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  icon: {
-    marginRight: 10,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: 'white',
+  noDataText: {
+    fontSize: 16,
+    color: '#666',
     textAlign: 'center',
   },
-  card: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
+  moodDetailContainer: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+  },
+  moodTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+  },
+  insightsContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    color: 'white',
-    marginBottom: 15,
-  },
-  contentText: {
-    color: 'white',
-    fontSize: 16,
+    color: '#333',
     marginBottom: 12,
-    lineHeight: 24,
-  }
+  },
+  insightItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  insightText: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 12,
+    flex: 1,
+    lineHeight: 20,
+  },
+  suggestionsContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  suggestionText: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 12,
+    flex: 1,
+    lineHeight: 20,
+  },
+  weeklySummaryContainer: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+  },
+  summaryTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+  },
+  dominantMoodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  dominantMoodContent: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  dominantMoodLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  dominantMoodDesc: {
+    fontSize: 14,
+    color: '#666',
+  },
 });
