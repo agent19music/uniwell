@@ -9,7 +9,6 @@ export enum DayOfTheWeek {
 }
 
 export enum ClassFrequency {
-    DAILY = 'daily',
     WEEKLY = 'weekly',
     BI_WEEKLY = 'bi-weekly',
     MULTIPLE_TIMES_PER_WEEK = 'multiple-times-per-week'
@@ -74,5 +73,10 @@ export interface TimetableNotification {
     read: boolean;
     relatedEntity?: string;
 
+}
+
+export interface EditableClass extends Omit<ClassSchedule, 'startTime' | 'endTime'> {
+  startTime: string;
+  endTime: string;
 }
 

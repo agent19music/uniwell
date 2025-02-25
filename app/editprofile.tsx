@@ -6,7 +6,6 @@ import { supabase } from '../lib/supabase';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
-import * as burnt from 'burnt';
 import { useAuth } from '@/contexts/AuthContext';
 
 
@@ -62,11 +61,7 @@ export default function EditProfileScreen() {
         setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
       }
     } catch (error) {
-      burnt.toast({
-        title: 'Error',
-        message: (error as Error).message,
-        preset: 'error',
-      });
+      Alert.alert('Error', (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -94,18 +89,10 @@ export default function EditProfileScreen() {
 
       if (updateProfileError) throw updateProfileError;
 
-      burnt.toast({
-        title: 'Success',
-        message: 'Profile updated successfully',
-        preset: 'done',
-      });
+      Alert.alert('Success', 'Profile updated successfully');
       router.back();
     } catch (error) {
-      burnt.toast({
-        title: 'Error',
-        message: (error as Error).message,
-        preset: 'error',
-      });
+      Alert.alert('Error', (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -230,4 +217,4 @@ const styles = StyleSheet.create({
   darkInput: {
     color: '#fff',
   },
-}); 
+});

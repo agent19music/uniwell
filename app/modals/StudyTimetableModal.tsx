@@ -21,9 +21,16 @@ import {
 import { useColorScheme } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
+
 interface StudyTimetableModalProps {
   visible: boolean;
   onClose: () => void;
+}
+
+interface TimeSlot {
+  day: DayOfTheWeek;
+  startTime: Date;
+  endTime: Date;
 }
 
 export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({ 
@@ -38,25 +45,88 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
   const [courseCode, setCourseCode] = useState('');
   const [classType, setClassType] = useState<ClassType>(ClassType.LECTURE);
   const [frequency, setFrequency] = useState<ClassFrequency>(ClassFrequency.WEEKLY);
-  const [selectedDays, setSelectedDays] = useState<DayOfTheWeek[]>([]);
-  const [startTime, setStartTime] = useState(new Date());
-  const [endTime, setEndTime] = useState(new Date());
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [location, setLocation] = useState('');
   const [notificationBefore, setNotificationBefore] = useState('1');
   const [morningNotification, setMorningNotification] = useState(true);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const router = useRouter();
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const handleAddTimeSlot = () => {
+    if (frequency === ClassFrequency.MULTIPLE_TIMES_PER_WEEK) {
+      setTimeSlots([...timeSlots, {
+        day: DayOfTheWeek.MONDAY,
+        startTime: new Date(),
+        endTime: new Date(),
+      }]);
+    }
+  };
+
+  const updateTimeSlot = (index: number, updates: Partial<TimeSlot>) => {
+    const newTimeSlots = [...timeSlots];
+    newTimeSlots[index] = { ...newTimeSlots[index], ...updates };
+    setTimeSlots(newTimeSlots);
+  };
+
+  const removeTimeSlot = (index: number) => {
+    setTimeSlots(timeSlots.filter((_, i) => i !== index));
+  };
+
+  const toggleDay = (day: DayOfTheWeek) => {
+    if (frequency === ClassFrequency.WEEKLY) {
+      // For weekly, replace the entire timeSlots array with just one slot
+      setTimeSlots([{
+        day,
+        startTime: timeSlots[0]?.startTime || new Date(),
+        endTime: timeSlots[0]?.endTime || new Date(),
+      }]);
+    } else if (frequency === ClassFrequency.MULTIPLE_TIMES_PER_WEEK) {
+      // For multiple times per week, check if the day is already selected
+      const existingSlotIndex = timeSlots.findIndex(slot => slot.day === day);
+      if (existingSlotIndex >= 0) {
+        // If day exists, remove it
+        setTimeSlots(timeSlots.filter((_, index) => index !== existingSlotIndex));
+      } else {
+        // If day doesn't exist, add it
+        setTimeSlots([...timeSlots, {
+          day,
+          startTime: new Date(),
+          endTime: new Date(),
+        }]);
+      }
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+    
+    if (!courseName.trim()) newErrors.courseName = 'Course name is required';
+    if (!courseCode.trim()) newErrors.courseCode = 'Course code is required';
+    if (timeSlots.length === 0) newErrors.timeSlots = 'At least one time slot is required';
+    
+    timeSlots.forEach((slot, index) => {
+      if (slot.endTime <= slot.startTime) {
+        newErrors[`timeSlot${index}`] = 'End time must be after start time';
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleAddSchedule = async () => {
+    if (!validateForm()) return;
+
     const newSchedule: Omit<ClassSchedule, 'id'> = {
       courseName,
       courseCode,
       classType,
       frequency,
-      daysOfWeek: selectedDays,
-      startTime,
-      endTime,
+      daysOfWeek: timeSlots.map(slot => slot.day),
+      startTime: timeSlots[0].startTime, // For backward compatibility
+      endTime: timeSlots[0].endTime, // For backward compatibility
       room: location,
       instructor: '',
       type: classType,
@@ -71,12 +141,11 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
     onClose();
   };
 
-  const toggleDay = (day: DayOfTheWeek) => {
-    setSelectedDays(prev => 
-      prev.includes(day) 
-        ? prev.filter(d => d !== day) 
-        : [...prev, day]
-    );
+  // Update the frequency handler to reset time slots appropriately
+  const handleFrequencyChange = (newFrequency: ClassFrequency) => {
+    setFrequency(newFrequency);
+    // Reset time slots when frequency changes
+    setTimeSlots([]);
   };
 
   // Helper function to format time
@@ -105,14 +174,14 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
             style={[
               styles.dayButton, 
               isDark && styles.darkDayButton,
-              selectedDays.includes(day) && styles.selectedDayButton,
+              timeSlots.some(slot => slot.day === day) && styles.selectedDayButton,
             ]}
             onPress={() => toggleDay(day)}
           >
             <Text style={[
               styles.dayButtonText,
               isDark && styles.darkText,
-              selectedDays.includes(day) && styles.selectedDayButtonText
+              timeSlots.some(slot => slot.day === day) && styles.selectedDayButtonText
             ]}>
               {day.charAt(0).toUpperCase() + day.slice(1).toLowerCase().substring(0, 2)}
             </Text>
@@ -120,6 +189,42 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
         ))}
       </View>
     );
+  };
+
+  const renderTimeSlots = () => {
+    if (frequency === ClassFrequency.MULTIPLE_TIMES_PER_WEEK) {
+      return (
+        <View>
+          {timeSlots.map((slot, index) => (
+            <View key={index} style={styles.timeSlotContainer}>
+              <Picker
+                selectedValue={slot.day}
+                onValueChange={(day) => updateTimeSlot(index, { day: day as DayOfTheWeek })}
+                style={[styles.picker, isDark && styles.darkPicker]}
+              >
+                {Object.values(DayOfTheWeek).map(day => (
+                  <Picker.Item 
+                    key={day} 
+                    label={day.charAt(0).toUpperCase() + day.slice(1).toLowerCase()} 
+                    value={day}
+                  />
+                ))}
+              </Picker>
+              {/* Add time pickers for start and end time */}
+              <TouchableOpacity onPress={() => removeTimeSlot(index)}>
+                <Text style={styles.removeButton}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addButton} onPress={handleAddTimeSlot}>
+            <Text style={styles.addButtonText}>Add Time Slot</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // For weekly and daily, show the existing day selection UI
+    return renderDayButtons();
   };
 
   return (
@@ -173,17 +278,18 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
           <View style={[styles.pickerContainer, isDark && styles.darkPickerContainer]}>
             <Picker
               selectedValue={frequency}
-              onValueChange={(itemValue) => setFrequency(itemValue as ClassFrequency)}
+              onValueChange={(itemValue) => handleFrequencyChange(itemValue as ClassFrequency)}
               style={[styles.picker, isDark && styles.darkPicker]}
             >
-              {Object.values(ClassFrequency).map(freq => (
-                <Picker.Item 
-                  key={freq} 
-                  label={freq.charAt(0).toUpperCase() + freq.slice(1).toLowerCase()} 
-                  value={freq}
-                  color={isDark ? '#fff' : '#333'}
-                  style={{ backgroundColor: isDark ? '#1e1e1e' : 'white' }}
-                />
+              {Object.values(ClassFrequency)
+                .map(freq => (
+                  <Picker.Item 
+                    key={freq} 
+                    label={freq.charAt(0).toUpperCase() + freq.slice(1).toLowerCase()} 
+                    value={freq}
+                    color={isDark ? '#fff' : '#333'}
+                    style={{ backgroundColor: isDark ? '#1e1e1e' : 'white' }}
+                  />
               ))}
             </Picker>
           </View>
@@ -193,7 +299,7 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
               </View>
           
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Days</Text>
-          {renderDayButtons()}
+          {renderTimeSlots()}
           <View style={styles.divider}>
                 <View style={styles.dividerLine} />
                 <View style={styles.dividerLine} />
@@ -208,17 +314,17 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
                 onPress={() => setShowStartTimePicker(true)}
               >
                 <Text style={[styles.timeButtonText, isDark && styles.darkText]}>
-                  {formatTime(startTime)}
+                  {formatTime(timeSlots[0]?.startTime || new Date())}
                 </Text>
               </TouchableOpacity>
               {showStartTimePicker && (
                 <DateTimePicker
-                  value={startTime}
+                  value={timeSlots[0]?.startTime || new Date()}
                   mode="time"
                   onChange={(event, selectedTime) => {
                     setShowStartTimePicker(false);
                     if (selectedTime) {
-                      setStartTime(selectedTime);
+                      updateTimeSlot(0, { startTime: selectedTime });
                     }
                   }}
                 />
@@ -232,17 +338,17 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
                 onPress={() => setShowEndTimePicker(true)}
               >
                 <Text style={[styles.timeButtonText, isDark && styles.darkText]}>
-                  {formatTime(endTime)}
+                  {formatTime(timeSlots[0]?.endTime || new Date())}
                 </Text>
               </TouchableOpacity>
               {showEndTimePicker && (
                 <DateTimePicker
-                  value={endTime}
+                  value={timeSlots[0]?.endTime || new Date()}
                   mode="time"
                   onChange={(event, selectedTime) => {
                     setShowEndTimePicker(false);
                     if (selectedTime) {
-                      setEndTime(selectedTime);
+                      updateTimeSlot(0, { endTime: selectedTime });
                     }
                   }}
                 />
@@ -474,6 +580,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 8,
+  },
+  timeSlotContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  addButton: {
+    backgroundColor: '#FF7F50',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  removeButton: {
+    color: '#FF4444',
+    textAlign: 'right',
+    marginTop: 8,
+  },
+  errorText: {
+    color: '#FF4444',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 

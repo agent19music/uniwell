@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, useColorScheme, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ImageBackground, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -35,18 +35,10 @@ export default function SignUpScreen() {
     })
 
     if (error) {
-      burnt.toast({
-        title: 'Error',
-        message: error.message,
-        preset: 'error',
-      });
+      Alert.alert('Error', error.message);
     }
     if (!session) {
-      burnt.toast({
-        title: 'Check your email',
-        message: 'Please check your inbox for email verification!',
-        preset: 'done',
-      });
+      Alert.alert('Check your email', 'Please check your inbox for email verification!');
     }
     setLoading(false)
   }
@@ -70,7 +62,7 @@ export default function SignUpScreen() {
 
   return (
     <ImageBackground
-      source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-188.png')}
+      source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-99.png')}
       style={styles.container}
     >
       <LinearGradient
