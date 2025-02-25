@@ -1,252 +1,316 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  StyleSheet, 
-  useColorScheme 
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  useColorScheme,
+  ActivityIndicator,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { supabase } from '../lib/supabase';
+import { format, formatDistanceToNow } from 'date-fns';
+import { getUserNotifications, markNotificationAsRead } from '../lib/NotificationHandler';
 
-// Notification Categories Configuration
-type NotificationCategoryKey = 'login' | 'streak' | 'class' | 'affirmations' | 'routine';
-
-const NOTIFICATION_CATEGORIES: Record<NotificationCategoryKey, {
-  icon: string;
+interface Notification {
+  id: string;
   title: string;
-  color: string;
-  notifications: {
-    id: string;
-    title: string;
-    description: string;
-    time: string;
-    opened: boolean;
-    category: NotificationCategoryKey;
-  }[];
-}> = {
-  login: {
-    icon: 'device-mobile',
-    title: 'Device Logins',
-    color: '#4A90E2',
-    notifications: [
-      { 
-        id: 'login1', 
-        title: 'New Device Login', 
-        description: 'Logged in from iPhone 14 Pro', 
-        time: '1 hour ago',
-        opened: false,
-        category: 'login'
-      },
-      { 
-        id: 'login2', 
-        title: 'Suspicious Activity', 
-        description: 'Suspicious Activity', 
-        time: '1 day ago',
-        opened: true,
-        category: 'login'
-      }
-    ]
-  },
-  streak: {
-    icon: 'fire',
-    title: 'Streak Encouragements',
-    color: '#FF6B6B',
-    notifications: [
-      { 
-        id: 'streak1', 
-        title: 'Streak Milestone', 
-        description: 'You\'ve maintained a 7-day learning streak!', 
-        time: '3 hours ago',
-        opened: false,
-        category: 'streak'
-      }
-    ]
-  },
-  class: {
-    icon: 'school',
-    title: 'Class Reminders',
-    color: '#4CAF50',
-    notifications: [
-      { 
-        id: 'class1', 
-        title: 'Upcoming Class', 
-        description: 'Mathematics class starts in 30 minutes', 
-        time: '45 mins ago',
-        opened: false ,
-        category: 'class'
-      }
-    ]
-  },
-  affirmations: {
-    icon: 'heart',
-    title: 'Daily Affirmations',
-    color: '#9C27B0',
-    notifications: [
-      { 
-        id: 'aff1', 
-        title: 'Today\'s Affirmation', 
-        description: 'You are capable of amazing things!', 
-        time: '1 hour ago',
-        opened: true ,
-        category: 'affirmations'
-      }
-    ]
-  },
-  routine: {
-    icon: 'calendar',
-    title: 'Routine Reminders',
-    color: '#FF9800',
-    notifications: [
-      { 
-        id: 'routine1', 
-        title: 'Morning Routine', 
-        description: 'Time to start your morning meditation', 
-        time: '20 mins ago',
-        opened: false ,
-        category: 'routine'
-      }
-    ]
-  }
-};
+  description: string;
+  category: string;
+  is_read: boolean;
+  created_at: string;
+}
 
 export default function NotificationsScreen() {
-  const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === 'dark';
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const allNotifications = Object.values(NOTIFICATION_CATEGORIES)
-    .flatMap(category => category.notifications)
-    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
-  const handleNotificationPress = (notification: { id: string; category: NotificationCategoryKey }) => {
-    // Handle navigation based on notification type
-    switch (notification.id) {
-      case 'login1':
-      case 'login2':
-        router.push('/login-details');
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const notificationsData = await getUserNotifications(user.id);
+        setNotifications(notificationsData as Notification[]);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchNotifications();
+  };
+
+  const handleNotificationPress = async (notification: Notification) => {
+    // Mark as read
+    if (!notification.is_read) {
+      await markNotificationAsRead(notification.id);
+      
+      // Update local state
+      setNotifications(notifications.map(n => 
+        n.id === notification.id ? { ...n, is_read: true } : n
+      ));
+    }
+    
+    // Navigate based on notification category
+    switch (notification.category) {
+      case 'profile':
+        router.push('/profile-completion');
         break;
-      case 'streak1':
-        router.push('/streak-details');
+      case 'habit':
+        router.push('/(tabs)/habits');
         break;
-      case 'class1':
-        router.push('/class-details');
+      case 'streak':
+        router.push('/(tabs)/routines');
         break;
-      case 'aff1':
-        router.push('/affirmation-details');
-        break;
-      case 'routine1':
-        router.push('/routine-details');
+      case 'achievement':
+        router.push('/achievements');
         break;
       default:
+        // Just stay on the notifications screen
         break;
     }
   };
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: isDarkMode ? '#121212' : '#F4F4F4'
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 15,
-      backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF'
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontWeight: '700',
-      marginLeft: 15,
-      color: isDarkMode ? '#FFFFFF' : '#000000'
-    },
-    notificationList: {
-      flex: 1,
-      marginTop: 12,
-      backgroundColor: isDarkMode ? '#121212' : '#F4F4F4'
-    },
-    notificationItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 12,
-      borderRadius: 12,
-      marginHorizontal: 12,
-      borderBottomWidth: 0.5,
-      borderBottomColor: isDarkMode ? '#333333' : '#E0E0E0',
-      backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF'
-    },
-    notificationContent: {
-      marginLeft: 15,
-      flex: 1
-    },
-    notificationTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: isDarkMode ? '#FFFFFF' : '#000000'
-    },
-    notificationDescription: {
-      fontSize: 14,
-      color: isDarkMode ? '#B0B0B0' : '#666666',
-      marginTop: 5
-    },
-    notificationTime: {
-      fontSize: 12,
-      color: isDarkMode ? '#888888' : '#999999'
-    },
-    openedNotification: {
-      opacity: 0.6
-    },
-    separator: {
-      height: 1,
-      backgroundColor: isDarkMode ? '#333333' : '#E0E0E0',
-      marginVertical: 10
+  const renderNotificationItem = ({ item }: { item: Notification }) => {
+    const formattedDate = formatDistanceToNow(new Date(item.created_at), { addSuffix: true });
+    
+    // Determine icon based on category
+    let icon = 'notifications-outline';
+    let iconColor = '#FF7F50';
+    
+    switch (item.category) {
+      case 'profile':
+        icon = 'person-outline';
+        break;
+      case 'habit':
+        icon = 'repeat-outline';
+        break;
+      case 'streak':
+        icon = 'flame-outline';
+        break;
+      case 'achievement':
+        icon = 'trophy-outline';
+        break;
+      default:
+        icon = 'notifications-outline';
     }
-  });
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.notificationItem,
+          !item.is_read && styles.unreadNotification,
+          isDark && styles.darkCard
+        ]}
+        onPress={() => handleNotificationPress(item)}
+      >
+        <View style={[styles.iconContainer, { backgroundColor: item.is_read ? 'rgba(255, 127, 80, 0.1)' : 'rgba(255, 127, 80, 0.2)' }]}>
+          <Ionicons name={icon as any} size={24} color={iconColor} />
+        </View>
+        <View style={styles.notificationContent}>
+          <Text style={[
+            styles.notificationTitle,
+            !item.is_read && styles.unreadText,
+            isDark && styles.darkText
+          ]}>
+            {item.title}
+          </Text>
+          <Text style={[
+            styles.notificationDescription,
+            isDark && styles.darkSubText
+          ]}>
+            {item.description}
+          </Text>
+          <Text style={styles.notificationTime}>{formattedDate}</Text>
+        </View>
+        {!item.is_read && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
       <View style={styles.header}>
-        <Ionicons 
-          name="notifications" 
-          size={24} 
-          color={isDarkMode ? '#FFFFFF' : '#000000'} 
-        />
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#000000'} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, isDark && styles.darkText]}>Notifications</Text>
+        <View style={styles.placeholder} />
       </View>
-      
-      <ScrollView style={styles.notificationList}>
-        {allNotifications.map((notification, index) => (
-          <View key={notification.id}>
-            <TouchableOpacity 
-              style={[
-                styles.notificationItem, 
-                notification.opened && styles.openedNotification
-              ]}
-              onPress={() => handleNotificationPress(notification)}
-            >
-              <Ionicons 
-                name={NOTIFICATION_CATEGORIES[notification.category].icon} 
-                size={30} 
-                color={NOTIFICATION_CATEGORIES[notification.category].color} 
-              />
-              <View style={styles.notificationContent}>
-                <Text style={styles.notificationTitle}>{notification.title}</Text>
-                <Text style={styles.notificationDescription}>
-                  {notification.description}
-                </Text>
-                <Text style={styles.notificationTime}>{notification.time}</Text>
-              </View>
-            </TouchableOpacity>
-            {index < allNotifications.length - 1 && (
-              <View style={styles.separator} />
-            )}
-          </View>
-        ))}
-      </ScrollView>
+
+      {loading && !refreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF7F50" />
+          <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading notifications...</Text>
+        </View>
+      ) : notifications.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="notifications-off-outline" size={64} color={isDark ? '#555555' : '#cccccc'} />
+          <Text style={[styles.emptyText, isDark && styles.darkText]}>No notifications yet</Text>
+          <Text style={[styles.emptySubText, isDark && styles.darkSubText]}>
+            We'll notify you about important updates and achievements
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={notifications}
+          renderItem={renderNotificationItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={['#FF7F50']}
+              tintColor={isDark ? '#ffffff' : '#FF7F50'}
+            />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f8f8',
+  },
+  darkContainer: {
+    backgroundColor: '#121212',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333333',
+  },
+  placeholder: {
+    width: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#333333',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginTop: 16,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  listContainer: {
+    padding: 16,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  unreadNotification: {
+    backgroundColor: 'rgba(255, 127, 80, 0.05)',
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 127, 80, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333333',
+    marginBottom: 4,
+  },
+  unreadText: {
+    fontWeight: 'bold',
+  },
+  notificationDescription: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 8,
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: '#999999',
+  },
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF7F50',
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  darkText: {
+    color: '#ffffff',
+  },
+  darkSubText: {
+    color: '#aaaaaa',
+  },
+  darkCard: {
+    backgroundColor: '#1e1e1e',
+    borderColor: '#333333',
+  },
+});

@@ -1,0 +1,754 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  FlatList,
+  ActivityIndicator,
+  Keyboard,
+  Image,
+  Animated,
+  useColorScheme,
+  Alert
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { supabase } from '../lib/supabase';
+import { useMood, MoodType } from '../contexts/MoodContext';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
+import { format } from 'date-fns';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// Initialize Google Generative AI with your API key
+const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GOOGLE_GEMINI_API_KEY || '');
+
+// Define message types
+interface Message {
+  id: string;
+  content: string;
+  isAI: boolean;
+  timestamp: Date;
+  thinking?: boolean;
+}
+
+// Define the AI therapist's persona
+const AI_PERSONA = {
+  name: "Aria",
+  role: "AI Wellness Assistant",
+  avatar: "https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/friendly%20minimal%20AI%20chatbot%20avatar.png", // Make sure to add this image to your assets
+  defaultAvatar: "https://i.imgur.com/7k12EPD.png" // Fallback URL
+};
+
+// System prompt to guide the AI's behavior
+const SYSTEM_PROMPT = `
+You are ${AI_PERSONA.name}, an AI wellness assistant designed to provide supportive conversations and guidance. 
+You are NOT a replacement for a licensed therapist or medical professional.
+
+GUIDELINES:
+- Be warm, empathetic, and conversational in your tone
+- Keep responses concise (under 3 paragraphs) and easy to read on a mobile screen
+- Ask thoughtful follow-up questions to encourage reflection
+- Recognize emotional cues and respond appropriately
+- Suggest evidence-based coping strategies when appropriate
+- Encourage healthy habits and self-care
+
+ETHICAL BOUNDARIES:
+- NEVER diagnose medical or psychological conditions
+- NEVER prescribe medications or treatments
+- If someone expresses thoughts of self-harm or harming others, gently encourage them to contact emergency services (911/988 in US) or text HOME to 741741 to reach the Crisis Text Line
+- For serious mental health concerns, recommend speaking with a licensed professional
+- Maintain a supportive, non-judgmental stance
+- Respect privacy and confidentiality
+
+Begin the conversation in a warm, welcoming manner.
+`;
+
+// Crisis detection keywords
+const CRISIS_KEYWORDS = [
+  "suicide", "kill myself", "end my life", "don't want to live", 
+  "want to die", "harm myself", "hurt myself", "self-harm",
+  "cut myself", "overdose"
+];
+
+// Crisis resources message
+const CRISIS_RESOURCES = `
+I notice you mentioned something concerning. If you're experiencing a crisis:
+
+• Call 988 (US Suicide & Crisis Lifeline)
+• Text HOME to 741741 (Crisis Text Line)
+• Call 911 or go to your nearest emergency room
+
+Would you like me to provide more specific resources for your situation?
+`;
+
+export default function ChatScreen() {
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [model, setModel] = useState<any>(null);
+  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const flatListRef = useRef<FlatList>(null);
+  const inputRef = useRef<TextInput>(null);
+  const { currentMood } = useMood();
+  const typingAnimation = useRef(new Animated.Value(0)).current;
+  
+  // Initialize the chat with a welcome message
+  useEffect(() => {
+    const initializeChat = async () => {
+      try {
+        // Create a new chat session
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { data: session, error } = await supabase
+          .from('chat_sessions')
+          .insert({
+            user_id: user.id,
+            session_name: `Session ${new Date().toLocaleDateString()}`
+          })
+          .select()
+          .single();
+          
+        if (error) throw error;
+        setSessionId(session.id);
+        
+        // Initialize Gemini model
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        setModel(model);
+        
+        // Add welcome message
+        const welcomeMessage = getWelcomeMessage();
+        
+        setMessages([{
+          id: Date.now().toString(),
+          content: welcomeMessage,
+          isAI: true,
+          timestamp: new Date()
+        }]);
+        
+        // Save welcome message to database
+        await supabase.from('chat_messages').insert({
+          session_id: session.id,
+          user_id: user.id,
+          content: welcomeMessage,
+          is_ai: true
+        });
+        
+      } catch (error) {
+        console.error('Error initializing chat:', error);
+        Alert.alert('Error', 'Failed to initialize chat. Please try again.');
+      }
+    };
+    
+    initializeChat();
+  }, []);
+  
+  // Function to get a contextual welcome message based on user's mood
+  const getWelcomeMessage = () => {
+    const timeOfDay = getTimeOfDay();
+    let welcomeMessage = `Good ${timeOfDay}, I'm ${AI_PERSONA.name}. How can I support you today?`;
+    
+    if (currentMood) {
+      switch(currentMood.moodType) {
+        case 'happy':
+          welcomeMessage = `Good ${timeOfDay}! I notice you're feeling happy today. That's wonderful! I'm ${AI_PERSONA.name}. Would you like to talk about what's going well or is there something specific on your mind?`;
+          break;
+        case 'calm':
+          welcomeMessage = `Good ${timeOfDay}. I see you're feeling calm today. That's a great state to be in. I'm ${AI_PERSONA.name}. How can I help maintain this peaceful feeling or is there something you'd like to discuss?`;
+          break;
+        case 'stressed':
+          welcomeMessage = `Good ${timeOfDay}. I notice you're feeling stressed today. I'm ${AI_PERSONA.name}, and I'm here to listen. Would you like to talk about what's causing your stress?`;
+          break;
+        case 'angry':
+          welcomeMessage = `Good ${timeOfDay}. I see you're feeling angry today. I'm ${AI_PERSONA.name}. Sometimes talking through our feelings can help. Would you like to share what's bothering you?`;
+          break;
+        case 'sad':
+          welcomeMessage = `Good ${timeOfDay}. I notice you're feeling sad today. I'm ${AI_PERSONA.name}, and I'm here for you. Would you like to talk about what's on your mind?`;
+          break;
+      }
+    }
+    
+    return welcomeMessage;
+  };
+  
+  // Helper function to get time of day
+  const getTimeOfDay = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 18) return 'afternoon';
+    return 'evening';
+  };
+  
+  // Function to handle sending messages
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || !sessionId || !model) return;
+    
+    const userMessage = inputText.trim();
+    setInputText('');
+    Keyboard.dismiss();
+    
+    // Add user message to UI
+    const userMessageObj = {
+      id: Date.now().toString(),
+      content: userMessage,
+      isAI: false,
+      timestamp: new Date()
+    };
+    
+    // Add thinking indicator for AI
+    const thinkingMessageId = (Date.now() + 1).toString();
+    const thinkingMessage = {
+      id: thinkingMessageId,
+      content: '',
+      isAI: true,
+      timestamp: new Date(),
+      thinking: true
+    };
+    
+    setMessages(prev => [...prev, userMessageObj, thinkingMessage]);
+    
+    // Scroll to bottom
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+    
+    try {
+      // Save user message to database
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      await supabase.from('chat_messages').insert({
+        session_id: sessionId,
+        user_id: user.id,
+        content: userMessage,
+        is_ai: false
+      });
+      
+      // Check for crisis keywords
+      const containsCrisisKeyword = CRISIS_KEYWORDS.some(keyword => 
+        userMessage.toLowerCase().includes(keyword)
+      );
+      
+      if (containsCrisisKeyword) {
+        // Remove thinking message
+        setMessages(prev => prev.filter(msg => msg.id !== thinkingMessageId));
+        
+        // Add crisis resources message
+        const crisisMessageObj = {
+          id: Date.now().toString(),
+          content: CRISIS_RESOURCES,
+          isAI: true,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, crisisMessageObj]);
+        
+        // Save crisis message to database
+        await supabase.from('chat_messages').insert({
+          session_id: sessionId,
+          user_id: user.id,
+          content: CRISIS_RESOURCES,
+          is_ai: true
+        });
+        
+        return;
+      }
+      
+      // Update chat history for context
+      const updatedHistory = [
+        ...chatHistory,
+        { role: "user", parts: [userMessage] }
+      ];
+      setChatHistory(updatedHistory);
+      
+      // Generate AI response
+      const chat = model.startChat({
+        history: updatedHistory,
+        systemInstruction: SYSTEM_PROMPT,
+      });
+      
+      const result = await chat.sendMessage(userMessage);
+      let aiResponse = "";
+      
+      // Safely extract the response text
+      if (result && result.response && typeof result.response.text === 'function') {
+        aiResponse = result.response.text();
+      } else {
+        aiResponse = "I'm sorry, I'm having trouble responding right now. Please try again.";
+        console.error("Invalid response format from Gemini API:", result);
+      }
+      
+      // Remove thinking message and add AI response
+      setMessages(prev => 
+        prev.filter(msg => msg.id !== thinkingMessageId).concat({
+          id: Date.now().toString(),
+          content: aiResponse,
+          isAI: true,
+          timestamp: new Date()
+        })
+      );
+      
+      // Save AI response to database
+      await supabase.from('chat_messages').insert({
+        session_id: sessionId,
+        user_id: user.id,
+        content: aiResponse,
+        is_ai: true
+      });
+      
+      // Update chat history with AI response
+      setChatHistory([...updatedHistory, { role: "model", parts: [aiResponse] }]);
+      
+      // Provide haptic feedback for message received
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error('Error generating AI response:', error);
+      
+      // Remove thinking message and add error message
+      setMessages(prev => 
+        prev.filter(msg => msg.id !== thinkingMessageId).concat({
+          id: Date.now().toString(),
+          content: "I'm sorry, I'm having trouble responding right now. Please try again in a moment.",
+          isAI: true,
+          timestamp: new Date()
+        })
+      );
+      
+      // Provide error haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  };
+  
+  // Function to render message bubbles
+  const renderMessage = ({ item }: { item: Message }) => {
+    if (item.thinking) {
+      return (
+        <View style={[styles.messageBubble, styles.aiMessageBubble, isDark && styles.darkAiMessageBubble]}>
+          <View style={styles.typingIndicator}>
+            <View style={[styles.typingDot, styles.typingDot1]} />
+            <View style={[styles.typingDot, styles.typingDot2]} />
+            <View style={[styles.typingDot, styles.typingDot3]} />
+          </View>
+        </View>
+      );
+    }
+    
+    return (
+      <View style={[
+        styles.messageContainer,
+        item.isAI ? styles.aiMessageContainer : styles.userMessageContainer
+      ]}>
+        {item.isAI && (
+          <Image 
+            source={{ uri: AI_PERSONA.avatar || AI_PERSONA.defaultAvatar }}
+            style={styles.avatar}
+          />
+        )}
+        <View style={[
+          styles.messageBubble,
+          item.isAI 
+            ? [styles.aiMessageBubble, isDark && styles.darkAiMessageBubble] 
+            : [styles.userMessageBubble, isDark && styles.darkUserMessageBubble]
+        ]}>
+          <Text style={[
+            styles.messageText,
+            item.isAI 
+              ? [styles.aiMessageText, isDark && styles.darkAiMessageText] 
+              : [styles.userMessageText, isDark && styles.darkUserMessageText]
+          ]}>
+            {item.content}
+          </Text>
+          <Text style={[
+            styles.timestamp,
+            item.isAI ? styles.aiTimestamp : styles.userTimestamp,
+            isDark && styles.darkTimestamp
+          ]}>
+            {format(item.timestamp, 'h:mm a')}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+  
+  // Function to handle clearing chat history
+  const handleClearChat = async () => {
+    Alert.alert(
+      "Clear Conversation",
+      "Are you sure you want to clear this conversation and start a new one?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Clear", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Create a new session
+              const { data: { user } } = await supabase.auth.getUser();
+              if (!user) return;
+              
+              const { data: session, error } = await supabase
+                .from('chat_sessions')
+                .insert({
+                  user_id: user.id,
+                  session_name: `Session ${new Date().toLocaleDateString()}`
+                })
+                .select()
+                .single();
+                
+              if (error) throw error;
+              setSessionId(session.id);
+              
+              // Reset chat history
+              setChatHistory([]);
+              
+              // Add welcome message
+              const welcomeMessage = getWelcomeMessage();
+              
+              setMessages([{
+                id: Date.now().toString(),
+                content: welcomeMessage,
+                isAI: true,
+                timestamp: new Date()
+              }]);
+              
+              // Save welcome message to database
+              await supabase.from('chat_messages').insert({
+                session_id: session.id,
+                user_id: user.id,
+                content: welcomeMessage,
+                is_ai: true
+              });
+              
+              // Provide haptic feedback
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              
+            } catch (error) {
+              console.error('Error clearing chat:', error);
+              Alert.alert('Error', 'Failed to clear chat. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
+      {/* Header */}
+      <BlurView 
+        intensity={80} 
+        tint={isDark ? 'dark' : 'light'} 
+        style={styles.header}
+      >
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => router.back()}
+        >
+          <Ionicons 
+            name="chevron-back" 
+            size={24} 
+            color={isDark ? '#ffffff' : '#000000'} 
+          />
+        </TouchableOpacity>
+        
+        <View style={styles.headerTitleContainer}>
+          <Text style={[styles.headerTitle, isDark && styles.darkText]}>
+            {AI_PERSONA.name}
+          </Text>
+          <Text style={[styles.headerSubtitle, isDark && styles.darkSubText]}>
+            {AI_PERSONA.role}
+          </Text>
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.clearButton} 
+          onPress={handleClearChat}
+        >
+          <Ionicons 
+            name="refresh-outline" 
+            size={24} 
+            color={isDark ? '#ffffff' : '#000000'} 
+          />
+        </TouchableOpacity>
+      </BlurView>
+      
+      {/* Chat Messages */}
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        renderItem={renderMessage}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.messagesList}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        showsVerticalScrollIndicator={false}
+      />
+      
+      {/* Input Area */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        style={[styles.inputContainer, isDark && styles.darkInputContainer]}
+      >
+        <BlurView 
+          intensity={80} 
+          tint={isDark ? 'dark' : 'light'} 
+          style={styles.inputBlur}
+        >
+          <TextInput
+            ref={inputRef}
+            style={[styles.input, isDark && styles.darkInput]}
+            placeholder="Message..."
+            placeholderTextColor={isDark ? '#888888' : '#999999'}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={1000}
+            returnKeyType="default"
+          />
+          
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              !inputText.trim() && styles.disabledSendButton,
+              isDark && !inputText.trim() && styles.darkDisabledSendButton
+            ]}
+            onPress={handleSendMessage}
+            disabled={!inputText.trim()}
+          >
+            <Ionicons 
+              name="send" 
+              size={20} 
+              color={!inputText.trim() ? (isDark ? '#555555' : '#cccccc') : '#ffffff'} 
+            />
+          </TouchableOpacity>
+        </BlurView>
+        
+        {/* Disclaimer */}
+        <Text style={[styles.disclaimer, isDark && styles.darkDisclaimer]}>
+          Not a replacement for professional mental health care
+        </Text>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f8f8',
+  },
+  darkContainer: {
+    backgroundColor: '#000000',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitleContainer: {
+    alignItems: 'center',
+    
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 2,
+  },
+  clearButton: {
+    padding: 8,
+  },
+  messagesList: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  messageContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    maxWidth: '80%',
+  },
+  aiMessageContainer: {
+    alignSelf: 'flex-start',
+  },
+  userMessageContainer: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row-reverse',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+    alignSelf: 'flex-end',
+    marginBottom: 16,
+  },
+  messageBubble: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    maxWidth: '100%',
+  },
+  aiMessageBubble: {
+    backgroundColor: '#F0F0F0',
+    borderBottomLeftRadius: 4,
+  },
+  darkAiMessageBubble: {
+    backgroundColor: '#1C1C1E',
+  },
+  userMessageBubble: {
+    backgroundColor: '#FF7F50',
+    borderBottomRightRadius: 4,
+  },
+  darkUserMessageBubble: {
+    backgroundColor: '#FF7F50',
+  },
+  messageText: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  aiMessageText: {
+    color: '#000000',
+  },
+  darkAiMessageText: {
+    color: '#FFFFFF',
+  },
+  userMessageText: {
+    color: '#FFFFFF',
+  },
+  darkUserMessageText: {
+    color: '#FFFFFF',
+  },
+  timestamp: {
+    fontSize: 10,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  aiTimestamp: {
+    color: '#888888',
+  },
+  userTimestamp: {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  darkTimestamp: {
+    color: '#888888',
+  },
+  typingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 30,
+    width: 60,
+  },
+  typingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#888888',
+    marginHorizontal: 2,
+    opacity: 0.6,
+  },
+  typingDot1: {
+    animationName: 'bounce',
+    animationDuration: '0.6s',
+    animationIterationCount: 'infinite',
+  },
+  typingDot2: {
+    animationName: 'bounce',
+    animationDuration: '0.6s',
+    animationDelay: '0.2s',
+    animationIterationCount: 'infinite',
+  },
+  typingDot3: {
+    animationName: 'bounce',
+    animationDuration: '0.6s',
+    animationDelay: '0.4s',
+    animationIterationCount: 'infinite',
+  },
+  inputContainer: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    paddingBottom: 8,
+  },
+  darkInputContainer: {
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  inputBlur: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingRight: 48,
+    fontSize: 16,
+    maxHeight: 120,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  darkInput: {
+    backgroundColor: '#1C1C1E',
+    color: '#FFFFFF',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  sendButton: {
+    position: 'absolute',
+    right: 24,
+    backgroundColor: '#FF7F50',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  disabledSendButton: {
+    backgroundColor: '#E0E0E0',
+  },
+  darkDisabledSendButton: {
+    backgroundColor: '#2C2C2E',
+  },
+  disclaimer: {
+    fontSize: 11,
+    color: '#888888',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  darkDisclaimer: {
+    color: '#666666',
+  },
+  darkText: {
+    color: '#FFFFFF',
+  },
+  darkSubText: {
+    color: '#AAAAAA',
+  },
+}); 

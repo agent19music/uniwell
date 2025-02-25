@@ -3,21 +3,27 @@ import { Session } from '@supabase/supabase-js';
 import { useRouter, useSegments } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { Alert } from 'react-native';
+import { registerForPushNotificationsAsync } from '../lib/NotificationHandler';
+
+interface ProfileType {
+  username: string;
+  full_name: string;
+  avatar_url: string | null;
+  gender?: string;
+  interests?: string[];
+  primary_goal?: string;
+  bio?: string;
+  occupation?: string;
+  university?: string;
+  profile_completion_percentage?: number;
+}
 
 interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  profile: {
-    username: string;
-    full_name: string;
-    avatar_url: string | null;
-  };
-  setProfile: React.Dispatch<React.SetStateAction<{
-    username: string;
-    full_name: string;
-    avatar_url: string | null;
-  }>>;
+  profile: ProfileType;
+  setProfile: React.Dispatch<React.SetStateAction<ProfileType>>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -32,95 +38,122 @@ const AuthContext = createContext<AuthContextType>({
   setProfile: () => {},
 });
 
-import { ReactNode } from 'react';
+// This hook can be used to access the user info.
+export function useAuth() {
+  return useContext(AuthContext);
+}
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+// This hook will protect the route access based on user authentication.
+function useProtectedRoute(session: Session | null) {
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (
+      // If the user is not signed in and the initial segment is not anything in the auth group.
+      !session &&
+      !inAuthGroup &&
+      segments[0] !== '' &&
+      segments[0] !== 'loginscreen' &&
+      segments[0] !== 'signupscreen' &&
+      segments[0] !== 'login-callback' &&
+      segments[0] !== 'profile-completion'
+    ) {
+      // Redirect to the sign-in page.
+      router.replace('/');
+    } else if (session && (segments[0] === 'loginscreen' || segments[0] === 'signupscreen' || segments[0] === '')) {
+      // Redirect away from the sign-in page.
+      router.replace('/(tabs)/home');
+    }
+  }, [session, segments]);
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const segments = useSegments();
-  const [profile, setProfile] = useState<{
-    username: string;
-    full_name: string;
-    avatar_url: string | null;
-  }>({
+  const [profile, setProfile] = useState<ProfileType>({
     username: '',
     full_name: '',
     avatar_url: null,
   });
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  async function fetchProfile() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-
-      setProfile({
-        username: data.username || '',
-        full_name: user.user_metadata.full_name || '',
-        avatar_url: data.avatar_url,
-      });
-    } catch (error) {
-      Alert.alert('Error', (error as Error).message);
-    }
-  }
+  useProtectedRoute(session);
 
   useEffect(() => {
-    // Check if we're in an auth screen
-    const inAuthGroup = segments[0] === '(auth)';
-    const isAuthScreen = ['loginscreen', 'signupscreen', 'index'].includes(segments[0] || '');
-
-    if (session && (inAuthGroup || isAuthScreen)) {
-      // Redirect to home if signed in and in auth screen
-      router.replace('/(tabs)/home');
-    } else if (!session && !inAuthGroup && !isAuthScreen) {
-      // Only redirect to welcome screen if not signed in and not in auth screens
-      router.replace('/');
-    }
-  }, [session, segments]);
-
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log(`Supabase auth event: ${event}`);
+      setSession(newSession);
+      setLoading(false);
+
+      if (newSession) {
+        // Register for push notifications
+        await registerForPushNotificationsAsync();
+        
+        // Fetch user profile
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', newSession.user.id)
+            .single();
+
+          if (error) throw error;
+
+          setProfile({
+            username: data.username || newSession.user.user_metadata?.full_name || 'User',
+            full_name: newSession.user.user_metadata?.full_name || 'User',
+            avatar_url: data.avatar_url,
+            gender: data.gender,
+            interests: data.interests,
+            primary_goal: data.primary_goal,
+            bio: data.bio,
+            occupation: data.occupation,
+            university: data.university,
+            profile_completion_percentage: data.profile_completion_percentage,
+          });
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+        }
+      }
+    });
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      setSession(initialSession);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
-      router.replace('/');
-      Alert.alert('Success', 'You have been logged out successfully');
+      setProfile({
+        username: '',
+        full_name: '',
+        avatar_url: null,
+      });
     } catch (error) {
-      Alert.alert('Error', (error as Error).message);
+      Alert.alert('Error signing out', (error as Error).message);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ session, loading, signOut, profile, setProfile }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        loading,
+        signOut,
+        profile,
+        setProfile,
+      }}>
       {children}
     </AuthContext.Provider>
   );
 }
-
-export const useAuth = () => useContext(AuthContext);

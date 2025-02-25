@@ -6,6 +6,7 @@ import * as Font from 'expo-font';
 import { AuthProvider } from '../contexts/AuthContext';
 import { Camera } from 'expo-camera';
 import { RoutineProvider } from '@/contexts/RoutineContext';
+import { MoodProvider } from '@/contexts/MoodContext';
 
 declare global {
   interface Window {
@@ -50,9 +51,10 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <RoutineProvider>
-        <Stack screenOptions={{
-          headerShown: false,
+      <MoodProvider>
+        <RoutineProvider>
+          <Stack screenOptions={{
+            headerShown: false,
           contentStyle: {
           backgroundColor: isDark ? '#121212' : '#f5f5f5',
         },
@@ -62,7 +64,8 @@ export default function RootLayout() {
         <Stack.Screen name="signupscreen" />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           </Stack>
-      </RoutineProvider>
+        </RoutineProvider>
+      </MoodProvider>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </AuthProvider>
   );
