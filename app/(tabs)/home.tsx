@@ -53,6 +53,10 @@ export default function HomeScreen() {
     router.push('/notifications'); // Use router.push for navigation
   };
 
+  const handleLibraryPress = () => {
+    router.push('/streakvisual'); // Use router.push for navigation
+  };
+
   useEffect(() => {
     async function getUserName() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -124,7 +128,7 @@ export default function HomeScreen() {
             <Ionicons name="book-outline" size={24} color="#FF7F50" />
             <Text style={[styles.quickActionText, isDark && styles.darkText]}>Journal</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.quickAction, isDark && styles.darkCard]}>
+          <TouchableOpacity onPress={handleLibraryPress} style={[styles.quickAction, isDark && styles.darkCard]}>
             <Ionicons name="library-outline" size={24} color="#FF7F50" />
             <Text style={[styles.quickActionText, isDark && styles.darkText]}>Library</Text>
           </TouchableOpacity>

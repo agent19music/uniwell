@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { useRouter, useSegments } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import * as burnt from 'burnt';
+import { Alert } from 'react-native';
 
 interface AuthContextType {
   session: Session | null;
@@ -72,11 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatar_url: data.avatar_url,
       });
     } catch (error) {
-      burnt.toast({
-        title: 'Error',
-        message: (error as Error).message,
-        preset: 'error',
-      });
+      Alert.alert('Error', (error as Error).message);
     }
   }
 
@@ -114,21 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await supabase.auth.signOut();
       router.replace('/');
-      burnt.toast({
-        title: 'Success',
-        message: 'You have been logged out successfully',
-        preset: 'done',
-      });
+      Alert.alert('Success', 'You have been logged out successfully');
     } catch (error) {
-      burnt.toast({
-        title: 'Error',
-        message: (error as Error).message,
-        preset: 'error',
-      });
+      Alert.alert('Error', (error as Error).message);
     }
   };
-
-  
 
   return (
     <AuthContext.Provider value={{ session, loading, signOut, profile, setProfile }}>
@@ -137,4 +123,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext); 
+export const useAuth = () => useContext(AuthContext);

@@ -35,7 +35,7 @@ export default function Index() {
 
   return (
     <ImageBackground
-      source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-532.png')}
+      source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-99.png')}
       style={styles.container}
     >
       <LinearGradient

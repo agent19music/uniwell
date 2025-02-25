@@ -49,7 +49,7 @@ export default function RoutinesScreen() {
   };
 
   const handleTimetableCardPress = () => {
-    router.push('/modals/StudyTimetableModal');
+    router.push('/schedule');
   };  
 
   const handleAddRoutine = () => {
