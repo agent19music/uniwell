@@ -7,7 +7,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "notification":{
+    "notification": {
       "vapidPublicKey": "BD69zKRe9xUX979PDalrkmcjceNON3CAi8AHIEIeHkg50hAbGUPjfJEKw3-q9MKoeyoVMQpUYMfyfbOsd9d_rXE"
     },
     "userInterfaceStyle": "automatic",
@@ -48,12 +48,18 @@
             "deploymentTarget": "15.1"
           }
         }
+      ],
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
       ]
     ],
     "experiments": {
       "tsconfigPaths": true,
       "newArchEnabled": true
-
     }
   }
 }

@@ -35,58 +35,67 @@ export default function CustomDialog({
       transparent
       animationType="fade"
     >
-      <View style={styles.overlay}>
-        <BlurView intensity={30} style={styles.blurContainer}>
-          <View style={styles.dialogContainer}>
-            <View style={styles.iconContainer}>
-              <LinearGradient
-                colors={['rgba(255, 127, 80, 0.2)', 'rgba(255, 127, 80, 0.1)']}
-                style={styles.iconBackground}
-              >
-                <Ionicons name={icon} size={32} color={iconColor} />
-              </LinearGradient>
-            </View>
-            
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.message}>{message}</Text>
-            
-            <View style={styles.buttonContainer}>
-              {cancelText && (
-                <TouchableOpacity 
-                  style={styles.cancelButton} 
-                  onPress={onCancel}
-                >
-                  <Text style={styles.cancelButtonText}>{cancelText}</Text>
-                </TouchableOpacity>
-              )}
-              
-              <TouchableOpacity 
-                style={styles.confirmButton}
-                onPress={onConfirm}
-              >
+      <BlurView intensity={90} tint="dark" style={styles.fullScreenBlur}>
+        <View style={styles.overlay}>
+          <BlurView intensity={30} style={styles.blurContainer}>
+            <View style={styles.dialogContainer}>
+              <View style={styles.iconContainer}>
                 <LinearGradient
-                  colors={['#FF7F50', '#FF6B45']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.gradientButton}
+                  colors={['rgba(255, 127, 80, 0.2)', 'rgba(255, 127, 80, 0.1)']}
+                  style={styles.iconBackground}
                 >
-                  <Text style={styles.confirmButtonText}>{confirmText}</Text>
+                  <Ionicons name={icon} size={32} color={iconColor} />
                 </LinearGradient>
-              </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.title}>{title}</Text>
+              <Text style={styles.message}>{message}</Text>
+              
+              <View style={styles.buttonContainer}>
+                {cancelText && (
+                  <TouchableOpacity 
+                    style={styles.cancelButton} 
+                    onPress={onCancel}
+                  >
+                    <Text style={styles.cancelButtonText}>{cancelText}</Text>
+                  </TouchableOpacity>
+                )}
+                
+                <TouchableOpacity 
+                  style={styles.confirmButton}
+                  onPress={onConfirm}
+                >
+                  <LinearGradient
+                    colors={['#FF7F50', '#FF6B45']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.gradientButton}
+                  >
+                    <Text style={styles.confirmButtonText}>{confirmText}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </BlurView>
-      </View>
+          </BlurView>
+        </View>
+      </BlurView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  fullScreenBlur: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   overlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   blurContainer: {
     width: width * 0.85,
@@ -94,13 +103,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   dialogContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 24,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
   },
+ 
   iconContainer: {
     marginBottom: 16,
   },

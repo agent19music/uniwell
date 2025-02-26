@@ -84,7 +84,7 @@ export default function HomeScreen() {
   };
 
   const handleLibraryPress = () => {
-    router.push('/streakvisual');
+    router.push('/library');
   };
   
   const handleViewMoodHistory = () => {
