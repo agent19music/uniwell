@@ -429,7 +429,37 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#333333',
+  },  
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },  
+  settingIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 12,
   },
+  settingContent: {   
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333333',
+  },
+  settingSubtitle: {
+    fontSize: 14,
+    color: '#666666',
+  },
+ 
+  sectionContent: {
+    flex: 1,
+  },
+  
+  
   header: {
     flexDirection: 'row',
     alignItems: 'center',

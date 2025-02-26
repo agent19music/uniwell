@@ -100,7 +100,24 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const { currentMood } = useMood();
-  const typingAnimation = useRef(new Animated.Value(0)).current;
+  const typingAnimation = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(typingAnimation, {
+          toValue: 1.5,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(typingAnimation, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
   
   // Initialize the chat with a welcome message
   useEffect(() => {
@@ -314,19 +331,17 @@ export default function ChatScreen() {
       
     } catch (error) {
       console.error('Error generating AI response:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       
       // Remove thinking message and add error message
       setMessages(prev => 
         prev.filter(msg => msg.id !== thinkingMessageId).concat({
           id: Date.now().toString(),
-          content: "I'm sorry, I'm having trouble responding right now. Please try again in a moment.",
+          content: "I'm sorry, I encountered an error. Please try again.",
           isAI: true,
           timestamp: new Date()
         })
       );
-      
-      // Provide error haptic feedback
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
   
@@ -660,8 +675,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 30,
-    width: 60,
+    paddingVertical: 8,
   },
   typingDot: {
     width: 8,
@@ -751,4 +765,4 @@ const styles = StyleSheet.create({
   darkSubText: {
     color: '#AAAAAA',
   },
-}); 
+});

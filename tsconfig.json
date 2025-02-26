@@ -2,12 +2,14 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "types": ["cookie"],
+    "types": ["cookie", "node", "react-native"],
     "paths": {
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
   },
   "include": [
     "**/*.ts",
