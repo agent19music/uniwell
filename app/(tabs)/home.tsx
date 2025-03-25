@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Image, useWindowDimensions, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Entypo } from '@expo/vector-icons';
+import { Ionicons, Entypo, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useMood, MoodType } from '../../contexts/MoodContext';
@@ -100,11 +100,14 @@ export default function HomeScreen() {
   };
 
   const handleAddRoutine = () => {
-    router.push('/modals/AddRoutineModal');
+    router.push('/AddRoutineScreen');
   };
 
   const handleAddStreak = () => {
-    router.push('/modals/AddStreakModal');
+    router.push('/AddStreakScreen');
+  };
+  const handleStreakCardPress = () => {
+    router.push('/streak-visualization');
   };
 
   const handleChatCardPress = () => {
@@ -274,10 +277,10 @@ export default function HomeScreen() {
       {/* Streaks Card */}
       <TouchableOpacity 
         style={[styles.card, isDark && styles.darkCard]} 
-        onPress={handleAddStreak}
+        onPress={handleStreakCardPress}
       >
         <View style={styles.cardHeader}>
-          <Ionicons name="flame-outline" size={24} color="#FF7F50" />
+          <Octicons name="flame" size={24} color="#FF7F50" />
           <Text style={[styles.cardTitle, isDark && styles.darkText]}>Streaks</Text>
         </View>
         <Text style={[styles.cardSubtitle, isDark && styles.darkSubText]}>

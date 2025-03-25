@@ -290,7 +290,7 @@ export default function ProfileScreen() {
             <View style={[styles.statCard, isDark && styles.darkCard]}>
               <Octicons name="flame" size={24} color="#FF7F50" />
               <Text style={[styles.statValue, isDark && styles.darkText]}>{userData.streakCount}</Text>
-              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Active Streaks</Text>
+              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Active Streaksss</Text>
             </View>
             <View style={[styles.statCard, isDark && styles.darkCard]}>
               <Ionicons name="repeat" size={24} color="#FF7F50" />

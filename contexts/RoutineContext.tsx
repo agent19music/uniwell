@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { format } from 'date-fns/format';
+import { ClassSchedule } from '../types/TimetableTypes'; // Adjust the import based on your types
+import { useAuth } from './AuthContext';
 
 type Frequency = 'daily' | 'weekly' | 'custom';
 type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -42,10 +45,12 @@ interface HabitAttempt {
 }
 
 interface Streak {
-  habitId: string;
+  id: string;
   type: 'break' | 'build';
-  streak: number;
-  color: string;
+  length: number;
+  title: string;
+  start_date: string;
+  start_time: string;
 }
 
 interface RoutineContextType {
@@ -58,6 +63,7 @@ interface RoutineContextType {
   createPlan: (title: string, startDate: Date, endDate?: Date) => Promise<void>;
   createGoal: (planId: string, description: string, targetDate: Date) => Promise<void>;
   createHabit: (goalId: string, title: string, frequency: Frequency, customDays?: DayOfWeek[]) => Promise<void>;
+  createRoutine: (title: string, frequency: Frequency, customDays?: DayOfWeek[]) => Promise<void>;
   completeHabit: (habitId: string, date: Date, notes?: string) => Promise<void>;
   getHabitHistory: (habitId: string) => Promise<HabitAttempt[]>;
   getStreakInfo: (habitId: string) => Promise<{ current: number; longest: number }>;
@@ -65,7 +71,12 @@ interface RoutineContextType {
   deleteHabit: (habitId: string) => Promise<void>;
   streaks: Streak[];
   fetchStreaks: () => Promise<void>;
-  createStreak: (habitId: string, title: string, startDate: Date, endDate?: Date) => Promise<void>;
+  createStreak: (title: string, type: 'build' | 'break', startDate: Date, startTime: Date) => Promise<void>;
+  createClassSchedule: (schedule: Omit<ClassSchedule, 'id'>) => Promise<void>;
+  updateClassSchedule: (id: string, updates: Partial<ClassSchedule>) => Promise<void>;
+  deleteClassSchedule: (id: string) => Promise<void>;
+  fetchClassSchedules: () => Promise<ClassSchedule[]>;
+  
 }
 
 const RoutineContext = createContext<RoutineContextType | undefined>(undefined);
@@ -78,11 +89,16 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
   const [streaks, setStreaks] = useState<Streak[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [classSchedules, setClassSchedules] = useState<ClassSchedule[]>([]);
+
+  const { currentUser } = useAuth();
 
   // Fetch initial data
   useEffect(() => {
     fetchUserData();
     fetchStreaks();
+    fetchClassSchedules();
+    
   }, []);
 
   const fetchUserData = async () => {
@@ -113,16 +129,19 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
   const fetchStreaks = async () => {
     try {
       const { data, error } = await supabase
-        .from('habits')
-        .select('id, title, streak, frequency, custom_days');
+        .from('streaks')
+        .select('id, title, type, length, start_date, start_time')
+        .eq('user_id', currentUser?.id); // Fetch streaks for the current user
 
       if (error) throw error;
 
-      const streaksData: Streak[] = data.map((habit: any) => ({
-        habitId: habit.id,
-        type: habit.frequency === 'daily' ? 'build' : 'break',
-        streak: habit.streak.current_streak,
-        color: habit.frequency === 'daily' ? '#8A8AFF' : '#FF69B4',
+      const streaksData: Streak[] = data.map((streak: any) => ({
+        id: streak.id,
+        title: streak.title,
+        type: streak.type,
+        length: streak.length,
+        start_date: streak.start_date,
+        start_time: streak.start_time,
       }));
 
       setStreaks(streaksData);
@@ -151,24 +170,33 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const createStreak = async (habitId: string, title: string, startDate: Date, endDate?: Date) => {
+  const createStreak = async (title: string, type: 'build' | 'break', startDate: Date, startTime: Date) => {
+    // Extract timezone from the original Date object
+    const timezone = startTime.toString().match(/GMT[+-]\d{4}/)![0];
+    console.log(`Creating streak: title=${title}, type=${type}, startDate=${format(startDate, 'MMMM d, yyyy')}, startTime=${format(startTime, 'h:mm a')} ${timezone}`);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from('streaks')
         .insert({
-          habit_id: habitId,
           title,
-          start_date: startDate.toISOString(),
-          end_date: endDate?.toISOString()
+          type,
+          start_date: format(startDate, 'MMMM d, yyyy'),
+          start_time: format(startTime, 'h:mm a'),
+          user_id: currentUser?.id, // Assuming user.id is available
         })
         .select();
-          if (error) throw error;
-          setStreaks([...streaks, data[0]]);
-        } catch (err) {
-          setError((err as Error).message);
-        }
-      };
+      
+      // Log the response from Supabase
+      console.log('Supabase response:', { data, error });
+
+      if (error) throw error;
+
+      // Fetch updated streaks
+      await fetchStreaks();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
 
   
 
@@ -294,6 +322,118 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateStreak = async (habitId: string, date: Date, status: 'success' | 'failure') => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+  
+      const { data, error } = await supabase
+        .from('habit_attempts')
+        .insert({
+          habit_id: habitId,
+          user_id: user.id,
+          date: format(date, 'yyyy-MM-dd'),
+          status
+        })
+        .select();
+  
+      if (error) throw error;
+  
+      // Edge function will handle streak updates
+      await supabase.functions.invoke('update-streaks', {
+        body: { record: data[0] }
+      });
+  
+      await fetchStreaks(); // Refresh streaks data
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const createClassSchedule = async (schedule: Omit<ClassSchedule, 'id'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('class_schedules')
+        .insert(schedule)
+        .select();
+      if (error) throw error;
+      setClassSchedules((prev) => [...prev, data[0]]);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const updateClassSchedule = async (id: string, updates: Partial<ClassSchedule>) => {
+    try {
+      const { data, error } = await supabase
+        .from('class_schedules')
+        .update(updates)
+        .eq('id', id)
+        .select();
+      if (error) throw error;
+      setClassSchedules((prev) => prev.map((schedule) => (schedule.id === id ? data[0] : schedule)));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const deleteClassSchedule = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('class_schedules')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      setClassSchedules((prev) => prev.filter((schedule) => schedule.id !== id));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const fetchClassSchedules = async (): Promise<ClassSchedule[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('class_schedules')
+        .select('*');
+      if (error) throw error;
+      setClassSchedules(data);
+      return data;
+    } catch (err) {
+      setError((err as Error).message);
+      return [];
+    }
+  };
+
+  const fetchHabits = async () => {
+    try {
+      const { data, error } = await supabase.from('habits').select('*');
+      if (error) throw error;
+      setHabits(data);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const createRoutine = async (title: string, frequency: Frequency, customDays?: DayOfWeek[]) => {
+    try {
+      const { data, error } = await supabase
+        .from('habits')
+        .insert({
+          title,
+          frequency,
+          custom_days: customDays,
+          user_id: currentUser?.id, // Assuming user.id is available
+        })
+        .select();
+      if (error) throw error;
+
+      // Fetch updated habits
+      await fetchHabits();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   const value = {
     plans,
     goals,
@@ -311,7 +451,13 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     deleteHabit,
     streaks,
     fetchStreaks,
-    createStreak
+    createStreak,
+    updateStreak,
+    createClassSchedule,
+    updateClassSchedule,
+    deleteClassSchedule,
+    fetchClassSchedules,
+    createRoutine,
   };
 
   return (

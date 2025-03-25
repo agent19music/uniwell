@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Image, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Modal, TextInput } from 'react-native';
+import AddPostModal from '@/modals/AddPostModal';
+import { useCommunity } from '@/contexts/CommunityContext';
+import { supabase } from '@/lib/supabase';
+import PostCard from '@/components/PostCard';
+import { Post } from '@/types/community';
 
 
 const CATEGORIES = [
@@ -42,139 +46,74 @@ export default function CommunityScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  // Add state variables
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
-  const [postText, setPostText] = useState('');
+  const { getTrendingPosts } = useCommunity();
 
-  // Add handlePostSubmit function
-  const handlePostSubmit = () => {
-    // Here you would typically send the post to your backend
-    console.log('Submitting post:', postText);
-    
-    // Clear the input and close modal
-    setPostText('');
-    setModalVisible(false);
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = async () => {
+    try {
+      const posts = await getTrendingPosts();
+      setPosts(posts);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setLoading(false);
+    }
   };
-
-  // const handlePostPress = (postId: number) => {
-  //   router.push(`/post/${postId}`);
-  // };
 
   function handlePostPress(){
     router.push('/PostScreen')
   }
+
+  // Update the header write button
+  function HeaderRight() {
+    return (
+      <TouchableOpacity 
+        style={styles.writeButton}
+        onPress={() => setModalVisible(true)}
+      >
+        <Ionicons name="create-outline" size={24} color={isDark ? '#ffffff' : '#000000'} />
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={[styles.title, isDark && styles.darkText]}>Wellness Hub</Text>
-          <TouchableOpacity 
-            style={styles.writeButton}
-            onPress={() => setModalVisible(true)}
-          >
-            <Ionicons name="create-outline" size={24} color={isDark ? '#ffffff' : '#000000'} />
-          </TouchableOpacity>
-        </View>
+      <View style={styles.header}>
+        <Text style={[styles.title, isDark && styles.darkText]}>Wellness Hub</Text>
+        <HeaderRight />
+      </View>
 
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          style={styles.categories}
-          contentContainerStyle={styles.categoriesContent}>
-          {CATEGORIES.map((category) => (
-            <TouchableOpacity
-              key={category.id}
-              style={[
-                styles.categoryButton,
-                category.active && styles.activeCategoryButton,
-                isDark && styles.darkCategoryButton,
-                category.active && isDark && styles.darkActiveCategoryButton,
-              ]}>
-              <Text
-                style={[
-                  styles.categoryText,
-                  category.active && styles.activeCategoryText,
-                  isDark && styles.darkCategoryText,
-                  category.active && isDark && styles.darkActiveCategoryText,
-                ]}>
-                {category.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <View style={styles.posts}>
-          {POSTS.map((post) => (
-            <TouchableOpacity
-              key={post.id}
-              style={[styles.postCard, isDark && styles.darkCard]}
-              onPress={() => handlePostPress()}
-            >
-              <View style={styles.postHeader}>
-                <View style={styles.userInfo}>
-                  <Image source={{ uri: post.user.image }} style={styles.userImage} />
-                  <View>
-                    <Text style={[styles.userName, isDark && styles.darkText]}>{post.user.name}</Text>
-                    <Text style={[styles.timestamp, isDark && styles.darkSubText]}>{post.timestamp}</Text>
-                  </View>
-                </View>
-                <TouchableOpacity>
-                  <Ionicons name="ellipsis-horizontal" size={20} color={isDark ? '#ffffff' : '#000000'} />
-                </TouchableOpacity>
-              </View>
-              <Text style={[styles.postContent, isDark && styles.darkText]}>{post.content}</Text>
-              <View style={styles.postActions}>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="heart-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
-                  <Text style={[styles.actionText, isDark && styles.darkSubText]}>{post.likes}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="chatbubble-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
-                  <Text style={[styles.actionText, isDark && styles.darkSubText]}>{post.comments}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="share-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-
-      {/* New Post Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, isDark && styles.darkCard]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isDark && styles.darkText]}>Create New Post</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color={isDark ? '#fff' : '#333'} />
-              </TouchableOpacity>
-            </View>
-            
-            <TextInput
-              style={[styles.input, isDark && styles.darkInput]}
-              multiline
-              placeholder="Share your thoughts..."
-              placeholderTextColor={isDark ? '#666' : '#999'}
-              value={postText}
-              onChangeText={setPostText}
+      {loading ? (
+        <ActivityIndicator style={styles.loading} />
+      ) : (
+        <FlatList
+          data={posts}
+          renderItem={({ item }) => (
+            <PostCard 
+              post={item} 
+              isOwner={item.user_id === supabase.auth.getUser()?.id}
             />
+          )}
+          keyExtractor={item => item.id}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={fetchPosts} />
+          }
+        />
+      )}
 
-            <TouchableOpacity 
-              style={styles.submitButton}
-              onPress={handlePostSubmit}
-            >
-              <Text style={styles.submitButtonText}>Post</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <AddPostModal
+        visible={modalVisible}
+        onClose={() => {
+          setModalVisible(false);
+          fetchPosts();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -317,54 +256,9 @@ const styles = StyleSheet.create({
     color: '#666',
     fontFamily: 'Vercetti-Regular',
   },
-  modalContainer: {
+  loading: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    minHeight: '50%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
-    fontFamily: 'Vercetti-Regular',
-  },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 16,
-    minHeight: 150,
-    fontSize: 16,
-    color: '#333',
-    fontFamily: 'Vercetti-Regular',
-  },
-  darkInput: {
-    backgroundColor: '#2a2a2a',
-    color: '#ffffff',
-  },
-  submitButton: {
-    backgroundColor: '#FF7F50',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  submitButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
   },
 });
