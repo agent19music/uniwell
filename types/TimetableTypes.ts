@@ -14,6 +14,8 @@ export enum ClassFrequency {
     MULTIPLE_TIMES_PER_WEEK = 'multiple-times-per-week'
 }
 
+
+
 export enum ClassType {
     LECTURE = 'lecture',
     LAB = 'lab',
@@ -26,8 +28,17 @@ export enum ClassType {
     ONLINE = 'online'
 }
 
+export enum SemesterType {
+    FALL = 'fall',
+    SPRING = 'spring',
+    SUMMER = 'summer',
+    WINTER = 'winter',
+    CUSTOM = 'custom'
+}
 export interface ClassSchedule {
     id: string;
+    userId: string;
+    semesterId: string;
     courseName: string;
     room: string;
     courseCode: string;
@@ -78,5 +89,16 @@ export interface TimetableNotification {
 export interface EditableClass extends Omit<ClassSchedule, 'startTime' | 'endTime'> {
   startTime: string;
   endTime: string;
+}
+
+export interface Semester {
+    id: string;
+    name: string;
+    type: SemesterType;
+    startDate: Date;
+    endDate: Date;
+    status: 'active' | 'inactive';
+    userId: string;
+    createdAt: Date;
 }
 
