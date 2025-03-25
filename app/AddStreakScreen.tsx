@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useRoutine } from '../../contexts/RoutineContext';
+import { useRoutine } from '@/contexts/RoutineContext';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -13,18 +13,19 @@ export default function AddStreakModal() {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<StreakType>('build');
   const [startDate, setStartDate] = useState(new Date());
+  const [startTime, setStartTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   const handleSave = async () => {
+    if (startDate > new Date()) {
+      console.error('Start date cannot be in the future');
+      return;
+    }
     try {
-      await createStreak(
-        title,
-        type,
-        startDate,
-      );
+      await createStreak(title, type, startDate, startTime);
       router.back();
     } catch (error) {
       console.error('Error creating streak:', error);
@@ -47,7 +48,7 @@ export default function AddStreakModal() {
       const newDateTime = new Date(startDate);
       newDateTime.setHours(selectedTime.getHours());
       newDateTime.setMinutes(selectedTime.getMinutes());
-      setStartDate(newDateTime);
+      setStartTime(newDateTime);
     }
   };
 
@@ -138,7 +139,7 @@ export default function AddStreakModal() {
 
         {showTimePicker && (
           <DateTimePicker
-            value={startDate}
+            value={startTime}
             mode="time"
             display="default"
             onChange={onTimeChange}

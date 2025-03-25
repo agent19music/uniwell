@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useRoutine } from '../../contexts/RoutineContext';
+import { useRoutine } from '@/contexts/RoutineContext';
 import { Ionicons } from '@expo/vector-icons';
 
 type Frequency = 'daily' | 'weekly' | 'custom';
@@ -9,7 +9,7 @@ type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 's
 
 export default function AddRoutineModal() {
   const router = useRouter();
-  const { createHabit } = useRoutine();
+  const { createRoutine } = useRoutine();
   const [title, setTitle] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('daily');
   const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
@@ -18,14 +18,10 @@ export default function AddRoutineModal() {
 
   const handleSave = async () => {
     try {
-      await createHabit(
-        title,
-        frequency,
-        frequency === 'custom' ? selectedDays : []
-      );
+      await createRoutine(title, frequency, frequency === 'custom' ? selectedDays : []);
       router.back();
     } catch (error) {
-      console.error('Error creating habit:', error);
+      console.error('Error creating routine:', error);
     }
   };
 

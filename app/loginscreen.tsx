@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import * as burnt from 'burnt';
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
@@ -24,9 +25,15 @@ export default function LoginScreen() {
 
       if (error) throw error;
       
+      // User is now logged in and will be stored by the AuthContext
       router.push('/routines');
     } catch (error) {
       console.error('Error signing in:', (error as Error).message);
+      burnt.toast({
+        title: 'Login Failed',
+        message: (error as Error).message,
+        preset: 'error',
+      });
     }
   };
 

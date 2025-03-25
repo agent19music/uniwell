@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text, Animated, Easing } from 'react-native';
 import Svg, { Path, G, Circle } from 'react-native-svg';
+import { useRoutine } from '@/contexts/RoutineContext';
 
 const StreakTreeVisualizer = ({ 
   currentStreak = 31,
@@ -8,6 +9,9 @@ const StreakTreeVisualizer = ({
   maxDaysToShow = 30,
   onPress = () => {}
 }) => {
+  const { fetchStreaks, streaks } = useRoutine();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [treeScale] = useState(new Animated.Value(isActive ? 1 : 0.7));
   const [treeColor] = useState(new Animated.Value(isActive ? 1 : 0));
   const [treeShake] = useState(new Animated.Value(0));
@@ -178,6 +182,29 @@ const StreakTreeVisualizer = ({
     }
   };
   
+  useEffect(() => {
+    const loadStreaks = async () => {
+      try {
+        setLoading(true);
+        await fetchStreaks(); // Call the function to fetch streaks
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStreaks();
+  }, []);
+
+  if (loading) {
+    return <Text>Loading...</Text>;
+  }
+
+  if (error) {
+    return <Text>Error: {error}</Text>;
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.streakLabel}>

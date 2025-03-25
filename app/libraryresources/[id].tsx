@@ -57,6 +57,12 @@ interface Resource {
   tags: ResourceTag[];
 }
 
+const formatArticleContent = (content: string) => {
+  if (!content) return '';
+  // Remove the character count suffix pattern {+ <number>}
+  return content.replace(/\{\+\s*\d+\}/g, '');
+};
+
 export default function ResourceDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -75,20 +81,21 @@ export default function ResourceDetailScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [showRelatedFully, setShowRelatedFully] = useState(false);
   
-  // Create a video player instance with useVideoPlayer hook
+  // Move video player hooks to component level
   const videoPlayer = useVideoPlayer(
-    resource?.content?.media_url ? resource.content.media_url : undefined,
+    resource?.content?.media_url,
     player => {
       if (player) {
         player.loop = false;
         player.volume = 1.0;
-        player.muted = false;
-        
-        // Start playing automatically
         player.play();
       }
     }
   );
+
+  const { isPlaying } = useEvent(videoPlayer, 'playingChange', { 
+    isPlaying: videoPlayer?.playing || false 
+  });
   
   // Use the useEvent hook to track playback status
   const { position, duration } = useEvent(videoPlayer, 'positionChange', { 
@@ -358,20 +365,24 @@ export default function ResourceDetailScreen() {
     
     switch (resource.content_type) {
       case 'article':
-        const articleContent = resource.content.article_content || '';
         return (
           <View style={[styles.articleContainer, isDark && styles.darkArticleContainer]}>
-            {articleContent ? (
+            {resource.content.article_content ? (
               <RenderHtml
-                contentWidth={width - 32}
-                source={{ html: articleContent }}
-                systemFonts={[...defaultSystemFonts, 'Arial', 'Georgia']}
+                contentWidth={width - 48}
+                source={{ html: formatArticleContent(resource.content.article_content) }}
+                systemFonts={[...defaultSystemFonts, 'SF-Regular']}
+                baseStyle={{
+                  color: isDark ? '#FFFFFF' : '#333333',
+                  fontSize: 16,
+                  lineHeight: 24,
+                  fontFamily: 'SF-Regular',
+                }}
                 tagsStyles={{
                   body: {
                     color: isDark ? '#FFFFFF' : '#333333',
                     fontSize: 16,
                     lineHeight: 24,
-                    fontFamily: 'System',
                   },
                   p: {
                     marginBottom: 16,
@@ -383,21 +394,24 @@ export default function ResourceDetailScreen() {
                   img: {
                     borderRadius: 8,
                     marginVertical: 16,
+                    width: '100%',
+                    height: 'auto',
                   },
                   h1: {
                     fontSize: 24,
                     fontWeight: 'bold',
                     marginVertical: 16,
                     color: isDark ? '#FFFFFF' : '#333333',
+                    fontFamily: 'SF-Regular',
                   },
                   h2: {
                     fontSize: 20,
                     fontWeight: 'bold',
                     marginVertical: 12,
                     color: isDark ? '#FFFFFF' : '#333333',
+                    fontFamily: 'SF-Regular',
                   }
                 }}
-                enableExperimentalMarginCollapsing={true}
                 renderersProps={{
                   img: {
                     enableExperimentalPercentWidth: true
@@ -416,59 +430,42 @@ export default function ResourceDetailScreen() {
         return (
           <View style={styles.videoContainer}>
             {resource.content.media_url ? (
-              <VideoView
-                ref={videoRef}
-                player={videoPlayer}
-                style={styles.videoPlayer}
-                videoStyle={{ 
-                  width: '100%', 
-                  height: '100%',
-                  objectFit: 'contain'
-                }}
-                allowsFullscreen
-                allowsPictureInPicture
-                posterSource={{ uri: resource.thumbnail_url }}
-                usePoster={true}
-              />
+              <>
+                <VideoView
+                  style={styles.videoPlayer}
+                  player={videoPlayer}
+                  videoStyle={styles.videoContent}
+                  allowsFullscreen
+                  allowsPictureInPicture
+                  posterSource={{ uri: resource.thumbnail_url }}
+                  usePoster={true}
+                />
+                
+                <View style={styles.videoControls}>
+                  <TouchableOpacity 
+                    style={styles.playButton}
+                    onPress={() => {
+                      if (isPlaying) {
+                        videoPlayer?.pause();
+                      } else {
+                        videoPlayer?.play();
+                      }
+                    }}
+                  >
+                    <Ionicons 
+                      name={isPlaying ? "pause" : "play"} 
+                      size={24} 
+                      color="#FFFFFF" 
+                    />
+                  </TouchableOpacity>
+                </View>
+              </>
             ) : (
               <View style={[styles.noVideoContainer, isDark && { backgroundColor: '#1E1E1E' }]}>
                 <Ionicons name="videocam-off-outline" size={48} color="#CCCCCC" />
                 <Text style={[styles.noContentText, isDark && styles.darkText]}>
                   Video not available
                 </Text>
-              </View>
-            )}
-            
-            {/* Custom video controls */}
-            {resource.content.media_url && (
-              <View style={styles.videoControls}>
-                <TouchableOpacity 
-                  style={styles.playButton}
-                  onPress={() => {
-                    if (videoPlayer?.playing) {
-                      videoPlayer.pause();
-                    } else {
-                      videoPlayer?.play();
-                    }
-                  }}
-                >
-                  <Ionicons 
-                    name={videoPlayer?.playing ? "pause" : "play"} 
-                    size={24} 
-                    color="#FFFFFF" 
-                  />
-                </TouchableOpacity>
-                
-                {/* Progress bar */}
-                <View style={styles.progressBarContainer}>
-                  <View style={styles.progressBackground} />
-                  <View 
-                    style={[
-                      styles.progressFill, 
-                      { width: `${progress}%` }
-                    ]} 
-                  />
-                </View>
               </View>
             )}
           </View>
@@ -479,15 +476,12 @@ export default function ResourceDetailScreen() {
           <View style={styles.podcastContainer}>
             {resource.content.media_url ? (
               <>
-                <View style={{ height: 240 }}>
-                  <WebView
-                    source={{ uri: resource.content.media_url }}
-                    style={styles.webView}
-                    onLoadStart={() => setWebViewLoading(true)}
-                    onLoadEnd={() => setWebViewLoading(false)}
-                    scrollEnabled={false}
-                  />
-                </View>
+                <WebView
+                  source={{ uri: resource.content.media_url }}
+                  style={styles.webView}
+                  onLoadStart={() => setWebViewLoading(true)}
+                  onLoadEnd={() => setWebViewLoading(false)}
+                />
                 {webViewLoading && (
                   <View style={styles.webViewLoading}>
                     <ActivityIndicator size="large" color="#FF7F50" />
@@ -567,7 +561,7 @@ export default function ResourceDetailScreen() {
           onPress={() => router.back()}
         >
           <Ionicons 
-            name="arrow-back" 
+            name="arrow-back-outline" 
             size={24} 
             color={isDark ? "#FFFFFF" : "#333333"} 
           />
@@ -992,10 +986,10 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   articleContainer: {
-    padding: 16,
+    padding: 24,
     backgroundColor: '#FFFFFF',
-    marginTop: 16,
     marginHorizontal: 16,
+    marginTop: 16,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1016,6 +1010,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  videoContent: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
+  },
   videoControls: {
     position: 'absolute',
     bottom: 0,
@@ -1023,17 +1022,16 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   playButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255, 127, 80, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
   podcastContainer: {
     marginTop: 16,

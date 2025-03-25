@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { View, Text, StyleSheet, useColorScheme, Image, TouchableOpacity, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,11 +6,30 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useAuth } from '../contexts/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Index() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { storedUsers } = useAuth();
+
+  useEffect(() => {
+    // Check if we have stored users
+    if (storedUsers.length > 0) {
+      // Redirect to user selection screen
+      router.replace('/user-selection');
+    }
+    
+    // Check if we have an active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        // User is already logged in, redirect to home
+        router.replace('/(tabs)/home');
+      }
+    });
+  }, [storedUsers]);
 
   const handleOAuthLogin = async (provider: 'google') => {
     try {

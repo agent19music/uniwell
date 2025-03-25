@@ -53,11 +53,11 @@ export default function RoutinesScreen() {
   };  
 
   const handleAddRoutine = () => {
-    router.push('/modals/AddRoutineModal');
+    router.push('/AddRoutineScreen');
   };
 
   const handleAddStreak = () => {
-    router.push('/modals/AddStreakModal');
+    router.push('/AddStreakScreen');
   };  
 
   const handleCompleteTask = async (habitId: string) => {
@@ -67,6 +67,10 @@ export default function RoutinesScreen() {
     } catch (error) {
       console.error('Error completing habit:', error);
     }
+  };
+
+  const handleEditRoutine = (id: string) => {
+    router.push(`/modals/edit-routine?id=${id}`);
   };
 
   // Generate last 7 days for the calendar strip
@@ -93,39 +97,39 @@ export default function RoutinesScreen() {
         </View>
 
         {/* Streaks Section */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.streaksContainer}
-        >
-          {streaks.length > 0 ? (
-            streaks.map((streak) => (
-              <TouchableOpacity 
-                key={streak.habitId} 
-                style={[styles.streakCard, { backgroundColor: streak.color + '15' }]}
-                onPress={() => router.push(`/streak-details/${streak.habitId}`)}
-              >
-                <View style={styles.streakHeader}>
-                  <Octicons 
-                    name={streak.type === 'break' ? 'flame' : 'rocket'} 
-                    size={56}
-                    color={streak.color} 
-                  />
-                  <Text style={[styles.streakCount, isDark && styles.darkText]}>{streak.streak}</Text>
-                </View>
-                <Text style={[styles.streakTitle, isDark && styles.darkText]}>
-                  {streak.type === 'break' ? `${streak.streak} days ${streak.habitId}` : streak.habitId}
-                </Text>
-                <Text style={[styles.streakSubtext, isDark && styles.darkText]}>Keep it up!</Text>
+        <View style={styles.streaksContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.streaksScrollContainer}
+          >
+            {streaks.length > 0 ? (
+              streaks.map((streak) => (
+                <TouchableOpacity 
+                  key={streak.id} 
+                  style={[styles.streakCard, isDark && styles.darkStreakCard]}
+                  onPress={() => router.push(`/streak-details/${streak.id}`)}
+                >
+                  <View style={styles.streakHeader}>
+                    <Octicons 
+                      name={streak.type === 'break' ? 'flame' : 'rocket'} 
+                      size={56} 
+                      color="#FF7F50" 
+                    />
+                    <Text style={[styles.streakCount, isDark && styles.darkText]}>{streak.length} Days</Text>
+                  </View>
+                  <Text style={[styles.streakTitle, isDark && styles.darkText]}>{streak.title}</Text>
+                  <Text style={[styles.streakSubtext, isDark && styles.darkText]}>Keep it up!</Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <TouchableOpacity style={styles.addStreakButton} onPress={handleAddStreak}>
+                <Ionicons name="add-circle" size={24} color="#FF7F50" />
+                <Text style={styles.addButtonText}>Add New Streak</Text>
               </TouchableOpacity>
-            ))
-          ) : (
-            <TouchableOpacity style={styles.addStreakButton} onPress={handleAddStreak}>
-              <Ionicons name="add-circle" size={24} color="#FF7F50" />
-              <Text style={styles.addButtonText}>Add New Streak</Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
+            )}
+          </ScrollView>
+        </View>
         {/* Sleep Card */}
         <TouchableOpacity 
           style={[styles.routineCard, { marginLeft: 12 }]} 
@@ -187,6 +191,15 @@ export default function RoutinesScreen() {
           <Ionicons name="add-circle" size={24} color="#FF7F50" />
           <Text style={styles.addButtonText}>Add New Routine</Text>
         </TouchableOpacity>
+
+        {habits.map((habit) => (
+          <View key={habit.id} style={styles.habitContainer}>
+            <Text>{habit.title}</Text>
+            <TouchableOpacity onPress={() => handleEditRoutine(habit.id)}>
+              <Ionicons name="ellipsis-vertical" size={24} color="#FF7F50" />
+            </TouchableOpacity>
+          </View>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -229,41 +242,60 @@ const styles = StyleSheet.create({
     color: '#aaaaaa',
   },
   streaksContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  streaksScrollContainer: {
     paddingHorizontal: 16,
     gap: 16,
   },
   streakCard: {
-    padding: 16,
+    padding: 20,
     borderRadius: 16,
-    width: 160,
     marginRight: 12,
-    alignContent: 'center',
-    color: '#333',
-    
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+    width: 250,
+  },
+  darkStreakCard: {
+    backgroundColor: '#2C2C2C',
+    borderColor: '#444444',
   },
   streakHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
-    gap: 8,
+    marginBottom: 8,
+    fontFamily: 'Vercetti-Regular',
   },
   streakCount: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    color: '#FF7F50',
+    marginLeft: 10,
     fontFamily: 'Vercetti-Regular',
   },
   streakTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
     fontFamily: 'Vercetti-Regular',
   },
   streakSubtext: {
     fontSize: 12,
     color: '#666',
     fontFamily: 'Vercetti-Regular',
+  },
+  addStreakButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    gap: 8,
   },
   calendarStrip: {
     flexDirection: 'row',
@@ -351,11 +383,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
   },
-  addStreakButton: {
+  habitContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
-    gap: 8,
+    justifyContent: 'space-between',
+    padding: 16,
   },
 });
