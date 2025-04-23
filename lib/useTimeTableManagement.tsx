@@ -7,7 +7,8 @@ import {
   AttendanceRecord,
   TimetableNotification,
   Semester,
-  SemesterType
+  SemesterType,
+  NewSemester
 } from '../types/TimetableTypes';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {v4 as uuidv4} from 'uuid';
@@ -136,58 +137,49 @@ export const useTimetableManagement = () => {
      * Creates a new semester and stores it in Supabase
      * Transforms camelCase frontend data to snake_case for database storage
      */
-    const createSemester = async (semesterData: Omit<Semester, 'id' | 'createdAt' | 'userId'>) => {
+    const createSemester = async (semesterData: Omit<NewSemester, 'userId'>) => {
         try {
+            console.log('Starting createSemester with data:', semesterData);
+            
             if (!user) {
+                console.error('User not authenticated');
                 setError('User not authenticated');
                 return null;
             }
             
             // Validate required fields
             if (!semesterData.name || !semesterData.startDate || !semesterData.endDate || !semesterData.type) {
+                console.error('Missing required fields:', { 
+                    name: !!semesterData.name,
+                    startDate: !!semesterData.startDate,
+                    endDate: !!semesterData.endDate,
+                    type: !!semesterData.type
+                });
                 setError('Missing required semester data');
                 return null;
             }
             
             // Convert dates to ISO strings for Supabase
             const startDateISO = semesterData.startDate instanceof Date 
-                ? semesterData.startDate.toISOString().split('T')[0] // Get YYYY-MM-DD format
+                ? semesterData.startDate.toISOString().split('T')[0]
                 : new Date(semesterData.startDate).toISOString().split('T')[0];
                 
             const endDateISO = semesterData.endDate instanceof Date
                 ? semesterData.endDate.toISOString().split('T')[0]
                 : new Date(semesterData.endDate).toISOString().split('T')[0];
             
-            // Determine if this should be active
-            const shouldBeActive = semesterData.status === 'active';
-            
-            // If this will be active, we need to deactivate all other semesters first
-            if (shouldBeActive) {
-                // Update all other semesters to be inactive
-                const { error: updateError } = await supabase
-                    .from('semesters')
-                    .update({ status: 'inactive' })
-                    .eq('user_id', user.id)
-                    .eq('status', 'active');
-                    
-                if (updateError) {
-                    console.error('Error deactivating other semesters:', updateError);
-                }
-            }
-            
             // Transform camelCase to snake_case for Supabase
             const newSemesterForSupabase = {
-                id: uuidv4(),
                 name: semesterData.name,
                 type: semesterData.type,
                 start_date: startDateISO,
                 end_date: endDateISO,
                 status: semesterData.status || 'inactive',
-                user_id: user.id
-                // created_at will be set by Supabase default value
+                user_id: user.id,
             };
             
-            // Insert into Supabase
+            console.log('Sending to Supabase:', newSemesterForSupabase);
+            
             // Insert into Supabase
             const { data, error } = await supabase
                 .from('semesters')
@@ -196,13 +188,16 @@ export const useTimetableManagement = () => {
                 .single();
                 
             if (error) {
-                console.error('Supabase error creating semester:', error);
+                console.error('Supabase error:', error);
                 throw error;
             }
             
             if (!data) {
+                console.error('No data returned from creation');
                 throw new Error('No data returned from semester creation');
             }
+            
+            console.log('Successfully created semester:', data);
             
             // Transform the returned data from snake_case back to camelCase
             const formattedSemester: Semester = {
@@ -219,13 +214,9 @@ export const useTimetableManagement = () => {
             // Update local state with the new semester
             setSemesters(prev => [...prev, formattedSemester]);
             
-            // If this is active, set it as the active semester
-            if (formattedSemester.status === 'active') {
-                setActiveSemester(formattedSemester);
-            }
             return formattedSemester;
         } catch (error) {
-            console.error('Error creating semester:', error);
+            console.error('Error in createSemester:', error);
             setError('Failed to create semester');
             return null;
         }

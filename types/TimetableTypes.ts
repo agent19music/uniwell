@@ -101,4 +101,11 @@ export interface Semester {
     userId: string;
     createdAt: Date;
 }
-
+export interface NewSemester {
+    name: string;
+    type: SemesterType;
+    startDate: Date;
+    endDate: Date;
+    status: 'active' | 'inactive';
+    userId: string;
+}

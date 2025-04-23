@@ -6,8 +6,9 @@ import FloatingActionButton from '../components/FloatingActionButton';
 import ScheduleEditorModal from '../modals/ScheduleEditorModal';
 import { useTimetableManagement } from '../lib/useTimeTableManagement';
 import SemesterSelectionModal from '../modals/SemesterSelectionModal';
-import SemesterManagementModal from '../modals/SemesterManagementModal';
-import {Semester} from '../types/TimetableTypes';
+import CreateSemesterModal from '../modals/CreateSemesterModal';
+import UpdateSemesterModal from '../modals/UpdateSemesterModal';
+import {Semester, NewSemester} from '../types/TimetableTypes';
 
 // Add these type definitions at the top of the file after imports
 interface ClassInfo {
@@ -61,9 +62,10 @@ export default function ClassScheduleScreen() {
   const [currentWeek, setCurrentWeek] = useState(1);
   const { width } = Dimensions.get('window');
   const [isEditorVisible, setIsEditorVisible] = useState(false);
-  const [isSemesterModalVisible, setIsSemesterModalVisible] = useState(false);
-  const [isNewSemester, setIsNewSemester] = useState(false);
   const [isCreatingSemester, setIsCreatingSemester] = useState(false);
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [selectedSemester, setSelectedSemester] = useState<Semester | null>(null);
+  const [isSemesterModalVisible, setIsSemesterModalVisible] = useState(false);
   const [classSchedules, setClassSchedules] = useState<any[]>([]);
   
   const { 
@@ -73,7 +75,9 @@ export default function ClassScheduleScreen() {
     semesters,
     createSemester,
     setActiveSemesterById,
-    classSchedules: storedClassSchedules
+    classSchedules: storedClassSchedules,
+    deleteSemester,
+    updateSemester
   } = useTimetableManagement();
   
   // Track if we have content to display
@@ -118,16 +122,19 @@ export default function ClassScheduleScreen() {
     setCurrentWeek(prev => prev + direction);
   };
 
-  const handleCreateSemester = async (semester:Semester) => {
+  const handleCreateSemester = async (semester: NewSemester) => {
     try {
       setIsCreatingSemester(true);
-      const newSemester = await createSemester(semester);
-      if (newSemester) {
-        await setActiveSemesterById(newSemester.id);
+      console.log('Creating semester with data:', semester);
+      const freshlyCreatedSemester = await createSemester(semester);
+      console.log('Response from createSemester:', freshlyCreatedSemester);
+      
+      if (freshlyCreatedSemester && freshlyCreatedSemester.id) {
+        await setActiveSemesterById(freshlyCreatedSemester.id);
       } else {
-        console.error('Failed to create semester: newSemester is null');
+        console.error('Failed to create semester: freshlyCreatedSemester is null or has no id');
       }
-      setIsSemesterModalVisible(false);
+      setIsCreateModalVisible(false);  // Use this instead of setIsNewSemester
     } catch (error) {
       console.error('Failed to create semester:', error);
     } finally {
@@ -135,7 +142,46 @@ export default function ClassScheduleScreen() {
     }
   };
 
-  const handleSelectSemester = async (semesterId:string) => {
+  const handleUpdateSemester = async (updatedSemester: Semester) => {
+    try {
+      console.log('Updating semester with data:', updatedSemester);
+      const success = await updateSemester(updatedSemester.id, updatedSemester);
+      
+      if (success) {
+        setSelectedSemester(null);
+        
+        // If we're updating the active semester, refresh it
+        if (activeSemester?.id === updatedSemester.id) {
+          await setActiveSemesterById(updatedSemester.id);
+        }
+      } else {
+        console.error('Failed to update semester');
+      }
+    } catch (error) {
+      console.error('Failed to update semester:', error);
+    }
+  };
+
+  const handleDeleteSemester = async (semesterId: string) => {
+    try {
+      console.log('Deleting semester:', semesterId);
+      await deleteSemester(semesterId);
+      setSelectedSemester(null);
+      
+      // If we deleted the active semester, we need to handle that
+      if (activeSemester?.id === semesterId) {
+        // Find the first available semester to set as active, or null if none exist
+        const firstAvailableSemester = semesters.find(s => s.id !== semesterId);
+        if (firstAvailableSemester) {
+          await setActiveSemesterById(firstAvailableSemester.id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete semester:', error);
+    }
+  };
+
+  const handleSelectSemester = async (semesterId: string) => {
     try {
       await setActiveSemesterById(semesterId);
       setIsSemesterModalVisible(false);
@@ -309,33 +355,32 @@ export default function ClassScheduleScreen() {
         </ScrollView>)}
       
       {/* Semester Selection Modal */}
-      {isSemesterModalVisible && !isNewSemester && (
+      {isSemesterModalVisible && (
         <SemesterSelectionModal
           onClose={() => setIsSemesterModalVisible(false)}
           onNewSemester={() => {
-            // Close semester selection modal and open semester creation modal
             setIsSemesterModalVisible(false);
-            setIsNewSemester(true);
+            setIsCreateModalVisible(true);  // Use this instead of setIsNewSemester
           }}
           onSemesterSelected={handleSelectSemester}
           semesters={semesters || []}
         />
       )}
       
-      {/* Semester Management Modal */}
-      {isNewSemester && (
-        <SemesterManagementModal
-          onClose={() => {
-            setIsNewSemester(false);
-            // If no active semester, show selection modal again
-            if (!activeSemester) {
-              setIsSemesterModalVisible(true);
-            }
-          }}
-          onSave={(semester) => {
-            handleCreateSemester(semester);
-          }}
-          semester={undefined}
+      {/* Create Semester Modal */}
+      {isCreateModalVisible && (
+        <CreateSemesterModal
+          onClose={() => setIsCreateModalVisible(false)}
+        />
+      )}
+      
+      {/* Update Semester Modal */}
+      {selectedSemester && (
+        <UpdateSemesterModal
+          onClose={() => setSelectedSemester(null)}
+          onSave={handleUpdateSemester}
+          onDelete={handleDeleteSemester}
+          semester={selectedSemester}
         />
       )}
       

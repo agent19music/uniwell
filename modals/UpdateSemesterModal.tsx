@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useContext} from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
@@ -7,14 +7,16 @@ import { format } from 'date-fns';
 import { TextInput } from 'react-native-gesture-handler';
 import { Picker } from '@react-native-picker/picker';
 import { Semester, SemesterType } from '../types/TimetableTypes';
-type SemesterManagementModalProps = {
+import { AuthContext } from '@/contexts/AuthContext';
+
+type UpdateSemesterModalProps = {
   onClose: () => void;
   onSave: (semester: Semester) => void;
-  onDelete?: (semesterId: string) => void;
-  semester?: Semester;
+  onDelete: (semesterId: string) => void;
+  semester: Semester;
 };
 
-const SemesterManagementModal: React.FC<SemesterManagementModalProps> = ({
+const UpdateSemesterModal: React.FC<UpdateSemesterModalProps> = ({
   onClose,
   onSave,
   onDelete,
@@ -22,7 +24,6 @@ const SemesterManagementModal: React.FC<SemesterManagementModalProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   
-  // Simple light/dark theme colors
   const colors = {
     background: colorScheme === 'dark' ? '#121212' : '#FFFFFF',
     text: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
@@ -32,37 +33,19 @@ const SemesterManagementModal: React.FC<SemesterManagementModalProps> = ({
     primaryDark: '#FF7F50',
     error: '#B00020',
   };
-  const [name, setName] = useState('');
-  const [type, setType] = useState<SemesterType>(SemesterType.FALL);
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [isActive, setIsActive] = useState(false);
+
+  const [name, setName] = useState(semester.name);
+  const [type, setType] = useState<SemesterType>(semester.type);
+  const [startDate, setStartDate] = useState(semester.startDate);
+  const [endDate, setEndDate] = useState(semester.endDate);
+  const [isActive, setIsActive] = useState(semester.status === 'active');
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (semester) {
-      setName(semester.name);
-      setType(semester.type);
-      setStartDate(semester.startDate);
-      setEndDate(semester.endDate);
-      setIsActive(semester.status === 'active');
-    } else {
-      resetForm();
-    }
-  }, [semester]);
-
-  const resetForm = () => {
-    setName('');
-    setType(SemesterType.FALL);
-    setStartDate(new Date());
-    setEndDate(new Date());
-    setIsActive(false);
-    setError('');
-  };
-
   const handleSave = () => {
+    setError('');
+
     if (!name.trim()) {
       setError('Semester name is required');
       return;
@@ -73,57 +56,38 @@ const SemesterManagementModal: React.FC<SemesterManagementModalProps> = ({
       return;
     }
 
-    // Format dates to match Supabase's expected format (YYYY-MM-DD)
-    const formattedStartDate = startDate instanceof Date 
-      ? startDate 
-      : new Date(startDate);
-      
-    const formattedEndDate = endDate instanceof Date 
-      ? endDate 
-      : new Date(endDate);
-    
     const updatedSemester: Semester = {
-      id: semester?.id || Math.random().toString(36).substr(2, 9),
+      ...semester,
       name,
       type,
-      startDate: formattedStartDate,
-      endDate: formattedEndDate,
+      startDate,
+      endDate,
       status: isActive ? 'active' : 'inactive',
-      userId: semester?.userId || '1',
-      createdAt: semester?.createdAt || new Date(),
     };
 
     onSave(updatedSemester);
-    resetForm();
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onClose();
   };
 
   const handleDelete = () => {
-    if (semester?.id && onDelete) {
-      onDelete(semester.id);
-    }
-    resetForm();
+    onDelete(semester.id);
     onClose();
   };
 
+  // Exact same JSX structure as your original modal
   return (
-      <View style={styles.overlay}>
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose}>
-              <Ionicons name="close" size={24} color="#FF7F50" />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>
-              {semester ? 'Edit Semester' : 'Add New Semester'}
-            </Text>
-            <TouchableOpacity onPress={handleSave}>
-              <Text style={styles.saveButton}>Save</Text>
-            </TouchableOpacity>
-          </View>
+    <View style={styles.overlay}>
+      <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={24} color="#FF7F50" />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Edit Semester
+          </Text>
+          <TouchableOpacity onPress={handleSave}>
+            <Text style={styles.saveButton}>Save</Text>
+          </TouchableOpacity>
+        </View>
 
         <ScrollView style={styles.modalContent}>
           {error ? (
@@ -230,7 +194,7 @@ const SemesterManagementModal: React.FC<SemesterManagementModalProps> = ({
             </Text>
           </View>
           
-          {semester && onDelete && (
+          {semester && (
             <TouchableOpacity
               onPress={handleDelete}
               style={[styles.deleteButton, { backgroundColor: colors.error }]}
@@ -239,14 +203,12 @@ const SemesterManagementModal: React.FC<SemesterManagementModalProps> = ({
             </TouchableOpacity>
           )}
         </ScrollView>
-        </View>
       </View>
+    </View>
   );
 };
 
-export default SemesterManagementModal;
-
-// Removed duplicate export default statement
+// Exact same styles as your original modal
 const styles = StyleSheet.create({
   overlay: {
     position: 'absolute',
@@ -358,4 +320,4 @@ const styles = StyleSheet.create({
   },
 });
 
-
+export default UpdateSemesterModal;

@@ -2,34 +2,36 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, useColorScheme } from 'react-native';
 import { AntDesign, FontAwesome, Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import SemesterManagementModal  from './SemesterManagementModal';
-import { Semester } from '@/types/TimetableTypes';
+import CreateSemesterModal from './CreateSemesterModal';
+import UpdateSemesterModal from './UpdateSemesterModal';
+import { Semester,NewSemester } from '@/types/TimetableTypes';
 interface SemesterSelectionModalProps {
   onClose: () => void;
-  onNewSemester: (semester: Semester) => void | Promise<void>;
+  onNewSemester: () => void;  // Updated type
   onSemesterSelected: (semesterId: string) => Promise<void>;
   semesters: Semester[];
 }
 
 const SemesterSelectionModal = ({ onClose, onNewSemester, onSemesterSelected, semesters }: SemesterSelectionModalProps) => {
   // State and helper functions
-  const [isNewSemesterModalVisible, setIsNewSemesterModalVisible] = useState(false);
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [selectedSemesterId, setSelectedSemesterId] = useState<string | null>(null);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   // Handler functions
-  const handleNewSemesterModalClose = () => {
-    setIsNewSemesterModalVisible(false);
+  const handleCreateModalClose = () => {
+    setIsCreateModalVisible(false);
   };
 
-  const handleSaveSemester = (semester: Semester) => {
-    onNewSemester(semester);
-    setIsNewSemesterModalVisible(false);
+  const handleSaveSemester = (semester: NewSemester) => {
+    onNewSemester();
+    setIsCreateModalVisible(false);
   };
 
   const handleCreateNewSemester = () => {
-    setIsNewSemesterModalVisible(true);
+    onNewSemester();
+    onClose();
   };
 
   const handleSemesterSelect = (semesterId: string) => {
@@ -134,11 +136,9 @@ const SemesterSelectionModal = ({ onClose, onNewSemester, onSemesterSelected, se
         )}
       </View>
       
-      {isNewSemesterModalVisible && (
-        <SemesterManagementModal
-          onClose={handleNewSemesterModalClose}
-          onSave={handleSaveSemester}
-          semester={undefined}
+      {isCreateModalVisible && (
+        <CreateSemesterModal
+          onClose={handleCreateModalClose}
         />
       )}
     </>
