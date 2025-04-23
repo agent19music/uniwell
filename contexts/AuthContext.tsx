@@ -31,7 +31,7 @@ interface ProfileType {
 
 interface User {
   id: string;
-  email: string | undefined;
+  email?: string; // Make email optional to match Supabase's User type
   user_metadata: {
     full_name: string;
     avatar_url: string;
@@ -60,7 +60,7 @@ interface AuthContextType {
 
 const STORED_USERS_KEY = 'uniwell_stored_users';
 
-const AuthContext = createContext<AuthContextType>({
+export const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   signOut: async () => {},
@@ -170,7 +170,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data, error } = await supabase.auth.getUser();
         if (error) throw error;
-        setCurrentUser(data.user); // Cast to the correct type
+        setCurrentUser({
+          id: data.user.id,
+          email: data.user.email,
+          user_metadata: {
+            full_name: data.user.user_metadata?.full_name || '',
+            avatar_url: data.user.user_metadata?.avatar_url || '',
+            gender: data.user.user_metadata?.gender || '',
+            interests: data.user.user_metadata?.interests || [],
+            primary_goal: data.user.user_metadata?.primary_goal || '',
+            bio: data.user.user_metadata?.bio || '',
+            occupation: data.user.user_metadata?.occupation || '',
+            university: data.user.user_metadata?.university || '',
+            profile_completion_percentage: data.user.user_metadata?.profile_completion_percentage || 0,
+          },
+        });
       } catch (error) {
         console.error('Error fetching current user:', error);
       }
