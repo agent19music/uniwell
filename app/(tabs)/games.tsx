@@ -31,7 +31,7 @@ export default function GamesScreen() {
   const isDark = colorScheme === 'dark';
   const [selectedColor, setSelectedColor] = useState(COLORING_PALETTE[0].color);
   const [selectedSound, setSelectedSound] = useState(null);
-  const [sound, setSound] = useState(null);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBreathing, setIsBreathing] = useState(false);
   const breathAnimation = useRef(new Animated.Value(1)).current;
@@ -119,7 +119,14 @@ export default function GamesScreen() {
     }
   };
 
-  const playSound = async (soundItem) => {
+  interface SoundItem {
+    id: string;
+    name: string;
+    icon: string;
+    source: any;
+  }
+
+  const playSound = async (soundItem: SoundItem): Promise<void> => {
     try {
       // If there's already a sound playing, stop and unload it
       if (sound) {

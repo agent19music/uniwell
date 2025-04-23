@@ -28,6 +28,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // Initialize Google Generative AI with your API key
 const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GOOGLE_GEMINI_API_KEY || '');
 
+// Helper function to safely check if a value is an object
+const isObject = (value: any): boolean => {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+};
+
 // Define message types
 interface Message {
   id: string;
@@ -100,66 +105,148 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const { currentMood } = useMood();
-  const typingAnimation = useRef(new Animated.Value(1)).current;
+  const typingDot1 = useRef(new Animated.Value(1)).current;
+  const typingDot2 = useRef(new Animated.Value(1)).current;
+  const typingDot3 = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const animateDot = (dot: Animated.Value, delay: number) => {
       Animated.sequence([
-        Animated.timing(typingAnimation, {
-          toValue: 1.5,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(typingAnimation, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+        Animated.delay(delay),
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(dot, {
+              toValue: 1.3,
+              duration: 600,
+              useNativeDriver: true,
+            }),
+            Animated.timing(dot, {
+              toValue: 1,
+              duration: 600,
+              useNativeDriver: true,
+            }),
+          ])
+        ),
+      ]).start();
+    };
+
+    animateDot(typingDot1, 0);
+    animateDot(typingDot2, 200);
+    animateDot(typingDot3, 400);
   }, []);
   
-  // Initialize the chat with a welcome message
+  // Add this function to load chat history
+const loadChatHistory = async (sessionId: string) => {
+  try {
+    const { data: messages, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    if (messages) {
+      const formattedMessages = messages.map(msg => ({
+        id: msg.id.toString(),
+        content: msg.content,
+        isAI: msg.is_ai,
+        timestamp: new Date(msg.created_at)
+      }));
+      
+      setMessages(formattedMessages);
+      
+      // Update chat history for context
+      // Create properly ordered history format
+      let historyFormat = messages.map(msg => ({
+        role: msg.is_ai ? "model" : "user",
+        parts: [{ text: msg.content }]
+      }));
+      
+      // Ensure the first message has role 'user' as required by Gemini API
+      if (historyFormat.length > 0 && historyFormat[0].role === 'model') {
+        // If first message is from model (AI welcome message), add a placeholder user message
+        historyFormat = [
+          { role: 'user', parts: [{ text: 'Hello' }] },
+          ...historyFormat
+        ];
+      }
+      
+      setChatHistory(historyFormat);
+    }
+  } catch (error) {
+    console.error('Error loading chat history:', error);
+    Alert.alert('Error', 'Failed to load chat history');
+  }
+};
+
+  // Update your initializeChat function to load history
   useEffect(() => {
     const initializeChat = async () => {
       try {
-        // Create a new chat session
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         
-        const { data: session, error } = await supabase
+        // Check for existing session first
+        const { data: existingSession } = await supabase
           .from('chat_sessions')
-          .insert({
-            user_id: user.id,
-            session_name: `Session ${new Date().toLocaleDateString()}`
-          })
           .select()
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
           .single();
-          
-        if (error) throw error;
-        setSessionId(session.id);
+
+        let currentSessionId;
+        
+        if (existingSession) {
+          currentSessionId = existingSession.id;
+        } else {
+          // Create new session if none exists
+          const { data: newSession, error } = await supabase
+            .from('chat_sessions')
+            .insert({
+              user_id: user.id,
+              session_name: `Session ${new Date().toLocaleDateString()}`
+            })
+            .select()
+            .single();
+            
+          if (error) throw error;
+          currentSessionId = newSession.id;
+        }
+        
+        setSessionId(currentSessionId);
         
         // Initialize Gemini model
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        const model = genAI.getGenerativeModel({ 
+          model: "gemini-1.5-pro",
+          generationConfig: {
+            temperature: 0.7,
+            topP: 0.8,
+            topK: 40,
+          }
+        });
         setModel(model);
         
-        // Add welcome message
-        const welcomeMessage = getWelcomeMessage();
+        // Load existing messages or add welcome message
+        await loadChatHistory(currentSessionId);
         
-        setMessages([{
-          id: Date.now().toString(),
-          content: welcomeMessage,
-          isAI: true,
-          timestamp: new Date()
-        }]);
-        
-        // Save welcome message to database
-        await supabase.from('chat_messages').insert({
-          session_id: session.id,
-          user_id: user.id,
-          content: welcomeMessage,
-          is_ai: true
-        });
+        if (messages.length === 0) {
+          const welcomeMessage = getWelcomeMessage();
+          setMessages([{
+            id: Date.now().toString(),
+            content: welcomeMessage,
+            isAI: true,
+            timestamp: new Date()
+          }]);
+          
+          await supabase.from('chat_messages').insert({
+            session_id: currentSessionId,
+            user_id: user.id,
+            content: welcomeMessage,
+            is_ai: true
+          });
+        }
         
       } catch (error) {
         console.error('Error initializing chat:', error);
@@ -282,27 +369,147 @@ export default function ChatScreen() {
       }
       
       // Update chat history for context
+      // Update chat history for context
       const updatedHistory = [
         ...chatHistory,
-        { role: "user", parts: [userMessage] }
+        { role: "user", parts: [{ text: userMessage }] }
       ];
       setChatHistory(updatedHistory);
-      
       // Generate AI response
-      const chat = model.startChat({
-        history: updatedHistory,
-        systemInstruction: SYSTEM_PROMPT,
-      });
-      
-      const result = await chat.sendMessage(userMessage);
       let aiResponse = "";
       
-      // Safely extract the response text
-      if (result && result.response && typeof result.response.text === 'function') {
-        aiResponse = result.response.text();
-      } else {
+      try {
+        // Create chat session with proper error handling
+        if (!isObject(model)) {
+          throw new Error("Model is not properly initialized");
+        }
+        
+        // Ensure the first message in history has role 'user' as required by Gemini API
+        let validHistory = updatedHistory;
+        
+        // Insert system prompt as a message at the beginning of the history
+        // We first need to ensure there's at least one user message before adding the system message
+        if (validHistory.length > 0 && validHistory[0].role === 'model') {
+          // If first message is from model, we need to either:
+          // 1. Remove it if it's the only message, or 
+          // 2. Reorder so that first user message comes first
+          if (validHistory.length === 1) {
+            // If only one model message, create a dummy user message
+            validHistory = [
+              { role: 'user', parts: [{ text: 'Hello' }] },
+              validHistory[0]
+            ];
+          } else {
+            // Find the first user message
+            const firstUserMessageIndex = validHistory.findIndex(msg => msg.role === 'user');
+            if (firstUserMessageIndex > 0) {
+              // Reorder to put user message first
+              const firstUserMessage = validHistory[firstUserMessageIndex];
+              const newHistory = [firstUserMessage];
+              validHistory.forEach((msg, index) => {
+                if (index !== firstUserMessageIndex) {
+                  newHistory.push(msg);
+                }
+              });
+              validHistory = newHistory;
+            } else {
+              // If no user messages, add a dummy user message
+              validHistory = [
+                { role: 'user', parts: [{ text: 'Hello' }] },
+                ...validHistory
+              ];
+            }
+          }
+        }
+        
+        // Now insert the system message at the beginning - as a user message
+        // This follows the Gemini API's latest pattern where system instructions are handled
+        // as a special first message in the conversation
+        const systemMessage = { 
+          role: 'user', 
+          parts: [{ text: SYSTEM_PROMPT }]
+        };
+
+        // Add a model response to acknowledge the system instructions
+        const systemAcknowledgement = {
+          role: 'model',
+          parts: [{ text: 'I understand and will follow these guidelines.' }]
+        };
+        
+        // Add these system messages at the beginning of valid history
+        validHistory = [systemMessage, systemAcknowledgement, ...validHistory];
+
+        const chat = model.startChat({
+          history: validHistory,
+          generationConfig: {
+            temperature: 0.7,
+            topP: 0.8,
+            topK: 40
+          }
+        });
+        
+        const result = await chat.sendMessage(userMessage);
+        
+        // Safely extract the response text with multiple fallback options
+        if (isObject(result)) {
+          // Check all possible response formats
+          if (isObject(result.response)) {
+            // Option 1: text is a function (older API versions)
+            if (typeof result.response.text === 'function') {
+              aiResponse = result.response.text();
+            } 
+            // Option 2: text is a property (newer API versions)
+            else if (typeof result.response.text === 'string') {
+              aiResponse = result.response.text;
+            }
+            // Option 3: content may be available in candidates
+            else if (isObject(result.response) && 
+                     'candidates' in result.response && 
+                     isObject(result.response.candidates) && 
+                     Array.isArray(result.response.candidates) && 
+                     result.response.candidates.length > 0) {
+              
+              const candidate = result.response.candidates[0];
+              if (isObject(candidate) && isObject(candidate.content)) {
+                const content = candidate.content;
+                if (Array.isArray(content.parts) && content.parts.length > 0 && 
+                    isObject(content.parts[0]) && 'text' in content.parts[0]) {
+                  aiResponse = content.parts[0].text || "";
+                }
+              }
+            }
+            // Option 4: direct content property
+            else if ('content' in result.response && result.response.content) {
+              if (typeof result.response.content === 'string') {
+                aiResponse = result.response.content;
+              } else if (isObject(result.response.content)) {
+                if ('parts' in result.response.content && 
+                    Array.isArray(result.response.content.parts) && 
+                    result.response.content.parts.length > 0 && 
+                    isObject(result.response.content.parts[0]) && 
+                    'text' in result.response.content.parts[0]) {
+                  aiResponse = result.response.content.parts[0].text || "";
+                }
+              }
+            }
+            else {
+              throw new Error("Could not extract text from response");
+            }
+          } else {
+            throw new Error("Response object is missing or invalid");
+          }
+        } else {
+          throw new Error("Result is not an object");
+        }
+      } catch (error) {
         aiResponse = "I'm sorry, I'm having trouble responding right now. Please try again.";
-        console.error("Invalid response format from Gemini API:", result);
+        console.error("Error processing Gemini API response:", error);
+      }
+      
+      // If we still don't have a response, use a fallback
+      if (!aiResponse || aiResponse.trim() === "") {
+        aiResponse = "I'm sorry, I'm having trouble responding right now. Please try again.";
+        console.error("Failed to extract response text from Gemini API");
       }
       
       // Remove thinking message and add AI response
@@ -324,14 +531,26 @@ export default function ChatScreen() {
       });
       
       // Update chat history with AI response
-      setChatHistory([...updatedHistory, { role: "model", parts: [aiResponse] }]);
-      
+      // Update chat history with AI response
+      const updatedHistoryWithAIResponse = [...updatedHistory, { role: "model", parts: [{ text: aiResponse }] }];
+      setChatHistory(updatedHistoryWithAIResponse);
       // Provide haptic feedback for message received
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
     } catch (error) {
       console.error('Error generating AI response:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      
+      // More detailed error logging for debugging
+      if (error instanceof TypeError) {
+        console.error('TypeError details:', (error as Error).message);
+        console.error('Error stack:', (error as Error).stack);
+        
+        // Log specifically for 'in' operator errors
+        if ((error as Error).message.includes("'in'")) {
+          console.error("'in' operator error detected. This usually occurs when trying to check if a property exists in a non-object value.");
+        }
+      }
       
       // Remove thinking message and add error message
       setMessages(prev => 
@@ -350,11 +569,7 @@ export default function ChatScreen() {
     if (item.thinking) {
       return (
         <View style={[styles.messageBubble, styles.aiMessageBubble, isDark && styles.darkAiMessageBubble]}>
-          <View style={styles.typingIndicator}>
-            <View style={[styles.typingDot, styles.typingDot1]} />
-            <View style={[styles.typingDot, styles.typingDot2]} />
-            <View style={[styles.typingDot, styles.typingDot3]} />
-          </View>
+          {renderTypingIndicator()}
         </View>
       );
     }
@@ -457,6 +672,14 @@ export default function ChatScreen() {
       ]
     );
   };
+
+  const renderTypingIndicator = () => (
+    <View style={styles.typingIndicator}>
+      <Animated.View style={[styles.typingDot, { transform: [{ scale: typingDot1 }] }]} />
+      <Animated.View style={[styles.typingDot, { transform: [{ scale: typingDot2 }] }]} />
+      <Animated.View style={[styles.typingDot, { transform: [{ scale: typingDot3 }] }]} />
+    </View>
+  );
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
@@ -620,6 +843,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
     alignSelf: 'flex-end',
     marginBottom: 16,
+    overflow: 'hidden',
   },
   messageBubble: {
     borderRadius: 20,
@@ -684,23 +908,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#888888',
     marginHorizontal: 2,
     opacity: 0.6,
-  },
-  typingDot1: {
-    animationName: 'bounce',
-    animationDuration: '0.6s',
-    animationIterationCount: 'infinite',
-  },
-  typingDot2: {
-    animationName: 'bounce',
-    animationDuration: '0.6s',
-    animationDelay: '0.2s',
-    animationIterationCount: 'infinite',
-  },
-  typingDot3: {
-    animationName: 'bounce',
-    animationDuration: '0.6s',
-    animationDelay: '0.4s',
-    animationIterationCount: 'infinite',
   },
   inputContainer: {
     borderTopWidth: 1,
