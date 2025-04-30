@@ -31,7 +31,7 @@ export const useTimetableManagement = () => {
 
     useEffect(() => {
      loadStoredData();
-    }, []);
+    }, [user]);
 
     const loadSemesters = async () => {
         try {
