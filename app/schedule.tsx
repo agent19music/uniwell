@@ -1,23 +1,24 @@
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions, ActivityIndicator, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import FloatingActionButton from '../components/FloatingActionButton';
 import ScheduleEditorModal from '../modals/ScheduleEditorModal';
 import { useTimetableManagement } from '../lib/useTimeTableManagement';
+import { ClassSchedule } from '../types/TimetableTypes';
 import SemesterSelectionModal from '../modals/SemesterSelectionModal';
 import CreateSemesterModal from '../modals/CreateSemesterModal';
 import UpdateSemesterModal from '../modals/UpdateSemesterModal';
 import {Semester, NewSemester} from '../types/TimetableTypes';
+import AddClassModal from '../modals/AddClassModal';
+import EditClassModal from '../modals/EditClassModal';
+import { useSemester } from '@/contexts/SemesterContext';
 
 // Add these type definitions at the top of the file after imports
 interface ClassInfo {
   id: string;
   startTime: number;
   duration: number;
-}
-
-interface ClassDetails {
   name: string;
   color: string;
 }
@@ -26,59 +27,38 @@ interface ScheduleData {
   [key: string]: ClassInfo[];
 }
 
-interface SampleClasses {
-  [key: string]: ClassDetails;
-}
-
 // Update the constants with type annotations
-const SAMPLE_CLASSES: SampleClasses = {
-  "CSE101": { name: "Intro to Programming", color: "#FF7F50" },
-  "MATH201": { name: "Calculus II", color: "#8A8AFF" },
-  "PHY301": { name: "Physics Lab", color: "#FF69B4" },
-  "ENG102": { name: "Technical Writing", color: "#50C878" }
-};
-
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TIME_SLOTS = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM to 7 PM
-
-// Update the schedule data with type annotation
-const schedule: ScheduleData = {
-  "Monday": [
-    { id: "CSE101", startTime: 9, duration: 2 },
-    { id: "MATH201", startTime: 13, duration: 1 }
-  ],
-  "Wednesday": [
-    { id: "PHY301", startTime: 10, duration: 3 },
-    { id: "ENG102", startTime: 15, duration: 1 }
-  ],
-  "Friday": [
-    { id: "CSE101", startTime: 14, duration: 2 }
-  ]
-};
 
 export default function ClassScheduleScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [currentWeek, setCurrentWeek] = useState(1);
   const { width } = Dimensions.get('window');
-  const [isEditorVisible, setIsEditorVisible] = useState(false);
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<ClassSchedule | null>(null);
   const [isCreatingSemester, setIsCreatingSemester] = useState(false);
+  const [isEditorVisible, setIsEditorVisible] = useState(false);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [selectedSemester, setSelectedSemester] = useState<Semester | null>(null);
   const [isSemesterModalVisible, setIsSemesterModalVisible] = useState(false);
   const [classSchedules, setClassSchedules] = useState<any[]>([]);
+  const [isScheduleEditorVisible, setIsScheduleEditorVisible] = useState(false);
   
   const { 
     activeSemester, 
     isLoading,
-    loadStoredData,
     semesters,
     createSemester,
     setActiveSemesterById,
     classSchedules: storedClassSchedules,
     deleteSemester,
-    updateSemester
-  } = useTimetableManagement();
+    updateSemester,
+    deleteClassSchedule
+  } = useSemester();
+
   
   // Track if we have content to display
   const hasClasses = useMemo(() => {
@@ -90,9 +70,7 @@ export default function ClassScheduleScreen() {
     return !isLoading && activeSemester && hasClasses;
   }, [isLoading, activeSemester, hasClasses]);
   
-  useEffect(() => {
-    loadStoredData();
-  }, []);
+
   
   useEffect(() => {
     // Show semester selection modal if no active semester is found after loading
@@ -111,10 +89,89 @@ export default function ClassScheduleScreen() {
   }, [storedClassSchedules]);
 
   const getClassForTimeSlot = (day: string, time: number): ClassInfo | undefined => {
-    // If using real data from Supabase, you would transform it to the schedule format
-    // For now, we'll keep using the sample data
-    return schedule[day]?.find(cls => 
-      time >= cls.startTime && time < (cls.startTime + cls.duration)
+    if (!classSchedules) return undefined;
+    
+    return classSchedules
+      .filter(schedule => {
+        // Parse days of week if it's a string
+        const daysOfWeek = Array.isArray(schedule.daysOfWeek) 
+          ? schedule.daysOfWeek 
+          : JSON.parse(schedule.daysOfWeek || '[]');
+        
+        // Check if class occurs on this day (case-insensitive comparison)
+        const isCorrectDay = daysOfWeek.some((d: string) => 
+          d.toLowerCase() === day.toLowerCase()
+        );
+        
+        // Parse time strings to hours and minutes
+        const [startHour, startMinute] = schedule.startTime.split(':').map(Number);
+        const [endHour, endMinute] = schedule.endTime.split(':').map(Number);
+        
+        // Convert to decimal hours for comparison
+        const scheduleStart = startHour + (startMinute / 60);
+        const scheduleEnd = endHour + (endMinute / 60);
+        
+        const isCorrectTime = time >= scheduleStart && time < scheduleEnd;
+        
+        return isCorrectDay && isCorrectTime;
+      })
+      .map(schedule => ({
+        id: schedule.courseCode,
+        startTime: parseInt(schedule.startTime.split(':')[0]),
+        duration: 
+          (parseInt(schedule.endTime.split(':')[0]) - 
+           parseInt(schedule.startTime.split(':')[0])),
+        name: schedule.courseName,
+        color: generateColorFromString(schedule.courseCode)
+      }))[0];
+  };
+
+  const generateColorFromString = (str: string): string => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+    return "#" + "00000".substring(0, 6 - c.length) + c;
+  };
+
+  const renderClassBlock = (classInfo: ClassInfo, day: string, time: number) => {
+    if (!classInfo) return null;
+
+    return (
+      <View
+        key={`${day}-${time}`}
+        style={[
+          styles.classBlock,
+          isDark && styles.darkClassBlock,
+          { 
+            backgroundColor: classInfo.color + (isDark ? '90' : ''),
+            height: classInfo.duration * 50 - 4
+          }
+        ]}
+      >
+        <Text 
+          style={[
+            styles.className, 
+            { color: isDark ? '#FFFFFF' : '#000000' }
+          ]}
+        >
+          {classInfo.name}
+        </Text>
+        <Text 
+          style={[
+            styles.classTime, 
+            isDark && styles.darkClassTime
+          ]}
+        >
+          {classInfo.startTime > 12 
+            ? `${classInfo.startTime - 12}` 
+            : classInfo.startTime}{(classInfo.startTime >= 12) ? ' PM' : ' AM'} - 
+          {(classInfo.startTime + classInfo.duration) > 12 
+            ? `${(classInfo.startTime + classInfo.duration) - 12}` 
+            : (classInfo.startTime + classInfo.duration)}{((classInfo.startTime + classInfo.duration) >= 12) ? ' PM' : ' AM'}
+        </Text>
+      </View>
     );
   };
 
@@ -139,6 +196,14 @@ export default function ClassScheduleScreen() {
       console.error('Failed to create semester:', error);
     } finally {
       setIsCreatingSemester(false);
+    }
+  };
+
+  const handleDeleteClass = async (classId: string) => {
+    try {
+      await deleteClassSchedule(classId);
+    } catch (error) {
+      console.error('Failed to delete class:', error);
     }
   };
 
@@ -188,6 +253,72 @@ export default function ClassScheduleScreen() {
     } catch (error) {
       console.error('Failed to set active semester:', error);
     }
+  };
+
+  const ScheduleSkeleton = () => {
+    const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+    useEffect(() => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 0.3,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }, []);
+
+    return (
+      <ScrollView style={styles.container}>
+        <View style={styles.headerRow}>
+          <View style={styles.timeLabel} />
+          {DAYS.map((day) => (
+            <Animated.View
+              key={day}
+              style={[
+                styles.dayHeader,
+                {
+                  opacity: pulseAnim,
+                  backgroundColor: isDark ? '#333' : '#e0e0e0',
+                },
+              ]}
+            />
+          ))}
+        </View>
+        {TIME_SLOTS.map((time) => (
+          <View key={time} style={styles.timeSlotRow}>
+            <Animated.View
+              style={[
+                styles.timeLabel,
+                {
+                  opacity: pulseAnim,
+                  backgroundColor: isDark ? '#333' : '#e0e0e0',
+                },
+              ]}
+            />
+            {DAYS.map((day) => (
+              <Animated.View
+                key={`${day}-${time}`}
+                style={[
+                  styles.emptySlot,
+                  {
+                    opacity: pulseAnim,
+                    backgroundColor: isDark ? '#333' : '#e0e0e0',
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    );
   };
 
   return (
@@ -264,7 +395,7 @@ export default function ClassScheduleScreen() {
           </Text>
           <TouchableOpacity 
             style={[styles.addClassButton, isDark && styles.darkAddClassButton]} 
-            onPress={() => setIsEditorVisible(true)}
+            onPress={() => setIsAddModalVisible(true)}
           >
             <Text style={styles.addClassButtonText}>Add Classes</Text>
           </TouchableOpacity>
@@ -312,43 +443,7 @@ export default function ClassScheduleScreen() {
                   return <View key={`${day}-${time}`} />;
                 }
                 
-                const details = SAMPLE_CLASSES[classInfo.id];
-                
-                return (
-                  <View
-                    key={`${day}-${time}`}
-                    style={[
-                      styles.classBlock,
-                      isDark && styles.darkClassBlock,
-                      { 
-                        backgroundColor: details.color + (isDark ? '90' : ''),
-                        height: classInfo.duration * 50 - 4
-                      }
-                    ]}
-                  >
-                    <Text 
-                      style={[
-                        styles.className, 
-                        { color: isDark ? '#FFFFFF' : '#000000' }
-                      ]}
-                    >
-                      {details.name}
-                    </Text>
-                    <Text 
-                      style={[
-                        styles.classTime, 
-                        isDark && styles.darkClassTime
-                      ]}
-                    >
-                      {classInfo.startTime > 12 
-                        ? `${classInfo.startTime - 12}` 
-                        : classInfo.startTime}{(classInfo.startTime >= 12) ? ' PM' : ' AM'} - 
-                      {(classInfo.startTime + classInfo.duration) > 12 
-                        ? `${(classInfo.startTime + classInfo.duration) - 12}` 
-                        : (classInfo.startTime + classInfo.duration)}{((classInfo.startTime + classInfo.duration) >= 12) ? ' PM' : ' AM'}
-                    </Text>
-                  </View>
-                );
+                return renderClassBlock(classInfo, day, time);
               })}
             </View>
           ))}
@@ -387,20 +482,52 @@ export default function ClassScheduleScreen() {
       {/* FloatingActionButton - only visible when there's an active semester */}
       {activeSemester && (
         <FloatingActionButton
-          onPress={() => setIsEditorVisible(true)}
+          onPress={() => setIsScheduleEditorVisible(true)}
+          icon="pencil"
           color="#FF7F50"
         />
       )}
       
+      {/* Add Class Modal */}
+      {isAddModalVisible && (
+        <AddClassModal
+          visible={isAddModalVisible}
+          onClose={() => setIsAddModalVisible(false)}
+          semesterId={activeSemester?.id || ''}
+        />
+      )}
+
+      {/* Edit Class Modal */}
+      {isEditModalVisible && selectedClass && (
+        <EditClassModal
+          visible={isEditModalVisible}
+          onClose={() => {
+            setIsEditModalVisible(false);
+            setSelectedClass(null);
+          }}
+          onDelete={handleDeleteClass}
+          classSchedule={selectedClass}
+        />
+      )}
+
       {/* Schedule Editor Modal */}
-      <ScheduleEditorModal
-        visible={isEditorVisible}
-        onClose={() => setIsEditorVisible(false)}
-        onSave={(data) => {
-          // Handle save
-          setIsEditorVisible(false);
-        }}
-      />
+      {isScheduleEditorVisible && (
+        <ScheduleEditorModal
+          visible={isScheduleEditorVisible}
+          onClose={() => setIsScheduleEditorVisible(false)}
+          onAddNew={() => {
+            setIsScheduleEditorVisible(false);
+            setIsAddModalVisible(true);
+          }}
+          onEditClass={(classData) => {
+            setIsScheduleEditorVisible(false);
+            setSelectedClass(classData);
+            setIsEditModalVisible(true);
+          }}
+          semesterId={activeSemester?.id || ''}
+          isLoading={isLoading}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -576,5 +703,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
-  }
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  message: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  darkMessage: {
+    color: '#999',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    paddingLeft: 50,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  dayHeader: {
+    flex: 1,
+    height: 40,
+    marginHorizontal: 2,
+    borderRadius: 4,
+  },
+  timeLabel: {
+    width: 50,
+    height: 20,
+    marginVertical: 2,
+    borderRadius: 4,
+  },
 });

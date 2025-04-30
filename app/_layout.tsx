@@ -9,6 +9,7 @@ import { RoutineProvider } from '@/contexts/RoutineContext';
 import { MoodProvider } from '@/contexts/MoodContext';
 import { CommunityProvider } from '@/contexts/CommunityContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SemesterProvider } from '@/contexts/SemesterContext';
 
 declare global {
   interface Window {
@@ -57,17 +58,19 @@ export default function RootLayout() {
         <CommunityProvider>
           <MoodProvider>
             <RoutineProvider>
-              <Stack screenOptions={{
-                headerShown: false,
-                contentStyle: {
-                  backgroundColor: isDark ? '#121212' : '#f5f5f5',
-                },
-              }}>
+              <SemesterProvider>
+                <Stack screenOptions={{
+                  headerShown: false,
+                  contentStyle: {
+                    backgroundColor: isDark ? '#121212' : '#f5f5f5',
+                  },
+                }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="loginscreen" />
                 <Stack.Screen name="signupscreen" />
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               </Stack>
+              </SemesterProvider>
               <StatusBar style={isDark ? 'light' : 'dark'} />
             </RoutineProvider>
           </MoodProvider>
