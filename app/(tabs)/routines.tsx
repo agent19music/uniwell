@@ -1,48 +1,30 @@
 import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRoutine } from '../../contexts/RoutineContext';
+import AddRoutineModal from '@/modals/AddRoutineModal';
+import AddStreakModal from '@/modals/AddStreakModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
-const SAMPLE_HABITS = [
-  {
-    id: '1',
-    title: 'Smoke Free',
-    streak: 15,
-    type: 'break',
-    color: '#FF69B4',
-  },
-  {
-    id: '2',
-    title: 'Gym Workout',
-    streak: 8,
-    type: 'build',
-    color: '#8A8AFF',
-  }
-];
 
-type RoutineTask = {
-  id: string;
-  title: string;
-  frequency: string;
-  completed: string[];
-};
 
-const ROUTINE_TASKS: RoutineTask[] = [
-  { id: '1', title: 'Morning Meditation', frequency: 'Daily', completed: [] },
-  { id: '2', title: 'Gym Session', frequency: '3x Week', completed: [] },
-  { id: '3', title: 'Read 30 mins', frequency: 'Daily', completed: [] },
-];
+
 
 export default function RoutinesScreen() {
+  const {currentUser} = useAuth()
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { height } = Dimensions.get('window');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const router = useRouter();
   const { habits, completeHabit, streaks } = useRoutine();
+  const [showAddRoutine, setShowAddRoutine] = useState(false);
+  const [showAddStreak, setShowAddStreak] = useState(false);
+
 
   const handleSleepCardPress = () => {
     router.push('/sleepstats'); // Use router.push for navigation
@@ -53,11 +35,11 @@ export default function RoutinesScreen() {
   };  
 
   const handleAddRoutine = () => {
-    router.push('/AddRoutineScreen');
+    setShowAddRoutine(true);
   };
 
   const handleAddStreak = () => {
-    router.push('/AddStreakScreen');
+    setShowAddStreak(true);
   };  
 
   const handleCompleteTask = async (habitId: string) => {
@@ -83,6 +65,8 @@ export default function RoutinesScreen() {
     }
     return dates;
   };
+
+
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
@@ -163,34 +147,45 @@ export default function RoutinesScreen() {
         {/* Daily Routines */}
         <View style={styles.routinesSection}>
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Daily Routines</Text>
-          {ROUTINE_TASKS.map((task) => (
-            <TouchableOpacity 
-              key={task.id} 
-              style={[styles.routineCard, isDark && styles.darkCard]}
-            >
-              <View style={styles.routineInfo}>
-                <Text style={[styles.routineTitle, isDark && styles.darkText]}>{task.title}</Text>
-                <Text style={[styles.routineFrequency, isDark && styles.darkSubText]}>{task.frequency}</Text>
-              </View>
+          {habits.length > 0 ? (
+            habits.map((habit) => (
               <TouchableOpacity 
-                style={[styles.checkButton, task.completed.includes(selectedDate.toDateString()) && styles.checkedButton]}
-                onPress={() => handleCompleteTask(task.id)}
+                key={habit.id} 
+                style={[styles.routineCard, isDark && styles.darkCard]}
               >
-                <Ionicons 
-                  name={task.completed.includes(selectedDate.toDateString()) ? "checkmark-circle" : "checkmark-circle-outline"} 
-                  size={24} 
-                  color="#FF7F50" 
-                />
+                <View style={styles.routineInfo}>
+                  <Text style={[styles.routineTitle, isDark && styles.darkText]}>{habit.title}</Text>
+                  <Text style={[styles.routineFrequency, isDark && styles.darkSubText]}>
+                    {habit.frequency}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={[styles.checkButton, habit.completed?.includes(selectedDate.toDateString()) && styles.checkedButton]}
+                  onPress={() => handleCompleteTask(habit.id)}
+                >
+                  <Ionicons 
+                    name={habit.completed?.includes(selectedDate.toDateString()) ? "checkmark-circle" : "checkmark-circle-outline"} 
+                    size={24} 
+                    color="#FF7F50" 
+                  />
+                </TouchableOpacity>
               </TouchableOpacity>
+            ))
+          ) : (
+            <TouchableOpacity style={styles.addButton} onPress={handleAddRoutine}>
+              <Ionicons name="add-circle" size={24} color="#FF7F50" />
+              <Text style={styles.addButtonText}>Add Your First Routine</Text>
             </TouchableOpacity>
-          ))}
+          )}
         </View>
 
         {/* Add New Button */}
-        <TouchableOpacity style={styles.addButton} onPress={handleAddRoutine}>
-          <Ionicons name="add-circle" size={24} color="#FF7F50" />
-          <Text style={styles.addButtonText}>Add New Routine</Text>
-        </TouchableOpacity>
+        {habits.length > 0 && (
+          <TouchableOpacity style={styles.addButton} onPress={handleAddRoutine}>
+            <Ionicons name="add-circle" size={24} color="#FF7F50" />
+            <Text style={styles.addButtonText}>Add New Routine</Text>
+          </TouchableOpacity>
+        )}
 
         {habits.map((habit) => (
           <View key={habit.id} style={styles.habitContainer}>
@@ -201,6 +196,15 @@ export default function RoutinesScreen() {
           </View>
         ))}
       </ScrollView>
+
+      <AddRoutineModal 
+        visible={showAddRoutine} 
+        onClose={() => setShowAddRoutine(false)} 
+      />
+      <AddStreakModal 
+        visible={showAddStreak} 
+        onClose={() => setShowAddStreak(false)} 
+      />
     </SafeAreaView>
   );
 }

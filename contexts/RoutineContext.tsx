@@ -11,36 +11,37 @@ type Status = 'active' | 'completed' | 'abandoned';
 interface WellnessPlan {
   id: string;
   title: string;
-  start_date: string;
-  end_date: string | null;
+  startDate: string;
+  endDate: string | null;
 }
 
 interface Goal {
   id: string;
-  plan_id: string;
+  planId: string;
   description: string;
-  target_date: string;
+  targetDate: string;
   status: Status;
 }
 
 interface Habit {
   id: string;
-  goal_id: string;
+  goalId: string;
+  completed?: string[];
   title: string;
   frequency: Frequency;
-  custom_days: DayOfWeek[];
+  customDays: DayOfWeek[];
   streak: {
-    current_streak: number;
-    longest_streak: number;
-    last_updated: string;
+    currentStreak: number;
+    longestStreak: number;
+    lastUpdated: string;
   };
 }
 
 interface HabitAttempt {
   id: string;
-  habit_id: string;
+  habitId: string;
   date: string;
-  is_completed: boolean;
+  isCompleted: boolean;
   notes: string | null;
 }
 
@@ -49,8 +50,8 @@ interface Streak {
   type: 'break' | 'build';
   length: number;
   title: string;
-  start_date: string;
-  start_time: string;
+  startDate: string;
+  startTime: string;
 }
 
 interface RoutineContextType {
@@ -72,6 +73,9 @@ interface RoutineContextType {
   streaks: Streak[];
   fetchStreaks: () => Promise<void>;
   createStreak: (title: string, type: 'build' | 'break', startDate: Date, startTime: Date) => Promise<void>;
+  getStreak: (streakId: string) => Promise<Streak | null>;
+  updateStreak: (streakId: string, updates: Partial<Streak>) => Promise<void>;
+  deleteStreak: (streakId: string) => Promise<void>;
   createClassSchedule: (schedule: Omit<ClassSchedule, 'id'>) => Promise<void>;
   updateClassSchedule: (id: string, updates: Partial<ClassSchedule>) => Promise<void>;
   deleteClassSchedule: (id: string) => Promise<void>;
@@ -101,6 +105,52 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     
   }, []);
 
+  const formatWellnessPlan = (plan: any): WellnessPlan => ({
+    id: plan.id,
+    title: plan.title,
+    startDate: plan.start_date,
+    endDate: plan.end_date,
+  });
+
+  const formatGoal = (goal: any): Goal => ({
+    id: goal.id,
+    planId: goal.plan_id,
+    description: goal.description,
+    targetDate: goal.target_date,
+    status: goal.status,
+  });
+
+  const formatHabit = (habit: any): Habit => ({
+    id: habit.id,
+    goalId: habit.goal_id,
+    completed: habit.completed,
+    title: habit.title,
+    frequency: habit.frequency,
+    customDays: habit.custom_days,
+    streak: {
+      currentStreak: habit.streak.current_streak,
+      longestStreak: habit.streak.longest_streak,
+      lastUpdated: habit.streak.last_updated,
+    },
+  });
+
+  const formatHabitAttempt = (attempt: any): HabitAttempt => ({
+    id: attempt.id,
+    habitId: attempt.habit_id,
+    date: attempt.date,
+    isCompleted: attempt.is_completed,
+    notes: attempt.notes,
+  });
+
+  const formatStreak = (streak: any): Streak => ({
+    id: streak.id,
+    type: streak.type,
+    length: streak.length,
+    title: streak.title,
+    startDate: streak.start_date,
+    startTime: streak.start_time,
+  });
+
   const fetchUserData = async () => {
     try {
       setLoading(true);
@@ -115,16 +165,34 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
         supabase.from('habit_attempts').select('*').eq('user_id', user.id)
       ]);
 
-      setPlans(plansData.data || []);
-      setGoals(goalsData.data || []);
-      setHabits(habitsData.data || []);
-      setAttempts(attemptsData.data || []);
+      setPlans(plansData.data?.map(formatWellnessPlan) || []);
+      setGoals(goalsData.data?.map(formatGoal) || []);
+      setHabits(habitsData.data?.map(formatHabit) || []);
+      setAttempts(attemptsData.data?.map(formatHabitAttempt) || []);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
     }
   };
+
+    useEffect(() => {
+      const fetchRoutines = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('habits')
+            .select('*')
+            .eq('user_id', currentUser?.id);
+          
+          if (error) throw error;
+          setHabits(data);
+        } catch (err) {
+          console.error('Error fetching routines:', err);
+        }
+      };
+  
+      fetchRoutines();
+    }, [currentUser?.id]);
 
   const fetchStreaks = async () => {
     try {
@@ -140,8 +208,8 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
         title: streak.title,
         type: streak.type,
         length: streak.length,
-        start_date: streak.start_date,
-        start_time: streak.start_time,
+        startDate: streak.start_date,
+        startTime: streak.start_time,
       }));
 
       setStreaks(streaksData);
@@ -322,29 +390,15 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateStreak = async (habitId: string, date: Date, status: 'success' | 'failure') => {
+  const updateStreak = async (streakId: string, updates: Partial<Streak>) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
-  
-      const { data, error } = await supabase
-        .from('habit_attempts')
-        .insert({
-          habit_id: habitId,
-          user_id: user.id,
-          date: format(date, 'yyyy-MM-dd'),
-          status
-        })
-        .select();
-  
+      const { error } = await supabase
+        .from('streaks')
+        .update(updates)
+        .eq('id', streakId);
+
       if (error) throw error;
-  
-      // Edge function will handle streak updates
-      await supabase.functions.invoke('update-streaks', {
-        body: { record: data[0] }
-      });
-  
-      await fetchStreaks(); // Refresh streaks data
+      await fetchStreaks(); // Refresh streaks after update
     } catch (err) {
       setError((err as Error).message);
     }
@@ -434,6 +488,36 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const getStreak = async (streakId: string): Promise<Streak | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('streaks')
+        .select('*')
+        .eq('id', streakId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      setError((err as Error).message);
+      return null;
+    }
+  };
+
+  const deleteStreak = async (streakId: string) => {
+    try {
+      const { error } = await supabase
+        .from('streaks')
+        .delete()
+        .eq('id', streakId);
+
+      if (error) throw error;
+      setStreaks(streaks.filter(streak => streak.id !== streakId));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   const value = {
     plans,
     goals,
@@ -452,7 +536,9 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     streaks,
     fetchStreaks,
     createStreak,
+    getStreak,
     updateStreak,
+    deleteStreak,
     createClassSchedule,
     updateClassSchedule,
     deleteClassSchedule,
