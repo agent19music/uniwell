@@ -1,60 +1,58 @@
-import { TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRef, useEffect } from 'react';
+import React from 'react';
+import { TouchableOpacity, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface FloatingActionButtonProps {
   onPress: () => void;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   color?: string;
+  iconSize?: number;
+  iconColor?: string;
+  style?: object;
 }
 
-export default function FloatingActionButton({ onPress, color = '#FF7F50' }: FloatingActionButtonProps) {
-  const scaleValue = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scaleValue, {
-      toValue: 0.9,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleValue, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
-  };
-
+const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
+  onPress,
+  icon,
+  color = '#FF7F50',
+  iconSize = 24,
+  iconColor = '#FFFFFF',
+  style
+}) => {
   return (
-    <Animated.View style={[styles.container, { transform: [{ scale: scaleValue }] }]}>
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: color }]}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={0.9}
-      >
-        <Ionicons name="add-circle-outline" size={30} color="#FFF" />
-      </TouchableOpacity>
-    </Animated.View>
+    <TouchableOpacity
+      style={[
+        styles.fab,
+        { backgroundColor: color },
+        style
+      ]}
+      onPress={onPress}
+    >
+      <MaterialCommunityIcons 
+        name={icon}
+        size={iconSize}
+        color={iconColor}
+      />
+    </TouchableOpacity>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
+  fab: {
     position: 'absolute',
-    bottom: 32,
-    right: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  button: {
+    bottom: 20,
+    right: 20,
     width: 56,
     height: 56,
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
-}); 
+});
+
+export default FloatingActionButton;
