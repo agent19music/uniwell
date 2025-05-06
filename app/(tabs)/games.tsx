@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useRef, useEffect } from 'react';
 import { Audio } from 'expo-av';
+import BreathingExercise from '@/components/BreathingExercise';
 
 const COLORING_PALETTE = [
   { id: '1', color: '#FF69B4', name: 'Pink' },
@@ -19,13 +20,6 @@ const NATURE_SOUNDS = [
   { id: '3', name: 'Waves', icon: 'water',  source: require('@/assets/nature-sounds/waves.mp3') },
 ];
 
-
-const BREATHING_PATTERNS = [
-  { id: '1', name: 'Square Breathing', duration: 16, pattern: '4-4-4-4' },
-  { id: '2', name: 'Deep Calm', duration: 11, pattern: '4-7' },
-  { id: '3', name: 'Relaxing Breath', duration: 14, pattern: '4-7-3' },
-];
-
 export default function GamesScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -33,51 +27,6 @@ export default function GamesScreen() {
   const [selectedSound, setSelectedSound] = useState(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isBreathing, setIsBreathing] = useState(false);
-  const breathAnimation = useRef(new Animated.Value(1)).current;
-
-  const startBreathing = (pattern) => {
-    setIsBreathing(true);
-    const [inhale, hold, exhale, holdEnd = 0] = pattern.pattern.split('-').map(Number);
-    const totalDuration = (inhale + hold + exhale + holdEnd) * 1000;
-
-    // Breathing animation
-    Animated.sequence([
-      // Inhale
-      Animated.timing(breathAnimation, {
-        toValue: 1.5,
-        duration: inhale * 1000,
-        useNativeDriver: true,
-      }),
-      // Hold
-      Animated.timing(breathAnimation, {
-        toValue: 1.5,
-        duration: hold * 1000,
-        useNativeDriver: true,
-      }),
-      // Exhale
-      Animated.timing(breathAnimation, {
-        toValue: 1,
-        duration: exhale * 1000,
-        useNativeDriver: true,
-      }),
-      // Hold at end if specified
-      Animated.timing(breathAnimation, {
-        toValue: 1,
-        duration: holdEnd * 1000,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      Vibration.vibrate();
-      setIsBreathing(false);
-    });
-
-    // Vibration feedback
-    const vibratePattern = [0];
-    vibratePattern.push(inhale * 1000, 100, hold * 1000, 100, exhale * 1000);
-    if (holdEnd) vibratePattern.push(100, holdEnd * 1000);
-    Vibration.vibrate(vibratePattern);
-  };
 
   useEffect(() => {
     return () => {
@@ -201,8 +150,6 @@ export default function GamesScreen() {
     </View>
   );
 
-
-
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -241,63 +188,32 @@ export default function GamesScreen() {
           
           </View>
           <Text style={[styles.sectionSubtitle, isDark && styles.darkSubText]}>
-        Nature Sounds
-      </Text>
-      {renderSoundControls()}
-      
-      {selectedSound && (
-        <View style={styles.volumeControl}>
-          <Ionicons name="volume-low" size={20} color="#666" />
-          <Slider
-            style={styles.slider}
-            minimumValue={0}
-            maximumValue={1}
-            value={1}
-            onValueChange={adjustVolume}
-            minimumTrackTintColor="#FF7F50"
-            maximumTrackTintColor="#ddd"
-            thumbTintColor="#FF7F50"
-          />
-          <Ionicons name="volume-high" size={20} color="#666" />
+            Nature Sounds
+          </Text>
+          {renderSoundControls()}
+          
+          {selectedSound && (
+            <View style={styles.volumeControl}>
+              <Ionicons name="volume-low" size={20} color="#666" />
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={1}
+                value={1}
+                onValueChange={adjustVolume}
+                minimumTrackTintColor="#FF7F50"
+                maximumTrackTintColor="#ddd"
+                thumbTintColor="#FF7F50"
+              />
+              <Ionicons name="volume-high" size={20} color="#666" />
+            </View>
+          )}
         </View>
-      )}
-    </View>
-   
 
         {/* Breathing Exercises */}
         <View style={[styles.section, isDark && styles.darkCard]}>
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Breathing Exercises</Text>
-          
-          {/* Breathing Animation Circle */}
-          <Animated.View
-            style={[
-              styles.breathingCircle,
-              {
-                transform: [{ scale: breathAnimation }],
-              },
-            ]}
-          >
-            <Text style={styles.breathingText}>
-              {isBreathing ? 'Breathe with the circle' : 'Tap a pattern to begin'}
-            </Text>
-          </Animated.View>
-
-          {/* Breathing Patterns */}
-          <View style={styles.patternContainer}>
-            {BREATHING_PATTERNS.map((pattern) => (
-              <TouchableOpacity
-                key={pattern.id}
-                style={[styles.patternButton, isDark && styles.darkPatternButton]}
-                onPress={() => startBreathing(pattern)}
-                disabled={isBreathing}
-              >
-                <Text style={[styles.patternName, isDark && styles.darkText]}>{pattern.name}</Text>
-                <Text style={[styles.patternDuration, isDark && styles.darkSubText]}>
-                  {pattern.duration} seconds
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <BreathingExercise />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -406,63 +322,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontFamily: 'Vercetti-Regular',
   },
-  breathingCircle: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: '#FF7F5020',
-    alignSelf: 'center',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  breathingText: {
-    color: '#FF7F50',
-    textAlign: 'center',
-    padding: 20,
-  },
-  patternContainer: {
-    gap: 12,
-  },
-  patternButton: {
-    backgroundColor: '#f5f5f5',
-    padding: 16,
-    borderRadius: 12,
-  },
-  darkPatternButton: {
-    backgroundColor: '#2a2a2a',
-  },
-  patternName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  patternDuration: {
-    fontSize: 14,
-    color: '#666',
-  },
-  soundControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 10,
-  },
-  soundButton: {
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    minWidth: 80,
-  },
-  selectedSound: {
-    backgroundColor: '#FF7F5020',
-  },
-  playingIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FF7F50',
-    marginTop: 4,
-  },
   volumeControl: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -480,5 +339,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
     paddingHorizontal: 4,
+  },
+  playingIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF7F50',
+    marginTop: 4,
   },
 });

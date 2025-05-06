@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import {ClassBlock, ClassInfo} from '@/components/schedule/classBlock'; // Assuming you have a ClassBlock component
-import {CurrentTimeIndicator} from '@/components/schedule/currentTimeIndicator'; // Assuming you have a CurrentTimeIndicator component
+import {ClassBlock, ClassInfo} from '@/components/schedule/ClassBlock'; // Assuming you have a ClassBlock component
+import {CurrentTimeIndicator} from '@/components/schedule/CurrentTimeIndicator'; // Assuming you have a CurrentTimeIndicator component
 
 interface TimeGridProps {
     isDark: boolean;
