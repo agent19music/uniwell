@@ -52,6 +52,7 @@ interface Streak {
   title: string;
   startDate: string;
   startTime: string;
+  status: string;
 }
 
 interface RoutineContextType {
@@ -99,11 +100,11 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch initial data
   useEffect(() => {
-    fetchUserData();
     fetchStreaks();
     fetchClassSchedules();
+    fetchHabits();
     
-  }, []);
+  }, [currentUser,streaks,classSchedules]);
 
   const formatWellnessPlan = (plan: any): WellnessPlan => ({
     id: plan.id,
@@ -149,57 +150,22 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     title: streak.title,
     startDate: streak.start_date,
     startTime: streak.start_time,
+    status
   });
 
-  const fetchUserData = async () => {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
 
-      // Fetch all relevant data
-      const [plansData, goalsData, habitsData, attemptsData] = await Promise.all([
-        supabase.from('wellness_plans').select('*').eq('user_id', user.id),
-        supabase.from('goals').select('*'),
-        supabase.from('habits').select('*, streaks(*)'),
-        supabase.from('habit_attempts').select('*').eq('user_id', user.id)
-      ]);
-
-      setPlans(plansData.data?.map(formatWellnessPlan) || []);
-      setGoals(goalsData.data?.map(formatGoal) || []);
-      setHabits(habitsData.data?.map(formatHabit) || []);
-      setAttempts(attemptsData.data?.map(formatHabitAttempt) || []);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-    useEffect(() => {
-      const fetchRoutines = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('habits')
-            .select('*')
-            .eq('user_id', currentUser?.id);
-          
-          if (error) throw error;
-          setHabits(data);
-        } catch (err) {
-          console.error('Error fetching routines:', err);
-        }
-      };
-  
-      fetchRoutines();
-    }, [currentUser?.id]);
 
   const fetchStreaks = async () => {
+    // Exit early if no current user
+    if (!currentUser?.id) {
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('streaks')
         .select('id, title, type, length, start_date, start_time')
-        .eq('user_id', currentUser?.id); // Fetch streaks for the current user
+        .eq('user_id', currentUser.id); // Fetch streaks for the current user
 
       if (error) throw error;
 
@@ -210,6 +176,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
         length: streak.length,
         startDate: streak.start_date,
         startTime: streak.start_time,
+        status
       }));
 
       setStreaks(streaksData);
@@ -459,12 +426,20 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchHabits = async () => {
+    if (!currentUser?.id) {
+      return; // Exit early if user ID is not available
+    }
+    
     try {
-      const { data, error } = await supabase.from('habits').select('*');
+      const { data, error } = await supabase
+        .from('habits')
+        .select('*')
+        .eq('user_id', currentUser.id);
+      
       if (error) throw error;
       setHabits(data);
     } catch (err) {
-      setError((err as Error).message);
+      console.error('Error fetching routines:', err);
     }
   };
 
