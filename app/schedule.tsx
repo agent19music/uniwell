@@ -21,16 +21,10 @@ import {CurrentTimeIndicator} from '@/components/schedule/CurrentTimeIndicator';
 import {EmptyState} from '@/components/schedule/EmptyState';
 import {LoadingIndicator} from '@/components/schedule/LoadingIndicator';
 
-// Type definitions
-interface ClassSchedule {
-  courseCode: string;
-  courseName: string;
-  startTime: string;
-  endTime: string;
-  daysOfWeek: string[] | string;
-  room?: string;
-}
+// Import the proper types
+import { ClassSchedule, Semester, NewSemester, SemesterType } from '@/types/TimetableTypes';
 
+// Local interface for the rendered class blocks 
 interface ClassInfo {
   id: string;
   startTime: number;
@@ -53,10 +47,10 @@ export default function ClassScheduleScreen() {
   const [viewMode, setViewMode] = useState('day'); // 'day', 'week', or 'month'
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedClass, setSelectedClass] = useState<ClassSchedule | null>(null);
   const [isCreatingSemester, setIsCreatingSemester] = useState(false);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
-  const [selectedSemester, setSelectedSemester] = useState(null);
+  const [selectedSemester, setSelectedSemester] = useState<Semester | null>(null);
   const [isSemesterModalVisible, setIsSemesterModalVisible] = useState(false);
   const [classSchedules, setClassSchedules] = useState<ClassSchedule[]>([]);
   const [isScheduleEditorVisible, setIsScheduleEditorVisible] = useState(false);
@@ -146,32 +140,39 @@ export default function ClassScheduleScreen() {
   const getClassesForDay = (dayIndex:number) => {
     if (!classSchedules) return [];
 
-    const dayName = DAYS[dayIndex];
+    const dayName = DAYS[dayIndex].toLowerCase();
     
     return classSchedules
       .filter(schedule => {
         try {
-          // Parse days of week if it's a string
+          // Handle daysOfWeek regardless of format (array or string that needs parsing)
           const daysOfWeek = Array.isArray(schedule.daysOfWeek) 
             ? schedule.daysOfWeek 
-            : JSON.parse(schedule.daysOfWeek || '[]');
+            : JSON.parse(typeof schedule.daysOfWeek === 'string' ? schedule.daysOfWeek : '[]');
           
           // Check if class occurs on this day (case-insensitive comparison)
           return Array.isArray(daysOfWeek) && daysOfWeek.some((d: string) => {
-            return typeof d === 'string' && d.toLowerCase() === dayName.toLowerCase();
+            return typeof d === 'string' && d.toLowerCase() === dayName;
           });
         } catch (error) {
-          console.warn('Error parsing days of week:', error);
+          console.warn('Error processing days of week:', error, schedule);
           return false;
         }
       })
       .map(schedule => {
-        const [startHour, startMinute] = schedule.startTime.split(':').map(Number);
-        const [endHour, endMinute] = schedule.endTime.split(':').map(Number);
+        // Parse time strings properly - ensure we have numbers
+        const startTimeParts = schedule.startTime.split(':');
+        const endTimeParts = schedule.endTime.split(':');
         
-        // Convert to decimal hours for comparison
+        const startHour = parseInt(startTimeParts[0], 10) || 0;
+        const startMinute = parseInt(startTimeParts[1], 10) || 0;
+        const endHour = parseInt(endTimeParts[0], 10) || 0;
+        const endMinute = parseInt(endTimeParts[1], 10) || 0;
+        
+        // Convert to decimal hours for position calculation
         const startDecimal = startHour + (startMinute / 60);
         const endDecimal = endHour + (endMinute / 60);
+        const duration = Math.max(0.5, endDecimal - startDecimal); // Ensure minimum duration
         
         // Format times for display
         const formatTime = (hour:number, minute:number) => {
@@ -186,7 +187,7 @@ export default function ClassScheduleScreen() {
           endTime: endDecimal,
           startTimeString: formatTime(startHour, startMinute),
           endTimeString: formatTime(endHour, endMinute),
-          duration: endDecimal - startDecimal,
+          duration: duration,
           name: schedule.courseName,
           color: generateColorFromString(schedule.courseCode),
           location: schedule.room || 'No location'
@@ -242,7 +243,7 @@ export default function ClassScheduleScreen() {
     }
   };
 
-  const handleCreateSemester = async (semester) => {
+  const handleCreateSemester = async (semester: Omit<NewSemester, "userId">) => {
     try {
       setIsCreatingSemester(true);
       const freshlyCreatedSemester = await createSemester(semester);
@@ -258,16 +259,16 @@ export default function ClassScheduleScreen() {
     }
   };
 
-  const handleUpdateSemester = async (updatedSemester) => {
+  const handleUpdateSemester = async (updatedSemester: Partial<Semester>) => {
     try {
-      const success = await updateSemester(updatedSemester.id, updatedSemester);
+      const success = await updateSemester(updatedSemester.id!, updatedSemester);
       
       if (success) {
         setSelectedSemester(null);
         
         // If we're updating the active semester, refresh it
         if (activeSemester?.id === updatedSemester.id) {
-          await setActiveSemesterById(updatedSemester.id);
+          await setActiveSemesterById(updatedSemester.id!);
         }
       }
     } catch (error) {
@@ -275,7 +276,7 @@ export default function ClassScheduleScreen() {
     }
   };
 
-  const handleDeleteSemester = async (semesterId) => {
+  const handleDeleteSemester = async (semesterId: string) => {
     try {
       await deleteSemester(semesterId);
       setSelectedSemester(null);
@@ -293,7 +294,7 @@ export default function ClassScheduleScreen() {
     }
   };
 
-  const handleSelectSemester = async (semesterId) => {
+  const handleSelectSemester = async (semesterId: string) => {
     try {
       await setActiveSemesterById(semesterId);
       setIsSemesterModalVisible(false);
