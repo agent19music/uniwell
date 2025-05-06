@@ -23,6 +23,8 @@ interface ScheduleEditorModalProps {
   onClose: () => void;
   semesterId: string;
   isLoading?: boolean;
+  onAddNew: () => void;
+  onEditClass: (classData: any) => void;
 }
 
 const ClassSkeleton = ({ isDark }: { isDark: boolean }) => (
