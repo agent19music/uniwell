@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, useColorScheme } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, useColorScheme , ScrollView} from 'react-native';
 import { useRoutine } from '@/contexts/RoutineContext';
 import { Ionicons } from '@expo/vector-icons';
 import { DayOfTheWeek } from '@/types/TimetableTypes';
@@ -22,11 +22,11 @@ export default function AddRoutineModal({ visible, onClose }: AddRoutineModalPro
   const handleSave = async () => {
     try {
       await createRoutine(title, frequency, frequency === 'custom' ? selectedDays : []);
-      onClose();
       // Reset form
       setTitle('');
       setFrequency('daily');
       setSelectedDays([]);
+      onClose(); // Moved onClose() to after resetting the form
     } catch (error) {
       console.error('Error creating routine:', error);
     }
@@ -39,71 +39,71 @@ export default function AddRoutineModal({ visible, onClose }: AddRoutineModalPro
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={[styles.container, isDark && styles.darkContainer]}>
+      <ScrollView  style={[styles.editFormScroll, isDark && styles.darkEditFormScroll]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color="#FF7F50" />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, isDark && styles.darkText]}>New Routine</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={styles.saveButton}>Save</Text>
-          </TouchableOpacity>
+        <TouchableOpacity onPress={onClose}>
+          <Ionicons name="close" size={24} color="#FF7F50" />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, isDark && styles.darkText]}>New Routine</Text>
+        <TouchableOpacity onPress={handleSave}>
+          <Text style={styles.saveButton}>Save</Text>
+        </TouchableOpacity>
         </View>
         
         <View style={styles.form}>
-          <TextInput
-            style={[styles.input, isDark && styles.darkInput]}
-            placeholder="Routine Title"
-            value={title}
-            onChangeText={setTitle}
-            placeholderTextColor="#666"
-          />
+        <TextInput
+          style={[styles.input, isDark && styles.darkInput]}
+          placeholder="Routine Title"
+          value={title}
+          onChangeText={setTitle}
+          placeholderTextColor="#666"
+        />
 
-          <View style={styles.frequencySection}>
-            <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Frequency</Text>
-            <TouchableOpacity 
-              style={[styles.frequencyButton, frequency === 'daily' && styles.selectedFrequency]}
-              onPress={() => setFrequency('daily')}
-            >
-              <Text style={[styles.frequencyText, frequency === 'daily' && styles.selectedText]}>Daily</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.frequencyButton, frequency === 'weekly' && styles.selectedFrequency]}
-              onPress={() => setFrequency('weekly')}
-            >
-              <Text style={[styles.frequencyText, frequency === 'weekly' && styles.selectedText]}>Weekly</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.frequencyButton, frequency === 'custom' && styles.selectedFrequency]}
-              onPress={() => setFrequency('custom')}
-            >
-              <Text style={[styles.frequencyText, frequency === 'custom' && styles.selectedText]}>Custom</Text>
-            </TouchableOpacity>
-          </View>
-
-          {frequency === 'custom' && (
-            <View style={styles.daysSection}>
-              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Days</Text>
-              {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
-                <View key={day} style={styles.dayRow}>
-                  <Text style={[styles.dayText, isDark && styles.darkText]}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
-                  <Switch
-                    value={selectedDays.includes(day as DayOfTheWeek)}
-                    onValueChange={(value) => {
-                      if (value) {
-                        setSelectedDays([...selectedDays, day as DayOfTheWeek]);
-                      } else {
-                        setSelectedDays(selectedDays.filter(d => d !== day));
-                      }
-                    }}
-                    trackColor={{ false: '#767577', true: '#FF7F50' }}
-                  />
-                </View>
-              ))}
-            </View>
-          )}
+        <View style={styles.frequencySection}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Frequency</Text>
+          <TouchableOpacity 
+          style={[styles.frequencyButton, frequency === 'daily' && styles.selectedFrequency]}
+          onPress={() => setFrequency('daily')}
+          >
+          <Text style={[styles.frequencyText, frequency === 'daily' && styles.selectedText]}>Daily</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+          style={[styles.frequencyButton, frequency === 'weekly' && styles.selectedFrequency]}
+          onPress={() => setFrequency('weekly')}
+          >
+          <Text style={[styles.frequencyText, frequency === 'weekly' && styles.selectedText]}>Weekly</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+          style={[styles.frequencyButton, frequency === 'custom' && styles.selectedFrequency]}
+          onPress={() => setFrequency('custom')}
+          >
+          <Text style={[styles.frequencyText, frequency === 'custom' && styles.selectedText]}>Custom</Text>
+          </TouchableOpacity>
         </View>
-      </View>
+
+        {frequency === 'custom' && (
+          <View style={styles.daysSection}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Days</Text>
+          {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+            <View key={day} style={styles.dayRow}>
+            <Text style={[styles.dayText, isDark && styles.darkText]}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
+            <Switch
+              value={selectedDays.includes(day as DayOfTheWeek)}
+              onValueChange={(value) => {
+              if (value) {
+                setSelectedDays([...selectedDays, day as DayOfTheWeek]);
+              } else {
+                setSelectedDays(selectedDays.filter(d => d !== day));
+              }
+              }}
+              trackColor={{ false: '#767577', true: '#FF7F50' }}
+            />
+            </View>
+          ))}
+          </View>
+        )}
+        </View>
+      </ScrollView>
     </Modal>
   );
 }
@@ -117,6 +117,12 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 16,
     maxHeight: '90%',
+  },
+  editFormScroll: {
+    padding: 16,
+  },
+  darkEditFormScroll: {
+    backgroundColor: '#1C1C1E',
   },
   header: {
     flexDirection: 'row',
