@@ -1,7 +1,7 @@
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions, Modal, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRoutine } from '../../contexts/RoutineContext';
@@ -9,13 +9,12 @@ import AddRoutineModal from '@/modals/AddRoutineModal';
 import AddStreakModal from '@/modals/AddStreakModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-
-
-
-
+import * as Haptics from 'expo-haptics';
+import { Animated } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 
 export default function RoutinesScreen() {
-  const {currentUser} = useAuth()
+  const { currentUser } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { height } = Dimensions.get('window');
@@ -24,15 +23,20 @@ export default function RoutinesScreen() {
   const { habits, completeHabit, streaks } = useRoutine();
   const [showAddRoutine, setShowAddRoutine] = useState(false);
   const [showAddStreak, setShowAddStreak] = useState(false);
-
+  const [streakMenuVisible, setStreakMenuVisible] = useState(false);
+  const [streakMenuPosition, setStreakMenuPosition] = useState({ x: 0, y: 0 });
+  const [selectedStreakId, setSelectedStreakId] = useState<string | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const streakCardRef = useRef(null);
 
   const handleSleepCardPress = () => {
-    router.push('/sleepstats'); // Use router.push for navigation
+    router.push('/sleepstats');
   };
 
   const handleTimetableCardPress = () => {
     router.push('/schedule');
-  };  
+  };
 
   const handleAddRoutine = () => {
     setShowAddRoutine(true);
@@ -40,12 +44,11 @@ export default function RoutinesScreen() {
 
   const handleAddStreak = () => {
     setShowAddStreak(true);
-  };  
+  };
 
   const handleCompleteTask = async (habitId: string) => {
     try {
       await completeHabit(habitId, selectedDate);
-      // Refresh habits list or update UI as needed
     } catch (error) {
       console.error('Error completing habit:', error);
     }
@@ -55,7 +58,22 @@ export default function RoutinesScreen() {
     router.push(`/modals/edit-routine?id=${id}`);
   };
 
-  // Generate last 7 days for the calendar strip
+  const onMarkCompleted = async (streakId: string) => {
+    try {
+      console.log('Marking streak completed:', streakId);
+    } catch (error) {
+      console.error('Error marking streak completed:', error);
+    }
+  };
+
+  const onDelete = async (streakId: string) => {
+    try {
+      console.log('Deleting streak:', streakId);
+    } catch (error) {
+      console.error('Error deleting streak:', error);
+    }
+  };
+
   const getDates = () => {
     const dates = [];
     for (let i = 6; i >= 0; i--) {
@@ -66,11 +84,9 @@ export default function RoutinesScreen() {
     return dates;
   };
 
-
-
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { minHeight: height - 60 }]}
@@ -80,30 +96,77 @@ export default function RoutinesScreen() {
           <Text style={[styles.subtitle, isDark && styles.darkSubText]}>Keep going, you're doing great!</Text>
         </View>
 
-        {/* Streaks Section */}
         <View style={styles.streaksContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.streaksScrollContainer}
           >
             {streaks.length > 0 ? (
               streaks.map((streak) => (
-                <TouchableOpacity 
-                  key={streak.id} 
+                <TouchableOpacity
+                  key={streak.id}
                   style={[styles.streakCard, isDark && styles.darkStreakCard]}
                   onPress={() => router.push(`/streak-details/${streak.id}`)}
+                  onLongPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    if (streakCardRef.current) {
+                        (streakCardRef.current as unknown as {
+                        measure: (
+                          callback: (
+                          x: number,
+                          y: number,
+                          width: number,
+                          height: number,
+                          pageX: number,
+                          pageY: number
+                          ) => void
+                        ) => void
+                        }).measure((fx: number, fy: number, width: number, height: number, px: number, py: number) => {
+                        setStreakMenuPosition({ x: px + width / 2 - 75, y: py - 10 });
+                        setSelectedStreakId(streak.id);
+                        setStreakMenuVisible(true); 
+                        });
+                    }
+                  }}
+                  delayLongPress={300}
+                  ref={streakCardRef}
                 >
-                  <View style={styles.streakHeader}>
-                    <Octicons 
-                      name={streak.type === 'break' ? 'flame' : 'rocket'} 
-                      size={56} 
-                      color="#FF7F50" 
-                    />
-                    <Text style={[styles.streakCount, isDark && styles.darkText]}>{streak.length} Days</Text>
+                  <View style={styles.streakContent}>
+                    <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 127, 80, 0.1)' }]}>
+                      <Octicons
+                        name={streak.type === 'break' ? 'flame' : 'rocket'}
+                        size={24}
+                      />
+                    </View>
+                    <View style={styles.streakInfo}>
+                      <Text
+                        style={[styles.streakTitle, isDark && styles.darkText]}
+                        numberOfLines={1}
+                      >
+                        {streak.title}
+                      </Text>
+                      <View style={styles.streakDetails}>
+                        <Text style={[styles.streakCount, isDark && styles.darkText]}>
+                          {streak.length} days
+                        </Text>
+                        <View style={styles.streakBadge}>
+                          <Text style={styles.streakBadgeText}>
+                            {streak.status || 'Active'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
                   </View>
-                  <Text style={[styles.streakTitle, isDark && styles.darkText]}>{streak.title}</Text>
-                  <Text style={[styles.streakSubtext, isDark && styles.darkText]}>Keep it up!</Text>
+
+                  <View style={styles.progressContainer}>
+                    <View
+                      style={[
+                        styles.progressBar,
+                        { width: `${Math.min(streak.length * 5, 100)}%` }
+                      ]}
+                    />
+                  </View>
                 </TouchableOpacity>
               ))
             ) : (
@@ -114,22 +177,99 @@ export default function RoutinesScreen() {
             )}
           </ScrollView>
         </View>
-        {/* Sleep Card */}
-        <TouchableOpacity 
-          style={[styles.routineCard, { marginLeft: 12 }]} 
+
+        <Modal
+          transparent={true}
+          visible={streakMenuVisible}
+          animationType="fade"
+          onRequestClose={() => setStreakMenuVisible(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setStreakMenuVisible(false)}
+          >
+            <Animated.View
+              style={[
+                styles.streakContextMenu,
+                isDark && styles.darkStreakContextMenu,
+                {
+                  left: streakMenuPosition.x,
+                  top: streakMenuPosition.y,
+                  opacity: fadeAnim,
+                  transform: [{ scale: scaleAnim }],
+                }
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setStreakMenuVisible(false);
+                  router.push(`/edit-streak/${selectedStreakId}`);
+                }}
+              >
+                <Feather name="edit-2" size={16} color={isDark ? '#FFFFFF' : '#333333'} />
+                <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Edit</Text>
+              </TouchableOpacity>
+
+              <View style={[styles.menuDivider, isDark && styles.darkMenuDivider]} />
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setStreakMenuVisible(false);
+                  if (selectedStreakId && onMarkCompleted) {
+                    onMarkCompleted(selectedStreakId);
+                  }
+                }}
+              >
+                <Feather name="check-circle" size={16} color={isDark ? '#34C759' : '#34C759'} />
+                <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Mark Completed</Text>
+              </TouchableOpacity>
+
+              <View style={[styles.menuDivider, isDark && styles.darkMenuDivider]} />
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setStreakMenuVisible(false);
+                  Alert.alert(
+                    "Delete Streak",
+                    "Are you sure you want to delete this streak? This action cannot be undone.",
+                    [
+                      {
+                        text: "Cancel",
+                        style: "cancel"
+                      },
+                      {
+                        text: "Delete",
+                        style: "destructive",
+                        onPress: () => selectedStreakId && onDelete && onDelete(selectedStreakId)
+                      }
+                    ]
+                  );
+                }}
+              >
+                <Feather name="trash-2" size={16} color={isDark ? '#FF453A' : '#FF3B30'} />
+                <Text style={styles.menuDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </Pressable>
+        </Modal>
+
+        <TouchableOpacity
+          style={[styles.routineCard, { marginLeft: 12 }]}
           onPress={handleTimetableCardPress}
         >
-          <Text style={[styles.routineTitle,]}>Timetable entry</Text>
+          <Text style={styles.routineTitle}>Timetable entry</Text>
           <Text style={styles.routineFrequency}>Test</Text>
         </TouchableOpacity>
 
-        {/* Calendar Strip */}
         <View style={styles.calendarStrip}>
           {getDates().map((date) => {
             const isSelected = date.toDateString() === selectedDate.toDateString();
             return (
-              <TouchableOpacity 
-                key={date.toISOString()} 
+              <TouchableOpacity
+                key={date.toISOString()}
                 style={[styles.dateButton, isSelected && styles.selectedDate]}
                 onPress={() => setSelectedDate(date)}
               >
@@ -144,13 +284,12 @@ export default function RoutinesScreen() {
           })}
         </View>
 
-        {/* Daily Routines */}
         <View style={styles.routinesSection}>
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Daily Routines</Text>
           {habits.length > 0 ? (
             habits.map((habit) => (
-              <TouchableOpacity 
-                key={habit.id} 
+              <TouchableOpacity
+                key={habit.id}
                 style={[styles.routineCard, isDark && styles.darkCard]}
               >
                 <View style={styles.routineInfo}>
@@ -159,14 +298,14 @@ export default function RoutinesScreen() {
                     {habit.frequency}
                   </Text>
                 </View>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.checkButton, habit.completed?.includes(selectedDate.toDateString()) && styles.checkedButton]}
                   onPress={() => handleCompleteTask(habit.id)}
                 >
-                  <Ionicons 
-                    name={habit.completed?.includes(selectedDate.toDateString()) ? "checkmark-circle" : "checkmark-circle-outline"} 
-                    size={24} 
-                    color="#FF7F50" 
+                  <Ionicons
+                    name={habit.completed?.includes(selectedDate.toDateString()) ? "checkmark-circle" : "checkmark-circle-outline"}
+                    size={24}
+                    color="#FF7F50"
                   />
                 </TouchableOpacity>
               </TouchableOpacity>
@@ -179,31 +318,21 @@ export default function RoutinesScreen() {
           )}
         </View>
 
-        {/* Add New Button */}
         {habits.length > 0 && (
           <TouchableOpacity style={styles.addButton} onPress={handleAddRoutine}>
             <Ionicons name="add-circle" size={24} color="#FF7F50" />
             <Text style={styles.addButtonText}>Add New Routine</Text>
           </TouchableOpacity>
         )}
-
-        {habits.map((habit) => (
-          <View key={habit.id} style={styles.habitContainer}>
-            <Text>{habit.title}</Text>
-            <TouchableOpacity onPress={() => handleEditRoutine(habit.id)}>
-              <Ionicons name="ellipsis-vertical" size={24} color="#FF7F50" />
-            </TouchableOpacity>
-          </View>
-        ))}
       </ScrollView>
 
-      <AddRoutineModal 
-        visible={showAddRoutine} 
-        onClose={() => setShowAddRoutine(false)} 
+      <AddRoutineModal
+        visible={showAddRoutine}
+        onClose={() => setShowAddRoutine(false)}
       />
-      <AddStreakModal 
-        visible={showAddStreak} 
-        onClose={() => setShowAddStreak(false)} 
+      <AddStreakModal
+        visible={showAddStreak}
+        onClose={() => setShowAddStreak(false)}
       />
     </SafeAreaView>
   );
@@ -254,45 +383,77 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   streakCard: {
-    padding: 20,
+    padding: 16,
     borderRadius: 16,
     marginRight: 12,
-    backgroundColor: '#f0f0f0',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    backgroundColor: '#ffffff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
-    width: 250,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    width: 220,
   },
   darkStreakCard: {
-    backgroundColor: '#2C2C2C',
-    borderColor: '#444444',
+    backgroundColor: '#1c1c1e',
+    borderColor: '#2c2c2e',
   },
-  streakHeader: {
+  streakContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    fontFamily: 'Vercetti-Regular',
   },
-  streakCount: {
-    fontSize: 20,
-    color: '#FF7F50',
-    marginLeft: 10,
-    fontFamily: 'Vercetti-Regular',
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 127, 80, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  streakInfo: {
+    flex: 1,
   },
   streakTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#000000',
+    marginBottom: 4,
     fontFamily: 'Vercetti-Regular',
   },
-  streakSubtext: {
-    fontSize: 12,
-    color: '#666',
+  streakDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  streakCount: {
+    fontSize: 14,
+    color: '#FF7F50',
     fontFamily: 'Vercetti-Regular',
+    fontWeight: '500',
+  },
+  streakBadge: {
+    backgroundColor: 'rgba(255, 127, 80, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  streakBadgeText: {
+    fontSize: 12,
+    color: '#FF7F50',
+    fontFamily: 'Vercetti-Regular',
+  },
+  progressContainer: {
+    height: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 2,
+    marginVertical: 12,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#FF7F50',
+    borderRadius: 2,
   },
   addStreakButton: {
     flexDirection: 'row',
@@ -387,10 +548,49 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
   },
-  habitContainer: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  streakContextMenu: {
+    position: 'absolute',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 8,
+    width: 150,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  darkStreakContextMenu: {
+    backgroundColor: '#2C2C2E',
+  },
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
+    padding: 12,
+    gap: 8,
+  },
+  menuText: {
+    fontSize: 14,
+    color: '#333333',
+    fontFamily: 'Vercetti-Regular',
+  },
+  darkMenuText: {
+    color: '#FFFFFF',
+  },
+  menuDeleteText: {
+    fontSize: 14,
+    color: '#FF3B30',
+    fontFamily: 'Vercetti-Regular',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#E5E5EA',
+  },
+  darkMenuDivider: {
+    backgroundColor: '#3A3A3C',
   },
 });
