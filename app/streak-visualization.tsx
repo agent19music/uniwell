@@ -170,7 +170,7 @@ export default function StreakVisualizationScreen() {
         <LineChart
           data={{
             labels: streaks.length > 0 
-              ? streaks.map(s => format(new Date(s.start_date), 'MMM d'))
+              ? streaks.map(s => format(new Date(s.startDate), 'MMM d'))
               : [''],
             datasets: [{
               data: streaks.length > 0 

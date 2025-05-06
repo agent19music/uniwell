@@ -1,123 +1,79 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
+  Modal,
   View,
   Text,
-  StyleSheet,
-  Modal,
   TouchableOpacity,
   ScrollView,
-  TextInput,
-  Animated,
-  Platform,
-  PanResponder,
+  StyleSheet,
   useColorScheme,
+  Animated,
+  PanResponder
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { 
-  ClassSchedule, 
-  ClassType, 
-  ClassFrequency, 
-  DayOfTheWeek,
-  EditableClass 
-} from '../types/TimetableTypes';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Switch } from 'react-native';
-import * as burnt from 'burnt';
+import { Ionicons } from '@expo/vector-icons';
+import { useSemester } from '@/contexts/SemesterContext';
+import { ClassSchedule } from '@/types/TimetableTypes';
+import AddClassModal from './AddClassModal';
+import EditClassModal from './EditClassModal';
+import { ActivityIndicator } from 'react-native';
 
 interface ScheduleEditorModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (classData: ClassSchedule) => void;
-  onDelete?: (id: string) => void;
-  initialData?: ClassSchedule;
+  semesterId: string;
+  isLoading?: boolean;
+  onAddNew: () => void;
+  onEditClass: (classData: any) => void;
 }
 
-const SAMPLE_CLASSES: Record<string, EditableClass> = {
-  "CSE101": {
-    id: "CSE101",
-    courseName: "Computer Science Fundamentals",
-    courseCode: "CSE101",
-    room: "Lab 204",
-    instructor: "Dr. Smith",
-    frequency: ClassFrequency.WEEKLY,
-    type: ClassType.LECTURE,
-    startTime: "09:00",
-    endTime: "10:30",
-    classType: ClassType.LECTURE,
-    daysOfWeek: [DayOfTheWeek.MONDAY, DayOfTheWeek.WEDNESDAY],
-    notificationPreference: {
-      beforeClass: 30,
-      afterClass: null,
-      onMorning: 120
-    }
-  },
-  "MATH201": {
-    id: "MATH201",
-    courseName: "Advanced Calculus",
-    courseCode: "MATH201",
-    room: "Hall 101",
-    instructor: "Prof. Johnson",
-    frequency: ClassFrequency.WEEKLY,
-    type: ClassType.LECTURE,
-    startTime: "11:00",
-    endTime: "12:30",
-    classType: ClassType.LECTURE,
-    daysOfWeek: [DayOfTheWeek.TUESDAY, DayOfTheWeek.THURSDAY],
-    notificationPreference: {
-      beforeClass: 15,
-      afterClass: 30,
-      onMorning: 60
-    }
-  }
-};
+const ClassSkeleton = ({ isDark }: { isDark: boolean }) => (
+  <View style={[styles.classItem, isDark && styles.darkClassItem]}>
+    <View style={styles.classItemContent}>
+      <View style={[styles.colorDot, styles.skeletonDot]} />
+      <View style={styles.classInfo}>
+        <View 
+          style={[
+            styles.skeletonText, 
+            styles.skeletonTitle,
+            isDark && styles.darkSkeletonText
+          ]} 
+        />
+        <View 
+          style={[
+            styles.skeletonText, 
+            styles.skeletonDetails,
+            isDark && styles.darkSkeletonText
+          ]} 
+        />
+      </View>
+      <View style={[styles.skeletonChevron, isDark && styles.darkSkeletonText]} />
+    </View>
+  </View>
+);
 
 export default function ScheduleEditorModal({
   visible,
   onClose,
-  onSave,
-  onDelete,
-  initialData
+  semesterId,
+  isLoading = false
 }: ScheduleEditorModalProps) {
+  const { classSchedules } = useSemester();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const [modalVisible, setModalVisible] = useState(visible);
-  const [slideAnim] = useState(new Animated.Value(0));
-  const [selectedClass, setSelectedClass] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingData, setEditingData] = useState<EditableClass | null>(null);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-  const [morningNotification, setMorningNotification] = useState(false);
+  const [slideAnim] = useState(new Animated.Value(visible ? 1 : 0));
+  console.log('classSchedule in schedule editor',classSchedules)
+  
+  // Modal states
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<ClassSchedule | null>(null);
+  console.log("class schedule data $$" ,classSchedules)
 
-  useEffect(() => {
-    if (visible) {
-      setModalVisible(true);
-      Animated.timing(slideAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        setModalVisible(false);
-      });
-    }
-  }, [visible]);
-
-  const handleClose = useCallback(() => {
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      onClose();
-    });
-  }, [onClose]);
+  // Filter classes for current semester - Update this filter
+  const semesterClasses = classSchedules.filter(
+    schedule => schedule.semesterId === semesterId
+  );
 
   const [panResponder] = useState(
     PanResponder.create({
@@ -143,369 +99,164 @@ export default function ScheduleEditorModal({
     })
   );
 
-  const handleEdit = (classId: string) => {
-    setSelectedClass(classId);
-    setEditingData(SAMPLE_CLASSES[classId]);
-    setIsEditing(true);
+  const handleClose = () => {
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => onClose());
+  };
+
+  const handleEditClass = (classData: any) => {
+
+    
+    console.log('Formatted class data:', classData);
+    setSelectedClass(classData);
+    setIsEditModalVisible(true);
   };
 
   const handleAddNew = () => {
-    setEditingData({
-      id: Date.now().toString(),
-      courseName: "",
-      courseCode: "",
-      room: "",
-      instructor: "",
-      frequency: ClassFrequency.WEEKLY,
-      type: ClassType.LECTURE,
-      startTime: "09:00",
-      endTime: "10:30",
-      classType: ClassType.LECTURE,
-      daysOfWeek: [],
-      notificationPreference: {
-        beforeClass: 15,
-        afterClass: null,
-        onMorning: 60
-      }
-    });
-    setIsEditing(true);
+    setIsAddModalVisible(true);
   };
 
-  const formatTime = (timeString: string) => {
-    const date = new Date(`2000-01-01T${timeString}`);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+  const formatTime = (time: string) => {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour > 12 ? hour - 12 : hour;
+    return `${formattedHour}:${minutes} ${period}`;
   };
-
-  const handleMorningNotificationChange = (value: boolean) => {
-    setMorningNotification(value);
-    if (editingData) {
-      setEditingData(prev => prev ? { 
-        ...prev, 
-        notificationPreference: { 
-          ...prev.notificationPreference, 
-          onMorning: value ? 60 : 0 
-        } 
-      } : null);
-    }
-  };
-
-  const handleStartTimeChange = (event: any, selectedDate?: Date) => {
-    setShowStartTimePicker(false);
-    if (selectedDate && editingData) {
-      const hours = selectedDate.getHours().toString().padStart(2, '0');
-      const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
-      const timeString = `${hours}:${minutes}`;
-      setEditingData(prev => prev ? {...prev, startTime: timeString} : null);
-    }
-  };
-
-  const handleEndTimeChange = (event: any, selectedDate?: Date) => {
-    setShowEndTimePicker(false);
-    if (selectedDate && editingData) {
-      const hours = selectedDate.getHours().toString().padStart(2, '0');
-      const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
-      const timeString = `${hours}:${minutes}`;
-      setEditingData(prev => prev ? {...prev, endTime: timeString} : null);
-    }
-  };
-
-  const renderEditForm = () => (
-    <ScrollView style={[styles.editFormScroll, isDark && styles.darkEditFormScroll]}>
-      <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.backButton}>
-        <Ionicons name="chevron-back-outline" size={24} color="#FF7F50" />
-        <Text style={styles.backButtonText}>Back</Text>
-      </TouchableOpacity>
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, isDark && styles.darkLabel]}>Course Name</Text>
-        <TextInput
-          style={[styles.input, isDark && styles.darkInput]}
-          value={editingData?.courseName}
-          onChangeText={(text) => setEditingData(prev => prev ? {...prev, courseName: text} : null)}
-          placeholder="Enter course name"
-          placeholderTextColor={isDark ? '#666' : '#999'}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, isDark && styles.darkLabel]}>Course Code</Text>
-        <TextInput
-          style={[styles.input, isDark && styles.darkInput]}
-          value={editingData?.courseCode}
-          onChangeText={(text) => setEditingData(prev => prev ? {...prev, courseCode: text} : null)}
-          placeholder="Enter course code"
-          placeholderTextColor={isDark ? '#666' : '#999'}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, isDark && styles.darkLabel]}>Room</Text>
-        <TextInput
-          style={[styles.input, isDark && styles.darkInput]}
-          value={editingData?.room}
-          onChangeText={(text) => setEditingData(prev => prev ? {...prev, room: text} : null)}
-          placeholder="Enter room number"
-          placeholderTextColor={isDark ? '#666' : '#999'}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, isDark && styles.darkLabel]}>Instructor</Text>
-        <TextInput
-          style={[styles.input, isDark && styles.darkInput]}
-          value={editingData?.instructor}
-          onChangeText={(text) => setEditingData(prev => prev ? {...prev, instructor: text} : null)}
-          placeholder="Enter instructor name"
-          placeholderTextColor={isDark ? '#666' : '#999'}
-        />
-      </View>
-
-      <View style={[styles.divider, isDark && styles.darkDivider]} />
-
-      <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Class Time</Text>
-      <View style={styles.timePickerContainer}>
-        <View style={styles.timePickerRow}>
-          <Text style={[styles.timeLabel, isDark && styles.darkLabel]}>Start Time</Text>
-          <TouchableOpacity 
-            style={[styles.timeButton, isDark && styles.darkTimeButton]}
-            onPress={() => setShowStartTimePicker(true)}
-          >
-            <Text style={[styles.timeButtonText, isDark && styles.darkText]}>
-              {editingData?.startTime ? formatTime(editingData.startTime) : "Select time"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.timePickerRow}>
-          <Text style={[styles.timeLabel, isDark && styles.darkLabel]}>End Time</Text>
-          <TouchableOpacity 
-            style={[styles.timeButton, isDark && styles.darkTimeButton]}
-            onPress={() => setShowEndTimePicker(true)}
-          >
-            <Text style={[styles.timeButtonText, isDark && styles.darkText]}>
-              {editingData?.endTime ? formatTime(editingData.endTime) : "Select time"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={[styles.divider, isDark && styles.darkDivider]} />
-
-      <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Days</Text>
-      <View style={styles.dayButtonContainer}>
-        {Object.values(DayOfTheWeek).slice(0, 5).map(day => (
-          <TouchableOpacity 
-            key={day}
-            style={[
-              styles.dayButton,
-              isDark && styles.darkDayButton,
-              editingData?.daysOfWeek.includes(day) && styles.selectedDayButton,
-            ]}
-            onPress={() => {
-              setEditingData(prev => {
-                if (!prev) return null;
-                const newDays = prev.daysOfWeek.includes(day)
-                  ? prev.daysOfWeek.filter(d => d !== day)
-                  : [...prev.daysOfWeek, day];
-                return {...prev, daysOfWeek: newDays};
-              });
-            }}
-          >
-            <Text style={[
-              styles.dayButtonText,
-              isDark && styles.darkDayButtonText,
-              editingData?.daysOfWeek.includes(day) && styles.selectedDayButtonText
-            ]}>
-              {day.slice(0, 3)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={[styles.divider, isDark && styles.darkDivider]} />
-
-      <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Notifications</Text>
-      <View style={styles.notificationContainer}>
-        <View style={styles.notificationRow}>
-          <Text style={[styles.notificationLabel, isDark && styles.darkLabel]}>
-            Morning Reminder
-          </Text>
-          <Switch
-            value={morningNotification}
-            onValueChange={handleMorningNotificationChange}
-            trackColor={{ false: '#767577', true: '#FF7F50' }}
-            thumbColor={morningNotification ? '#f4f3f4' : '#f4f3f4'}
-          />
-        </View>
-        
-        <View style={styles.notificationRow}>
-          <Text style={[styles.notificationLabel, isDark && styles.darkLabel]}>
-            Remind Before Class
-          </Text>
-          <TextInput
-            style={[styles.notificationInput, isDark && styles.darkInput]}
-            value={editingData?.notificationPreference?.beforeClass?.toString() || "15"}
-            onChangeText={(text) => {
-              const minutes = parseInt(text) || 0;
-              setEditingData(prev => prev ? {
-                ...prev,
-                notificationPreference: {
-                  ...prev.notificationPreference,
-                  beforeClass: minutes
-                }
-              } : null);
-            }}
-            keyboardType="numeric"
-            placeholder="Minutes"
-            placeholderTextColor={isDark ? '#666' : '#999'}
-          />
-          <Text style={[styles.minutesText, isDark && styles.darkLabel]}>min</Text>
-        </View>
-      </View>
-
-      {editingData?.id && (
-        <TouchableOpacity 
-          style={[styles.deleteButton, isDark && styles.darkDeleteButton]}
-          onPress={() => onDelete?.(editingData.id)}
-        >
-          <Text style={styles.deleteText}>Remove This Class</Text>
-        </TouchableOpacity>
-      )}
-    </ScrollView>
-  );
-
-  const renderTimePickers = () => (
-    <>
-      {showStartTimePicker && (
-        <DateTimePicker
-          value={editingData?.startTime ? new Date(`2000-01-01T${editingData.startTime}`) : new Date()}
-          mode="time"
-          is24Hour={false}
-          display="default"
-          onChange={handleStartTimeChange}
-        />
-      )}
-      {showEndTimePicker && (
-        <DateTimePicker
-          value={editingData?.endTime ? new Date(`2000-01-01T${editingData.endTime}`) : new Date()}
-          mode="time"
-          is24Hour={false}
-          display="default"
-          onChange={handleEndTimeChange}
-        />
-      )}
-    </>
-  );
 
   return (
-    <Modal
-      visible={modalVisible}
-      transparent
-      animationType="none"
-      onRequestClose={handleClose}
-    >
-      <BlurView intensity={isDark ? 40 : 20} tint={isDark ? 'dark' : 'light'} style={styles.backdrop}>
-        <Animated.View 
-          {...panResponder.panHandlers}
-          style={[
-            styles.modalContainer,
-            isDark && styles.darkModalContainer,
-            {
-              transform: [{
-                translateY: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [600, 0],
-                }),
-              }],
-            },
-          ]}
-        >
-          <View style={[styles.header, isDark && styles.darkHeader]}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#FF7F50" />
-            </TouchableOpacity>
-            <Text style={[styles.title, isDark && styles.darkText]}>
-              {isEditing ? (editingData?.id ? 'Edit Class' : 'Add Class') : 'Schedule Editor'}
-            </Text>
-            {isEditing ? (
-              <TouchableOpacity 
-                style={styles.saveButton} 
-                onPress={() => {
-                  onSave(editingData as unknown as ClassSchedule);
-                  burnt.toast({
-                    title: 'Class Saved',
-                    message: 'Your class has been saved successfully.',
-                    duration: 2,
-                  });
-                  setIsEditing(false);
-                }}
-              >
-                <Text style={styles.saveText}>Save</Text>
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="none"
+        onRequestClose={handleClose}
+      >
+        <BlurView intensity={isDark ? 40 : 20} tint={isDark ? 'dark' : 'light'} style={styles.backdrop}>
+          <Animated.View
+            {...panResponder.panHandlers}
+            style={[
+              styles.modalContainer,
+              isDark && styles.darkModalContainer,
+              {
+                transform: [{
+                  translateY: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [600, 0],
+                  }),
+                }],
+              },
+            ]}
+          >
+            <View style={[styles.header, isDark && styles.darkHeader]}>
+              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#FF7F50" />
               </TouchableOpacity>
-            ) : (
+              <Text style={[styles.title, isDark && styles.darkText]}>
+                Schedule Editor
+              </Text>
               <TouchableOpacity style={styles.addButton} onPress={handleAddNew}>
                 <Ionicons name="add" size={24} color="#FF7F50" />
               </TouchableOpacity>
-            )}
-          </View>
+            </View>
 
-          <ScrollView style={styles.content}>
-            {!isEditing ? (
-                <View style={[styles.classList, isDark && styles.darkClassList]}>
-                {Object.entries(SAMPLE_CLASSES).map(([id, classData]) => (
-                  <TouchableOpacity
-                  key={id}
-                  style={[styles.classItem, isDark && styles.darkClassItem]}
-                  onPress={() => handleEdit(id)}
-                  >
-                  <View style={styles.classItemContent}>
-                    <View style={[styles.colorDot, { backgroundColor: '#FF7F50' }]} />
-                    <View style={styles.classInfo}>
-                    <Text style={[styles.className, isDark && styles.darkText]}>{classData.courseName}</Text>
-                    <Text style={[styles.classDetails, isDark && styles.darkText]}>
-                      {classData.daysOfWeek.join(', ')} • {classData.startTime}
-                    </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={isDark ? "#8E8E93" : "#C7C7CC"} />
-                  </View>
-                  </TouchableOpacity>
-                ))}
-                </View>
-            ) : (
-              renderEditForm()
-            )}
-          </ScrollView>
+            <ScrollView style={styles.content}>
+              <View style={[styles.classList, isDark && styles.darkClassList]}>
+                {isLoading ? (
+                  <>
+                    <ClassSkeleton isDark={isDark} />
+                    <ClassSkeleton isDark={isDark} />
+                    <ClassSkeleton isDark={isDark} />
+                  </>
+                ) : (
+                  <>
+                    {semesterClasses.map((classData) => (
+                      <TouchableOpacity
+                        key={classData.id}
+                        style={[styles.classItem, isDark && styles.darkClassItem]}
+                        onPress={() => handleEditClass(classData)}
+                      >
+                        <View style={styles.classItemContent}>
+                          <View style={[styles.colorDot, { backgroundColor: '#FF7F50' }]} />
+                          <View style={styles.classInfo}>
+                            <Text style={[styles.className, isDark && styles.darkText]}>
+                              {classData.courseName}
+                            </Text>
+                            <Text style={[styles.classDetails, isDark && styles.darkText]}>
+                              {classData.daysOfWeek.join(', ')} • {formatTime(classData.startTime)}
+                            </Text>
+                          </View>
+                          <Ionicons 
+                            name="chevron-forward" 
+                            size={20} 
+                            color={isDark ? "#8E8E93" : "#C7C7CC"} 
+                          />
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                    {semesterClasses.length === 0 && (
+                      <View style={styles.emptyState}>
+                        <Text style={[styles.emptyStateText, isDark && styles.darkText]}>
+                          No classes added yet
+                        </Text>
+                        <TouchableOpacity 
+                          style={styles.emptyStateButton}
+                          onPress={handleAddNew}
+                        >
+                          <Text style={styles.emptyStateButtonText}>Add Your First Class</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+            </ScrollView>
+          </Animated.View>
+        </BlurView>
+      </Modal>
 
-          {renderTimePickers()}
-        </Animated.View>
-      </BlurView>
-    </Modal>
+      {/* Add Class Modal */}
+      {isAddModalVisible && (
+        <AddClassModal
+          visible={isAddModalVisible}
+          onClose={() => setIsAddModalVisible(false)}
+          semesterId={semesterId}
+        />
+      )}
+
+      {/* Edit Class Modal */}
+      {isEditModalVisible && selectedClass && (
+        <EditClassModal
+          visible={isEditModalVisible}
+          onClose={() => {
+            setIsEditModalVisible(false);
+            setSelectedClass(null);
+          }}
+          classSchedule={selectedClass}
+        />
+      )}
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
-  },
-  darkClassList: {
-    backgroundColor: '#1C1C1E',
-  },
-  darkClassItem: {
-    backgroundColor: '#2C2C2E',
-    borderBottomColor: '#38383A',
   },
   modalContainer: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    minHeight: '70%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-    width: '100%',
+    minHeight: '50%',
+    maxHeight: '90%',
+  },
+  darkModalContainer: {
+    backgroundColor: '#1C1C1E',
   },
   header: {
     flexDirection: 'row',
@@ -515,8 +266,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F2F2F7',
   },
-  closeButton: {
-    padding: 8,
+  darkHeader: {
+    borderBottomColor: '#38383A',
   },
   title: {
     fontSize: 17,
@@ -524,14 +275,8 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontFamily: 'Vercetti-Regular',
   },
-  saveButton: {
-    padding: 8,
-  },
-  saveText: {
-    color: '#FF7F50',
-    fontSize: 17,
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
+  darkText: {
+    color: '#FFFFFF',
   },
   content: {
     flex: 1,
@@ -539,13 +284,22 @@ const styles = StyleSheet.create({
   classList: {
     paddingTop: 8,
   },
+  darkClassList: {
+    backgroundColor: '#1C1C1E',
+  },
   classItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F2F2F7',
+  },
+  darkClassItem: {
+    backgroundColor: '#2C2C2E',
+    borderBottomColor: '#38383A',
+  },
+  classItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   colorDot: {
     width: 12,
@@ -553,203 +307,83 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginRight: 12,
   },
-  className: {
-    flex: 1,
-    fontSize: 17,
-    color: '#000000',
-    fontFamily: 'Vercetti-Regular',
-  },
-  editFormScroll: {
-    flex: 1,
-    padding: 16,
-  },
-  classItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   classInfo: {
     flex: 1,
-    marginLeft: 12,
+  },
+  className: {
+    fontSize: 17,
+    color: '#000000',
+    fontFamily: 'Vercetti-Regular',
   },
   classDetails: {
+    fontSize: 14,
     color: '#6C6C70',
-    fontSize: 15,
+    marginTop: 4,
     fontFamily: 'Vercetti-Regular',
   },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 13,
-    color: '#6C6C70',
-    marginBottom: 8,
-    fontFamily: 'Vercetti-Regular',
-  },
-  input: {
-    fontSize: 17,
-    padding: 12,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 10,
-    color: '#000000',
-    fontFamily: 'Vercetti-Regular',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E5EA',
-    marginVertical: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 16,
-    color: '#000000',
-    fontFamily: 'Vercetti-Regular',
-  },
-  timePickerContainer: {
-    marginBottom: 16,
-  },
-  timePickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  timeLabel: {
-    width: 100,
-    fontSize: 15,
-    color: '#6C6C70',
-    fontFamily: 'Vercetti-Regular',
-  },
-  timeButton: {
-    flex: 1,
-    padding: 12,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  timeButtonText: {
-    fontSize: 17,
-    color: '#000000',
-    fontFamily: 'Vercetti-Regular',
-  },
-  dayButtonContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 24,
-  },
-  dayButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: '#F2F2F7',
-    borderWidth: 1,
-    borderColor: '#FF7F50',
-  },
-  selectedDayButton: {
-    backgroundColor: '#FF7F50',
-  },
-  dayButtonText: {
-    color: '#FF7F50',
-    fontSize: 15,
-    fontFamily: 'Vercetti-Regular',
-  },
-  selectedDayButtonText: {
-    color: '#FFFFFF',
-  },
-  deleteButton: {
-    marginTop: 32,
-    padding: 16,
-    backgroundColor: '#FFE5E5',
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  deleteText: {
-    color: '#FF3B30',
-    fontSize: 17,
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
+  closeButton: {
+    padding: 8,
   },
   addButton: {
     padding: 8,
   },
-  darkModalContainer: {
-    backgroundColor: '#1C1C1E',
-  },
-  darkHeader: {
-    borderBottomColor: '#38383A',
-  },
-  darkText: {
-    color: '#FFFFFF',
-  },
-  darkLabel: {
-    color: '#98989F',
-  },
-  darkInput: {
-    backgroundColor: '#2C2C2E',
-    color: '#FFFFFF',
-  },
-  darkEditFormScroll: {
-    backgroundColor: '#1C1C1E',
-  },
-  darkDivider: {
-    backgroundColor: '#38383A',
-  },
-  darkTimeButton: {
-    backgroundColor: '#2C2C2E',
-  },
-  darkDayButton: {
-    backgroundColor: '#2C2C2E',
-    borderColor: '#FF7F50',
-  },
-  darkDayButtonText: {
-    color: '#FF7F50',
-  },
-  darkDeleteButton: {
-    backgroundColor: '#3A1212',
-  },
-  notificationContainer: {
-    marginBottom: 24,
-  },
-  notificationRow: {
-    flexDirection: 'row',
+  emptyState: {
+    padding: 24,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
   },
-  notificationLabel: {
-    fontSize: 15,
-    color: '#6C6C70',
-    flex: 1,
-    fontFamily: 'Vercetti-Regular',
-  },
-  notificationInput: {
-    width: 60,
-    fontSize: 17,
-    padding: 8,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 8,
-    textAlign: 'center',
-    color: '#000000',
-    fontFamily: 'Vercetti-Regular',
-  },
-  minutesText: {
-    marginLeft: 8,
-    fontSize: 15,
-    color: '#6C6C70',
-    fontFamily: 'Vercetti-Regular',
-  },
-  backButtonText: {
-    color: '#FF7F50',
+  emptyStateText: {
     fontSize: 16,
-    marginLeft: 4,
+    color: '#8E8E93',
+    marginBottom: 16,
     fontFamily: 'Vercetti-Regular',
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingVertical: 8,
+  emptyStateButton: {
+    backgroundColor: '#FF7F50',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
+  emptyStateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Vercetti-Regular',
+  },
+  skeletonDot: {
+    backgroundColor: '#E1E9EE',
+    opacity: 0.7,
+  },
+  skeletonText: {
+    backgroundColor: '#E1E9EE',
+    borderRadius: 4,
+    opacity: 0.7,
+  },
+  darkSkeletonText: {
+    backgroundColor: '#38383A',
+    opacity: 0.7,
+  },
+  skeletonTitle: {
+    height: 20,
+    width: '70%',
+    marginBottom: 8,
+  },
+  skeletonDetails: {
+    height: 16,
+    width: '50%',
+  },
+  skeletonChevron: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#E1E9EE',
+    opacity: 0.7,
+  },
+  // Shimmer animation should be implemented using Animated API
+  // Remove keyframes as they're not supported in React Native StyleSheet
 });
+
+
+
+
+
 

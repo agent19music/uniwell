@@ -7,7 +7,9 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { Camera } from 'expo-camera';
 import { RoutineProvider } from '@/contexts/RoutineContext';
 import { MoodProvider } from '@/contexts/MoodContext';
-import { CommunityProvider } from '@/contexts/CommunityContext';    
+import { CommunityProvider } from '@/contexts/CommunityContext';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SemesterProvider } from '@/contexts/SemesterContext';
 
 declare global {
   interface Window {
@@ -51,25 +53,29 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>  
-      <CommunityProvider>
-        <MoodProvider>
-          <RoutineProvider>
-            <Stack screenOptions={{
-            headerShown: false,
-          contentStyle: {
-          backgroundColor: isDark ? '#121212' : '#f5f5f5',
-        },
-      }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="loginscreen" />
-        <Stack.Screen name="signupscreen" />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          </Stack>
-        </RoutineProvider>
-      </MoodProvider>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      </CommunityProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>  
+        <CommunityProvider>
+          <MoodProvider>
+            <RoutineProvider>
+              <SemesterProvider>
+                <Stack screenOptions={{
+                  headerShown: false,
+                  contentStyle: {
+                    backgroundColor: isDark ? '#121212' : '#f5f5f5',
+                  },
+                }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="loginscreen" />
+                <Stack.Screen name="signupscreen" />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              </Stack>
+              </SemesterProvider>
+              <StatusBar style={isDark ? 'light' : 'dark'} />
+            </RoutineProvider>
+          </MoodProvider>
+        </CommunityProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

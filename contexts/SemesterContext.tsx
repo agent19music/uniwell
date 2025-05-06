@@ -1,43 +1,72 @@
-import { useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './AuthContext';
 import { 
-  ClassFrequency, 
-  ClassType, 
-  ClassSchedule,
-  Assignment,
-  AttendanceRecord,
-  TimetableNotification,
-  Semester,
-  SemesterType,
-  NewSemester
+    Semester, 
+    SemesterType, 
+    ClassSchedule, 
+    Assignment, 
+    AttendanceRecord, 
+    NewSemester ,
+    TimetableNotification
 } from '../types/TimetableTypes';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {v4 as uuidv4} from 'uuid';
-import { supabase } from './supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { v4 as uuidv4 } from 'uuid';
 
-export const useTimetableManagement = () => {
+interface SemesterContextType {
+    semesters: Semester[];
+    activeSemester: Semester | null;
+    classSchedules: ClassSchedule[];
+    attendanceRecords: AttendanceRecord[];
+    assignments: Assignment[];
+    isLoading: boolean;
+    error: string | null;
+    loadSemesters: () => Promise<void>;
+    createSemester: (semesterData: Omit<NewSemester, 'userId'>) => Promise<Semester | null>;
+    updateSemester: (id: string, semesterData: Partial<Semester>) => Promise<boolean>;
+    deleteSemester: (id: string) => Promise<boolean>;
+    setActiveSemesterById: (id: string) => Promise<boolean>;
+    loadClassSchedulesForSemester: (semesterId: string) => Promise<ClassSchedule[]>;
+    addClassSchedule: (schedule: Omit<ClassSchedule, 'id'>) => Promise<ClassSchedule | null>;
+    updateClassSchedule: (id: string, schedule: Partial<ClassSchedule>) => Promise<boolean>;
+    deleteClassSchedule: (id: string) => Promise<boolean>;
+    recordAttendance: (classId: string, attended: boolean) => Promise<void>;
+    calculateAttendance: (classId: string) => number;
+}
+
+const SemesterContext = createContext<SemesterContextType | undefined>(undefined);
+
+export const useSemester = () => {
+    const context = useContext(SemesterContext);
+    if (!context) {
+        throw new Error('useSemester must be used within a SemesterProvider');
+    }
+    return context;
+};
+
+export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [semesters, setSemesters] = useState<Semester[]>([]);
+    const [activeSemester, setActiveSemester] = useState<Semester | null>(null);
     const [classSchedules, setClassSchedules] = useState<ClassSchedule[]>([]);
     const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [semesters, setSemesters] = useState<Semester[]>([]);
-    const [activeSemester, setActiveSemester] = useState<Semester | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    
-    // Use the AuthContext if it exists, otherwise use a placeholder
-    const authContext = useAuth();
-    const user = authContext?.currentUser || { id: 'placeholder' };
+
+    const { currentUser  } = useAuth();
+    const user = currentUser
 
     useEffect(() => {
-     loadStoredData();
-    }, [user]);
+        loadStoredData();
+       }, [user]);
 
+    // Move all the functions from useTimetableManagement here
     const loadSemesters = async () => {
         try {
             setIsLoading(true);
             
-            if (!user) {
+            if (!currentUser) {
                 setError('User not authenticated');
                 setIsLoading(false);
                 return;
@@ -46,13 +75,11 @@ export const useTimetableManagement = () => {
             const { data, error } = await supabase
                 .from('semesters')
                 .select('*')
+                .eq('user_id', currentUser.id)
                 .order('created_at', { ascending: false });
                 
-            if (error) {
-                throw error;
-            }
+            if (error) throw error;
             
-            // Transform from Supabase snake_case to frontend camelCase
             const formattedSemesters = data.map(semester => ({
                 id: semester.id,
                 name: semester.name,
@@ -66,11 +93,11 @@ export const useTimetableManagement = () => {
             
             setSemesters(formattedSemesters);
             
-            // Find an active semester if one exists, otherwise use the most recent one
             if (formattedSemesters.length > 0 && !activeSemester) {
                 const activeSem = formattedSemesters.find(s => s.status === 'active');
-                const semesterToUse = activeSem || formattedSemesters[0]; // Use active or most recent
+                const semesterToUse = activeSem || formattedSemesters[0];
                 setActiveSemester(semesterToUse);
+                await loadClassSchedulesForSemester(semesterToUse.id);
             }
             
             setIsLoading(false);
@@ -99,17 +126,26 @@ export const useTimetableManagement = () => {
                 const { data: scheduleData, error: scheduleError } = await supabase
                     .from('class_schedules')
                     .select('*')
-                    .eq('semesterId', activeSemester.id);
+                    .eq('semester_id', activeSemester.id);
                     
                 if (scheduleError) {
                     throw scheduleError;
                 }
                 
                 const formattedSchedules: ClassSchedule[] = scheduleData.map(schedule => ({
-                    ...schedule,
-                    startTime: new Date(schedule.startTime),
-                    endTime: new Date(schedule.endTime),
-                    notificationPreference: JSON.parse(schedule.notificationPreference)
+                    id: schedule.id,
+                    userId: schedule.user_id,
+                    semesterId: schedule.semester_id,
+                    courseName: schedule.course_name,
+                    courseCode: schedule.course_code,
+                    room: schedule.room,
+                    instructor: schedule.instructor,
+                    type: schedule.type,
+                    startTime: schedule.start_time,
+                    endTime: schedule.end_time,
+                    daysOfWeek: JSON.parse(schedule.days_of_week || '[]'),
+                    notificationPreference: JSON.parse(schedule.notification_preference || '{"beforeClass":15,"afterClass":null,"onMorning":60}'),
+                    frequency: schedule.frequency
                 }));
                 
                 setClassSchedules(formattedSchedules);
@@ -333,7 +369,7 @@ export const useTimetableManagement = () => {
             const { error: scheduleError } = await supabase
                 .from('class_schedules')
                 .delete()
-                .eq('semesterId', id);
+                .eq('semester-id', id);
                 
             if (scheduleError) {
                 throw scheduleError;
@@ -447,19 +483,27 @@ export const useTimetableManagement = () => {
             const { data, error } = await supabase
                 .from('class_schedules')
                 .select('*')
-                .eq('semesterId', semesterId);
+                .eq('semester_id', semesterId);
                 
-            if (error) {
-                throw error;
-            }
-            
+            if (error) throw error;
+
+            // Transform the data to match ClassSchedule type
             const formattedSchedules: ClassSchedule[] = data.map(schedule => ({
-                ...schedule,
-                startTime: new Date(schedule.startTime),
-                endTime: new Date(schedule.endTime),
-                notificationPreference: JSON.parse(schedule.notificationPreference)
+                id: schedule.id,
+                userId: schedule.user_id,
+                semesterId: schedule.semester_id,
+                courseName: schedule.course_name,
+                courseCode: schedule.course_code,
+                room: schedule.room,
+                instructor: schedule.instructor,
+                type: schedule.type,
+                startTime: schedule.start_time,
+                endTime: schedule.end_time,
+                daysOfWeek: JSON.parse(schedule.days_of_week || '[]'),
+                notificationPreference: JSON.parse(schedule.notification_preference || '{"beforeClass":15,"afterClass":null,"onMorning":60}'),
+                frequency: schedule.frequency
             }));
-            
+
             setClassSchedules(formattedSchedules);
             return formattedSchedules;
         } catch (error) {
@@ -481,6 +525,7 @@ export const useTimetableManagement = () => {
         }
     };
 
+
     const addClassSchedule = async (schedule: Omit<ClassSchedule, 'id'>) => {
         try {
             if (!user) {
@@ -488,46 +533,51 @@ export const useTimetableManagement = () => {
                 return null;
             }
             
-            // Make sure we have an active semester
-            if (!activeSemester) {
-                setError('No active semester selected');
-                return null;
-            }
-            
-            const newSchedule: ClassSchedule = {
-                ...schedule, 
-                id: uuidv4(),
-                userId: user.id,
-                semesterId: activeSemester.id,
-                notificationPreference: schedule.notificationPreference
+            // Transform the data to match Supabase schema (camelCase to snake_case)
+            const newScheduleForSupabase = {
+                user_id: user.id,  // Ensure this matches the authenticated user's ID
+                semester_id: activeSemester?.id,
+                semester_start: activeSemester?.startDate,
+                semester_end: activeSemester?.endDate,
+                course_name: schedule.courseName,
+                room: schedule.room,
+                course_code: schedule.courseCode,
+                instructor: schedule.instructor,
+                frequency: schedule.frequency,
+                type: schedule.type,
+                start_time: schedule.startTime,
+                end_time: schedule.endTime,
+                days_of_week: schedule.daysOfWeek,
+                notification_preference: JSON.stringify(schedule.notificationPreference)
             };
+            console.log('Sending to Supabase:', newScheduleForSupabase);
             
-            // Insert into Supabase
             const { data, error } = await supabase
                 .from('class_schedules')
-                .insert(newSchedule)
+                .insert(newScheduleForSupabase)
                 .select()
                 .single();
                 
-            if (error) {
-                throw error;
-            }
+            if (error) throw error;
             
-            // Format the returned data
+            // Transform the returned data back to camelCase for frontend
             const formattedSchedule: ClassSchedule = {
-                ...data,
-                startTime: new Date(data.startTime),
-                endTime: new Date(data.endTime),
-                notificationPreference: JSON.parse(data.notificationPreference)
+                id: data.id,
+                userId: data.user_id,
+                semesterId: data.semester_id,
+                courseName: data.course_name,
+                room: data.room,
+                courseCode: data.course_code,
+                instructor: data.instructor,
+                frequency: data.frequency,
+                type: data.type,
+                startTime: data.start_time,
+                endTime: data.end_time,
+                daysOfWeek: data.days_of_week,
+                notificationPreference: JSON.parse(data.notification_preference)
             };
             
-            // Update local state
-            const updatedSchedules = [...classSchedules, formattedSchedule];
-            setClassSchedules(updatedSchedules);
-            
-            // Still generate notifications
-            generateClassNotifications(formattedSchedule);
-            
+            setClassSchedules(prev => [...prev, formattedSchedule]);
             return formattedSchedule;
         } catch (error) {
             console.error('Error adding class schedule:', error);
@@ -620,18 +670,26 @@ export const useTimetableManagement = () => {
                 return false;
             }
             
-            // If notificationPreference is included, stringify it for storage
-            const scheduleData = {
-                ...updatedSchedule,
-                notificationPreference: updatedSchedule.notificationPreference 
-                    ? JSON.stringify(updatedSchedule.notificationPreference)
-                    : undefined
-            };
+            // Transform the data to match Supabase schema (camelCase to snake_case)
+            const updateData: Record<string, any> = {};
+            
+            if (updatedSchedule.courseName !== undefined) updateData.course_name = updatedSchedule.courseName;
+            if (updatedSchedule.room !== undefined) updateData.room = updatedSchedule.room;
+            if (updatedSchedule.courseCode !== undefined) updateData.course_code = updatedSchedule.courseCode;
+            if (updatedSchedule.instructor !== undefined) updateData.instructor = updatedSchedule.instructor;
+            if (updatedSchedule.frequency !== undefined) updateData.frequency = updatedSchedule.frequency;
+            if (updatedSchedule.type !== undefined) updateData.type = updatedSchedule.type;
+            if (updatedSchedule.startTime !== undefined) updateData.start_time = updatedSchedule.startTime;
+            if (updatedSchedule.endTime !== undefined) updateData.end_time = updatedSchedule.endTime;
+            if (updatedSchedule.daysOfWeek !== undefined) updateData.days_of_week = updatedSchedule.daysOfWeek;
+            if (updatedSchedule.notificationPreference !== undefined) {
+                updateData.notification_preference = JSON.stringify(updatedSchedule.notificationPreference);
+            }
             
             // Update in Supabase
             const { error } = await supabase
                 .from('class_schedules')
-                .update(scheduleData)
+                .update(updateData)
                 .eq('id', id);
                 
             if (error) {
@@ -639,10 +697,13 @@ export const useTimetableManagement = () => {
             }
             
             // Update local state
-            const updatedSchedules = classSchedules.map(schedule => 
-                schedule.id === id ? {...schedule, ...updatedSchedule} : schedule
+            setClassSchedules(prev => 
+                prev.map(schedule => 
+                    schedule.id === id 
+                        ? { ...schedule, ...updatedSchedule }
+                        : schedule
+                )
             );
-            setClassSchedules(updatedSchedules);
             
             return true;
         } catch (error) {
@@ -689,38 +750,41 @@ export const useTimetableManagement = () => {
         setAssignments(updatedAssignments);
         await saveData();
     };  
-    
-    return {
-        // State
+
+    useEffect(() => {
+        if (currentUser) {
+            loadSemesters();
+        }
+    }, [currentUser]);
+
+    const value = {
+        semesters,
+        activeSemester,
         classSchedules,
         attendanceRecords,
         assignments,
-        notifications,
-        semesters,
-        activeSemester,
         isLoading,
         error,
-        
-        // Class schedule functions
-        addClassSchedule,
-        updateClassSchedule,
-        deleteClassSchedule,
-        loadClassSchedulesForSemester,
-        
-        // Semester functions
         loadSemesters,
         createSemester,
         updateSemester,
         deleteSemester,
         setActiveSemesterById,
-        
-        // Attendance and assignment functions
+        loadClassSchedulesForSemester,
+        addClassSchedule,
+        updateClassSchedule,
+        deleteClassSchedule,
         recordAttendance,
         calculateAttendance,
-        recordAssignmentSubmission,
-        
-        // Data management
-        loadStoredData,
-        saveData
-    }
-}
+    };
+
+    return (
+        <SemesterContext.Provider value={value}>
+            {children}
+        </SemesterContext.Provider>
+    );
+};
+
+
+
+
