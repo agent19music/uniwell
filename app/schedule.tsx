@@ -1,7 +1,7 @@
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions, ActivityIndicator, Animated } from 'react-native';
+import {Pressable, View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions, ActivityIndicator, Animated, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons , Feather} from '@expo/vector-icons';
 import FloatingActionButton from '../components/FloatingActionButton';
 import ScheduleEditorModal from '../modals/ScheduleEditorModal';
 import { useTimetableManagement } from '../lib/useTimeTableManagement';
@@ -13,7 +13,7 @@ import {Semester, NewSemester} from '../types/TimetableTypes';
 import AddClassModal from '../modals/AddClassModal';
 import EditClassModal from '../modals/EditClassModal';
 import { useSemester } from '@/contexts/SemesterContext';
-
+import * as Haptics from 'expo-haptics';
 // Add these type definitions at the top of the file after imports
 interface ClassInfo {
   id: string;
@@ -70,7 +70,7 @@ export default function ClassScheduleScreen() {
     return !isLoading && activeSemester && hasClasses;
   }, [isLoading, activeSemester, hasClasses]);
   
-
+console.log(classSchedules)
   
   useEffect(() => {
     // Show semester selection modal if no active semester is found after loading
@@ -91,39 +91,46 @@ export default function ClassScheduleScreen() {
   const getClassForTimeSlot = (day: string, time: number): ClassInfo | undefined => {
     if (!classSchedules) return undefined;
     
-    return classSchedules
-      .filter(schedule => {
-        // Parse days of week if it's a string
-        const daysOfWeek = Array.isArray(schedule.daysOfWeek) 
-          ? schedule.daysOfWeek 
-          : JSON.parse(schedule.daysOfWeek || '[]');
-        
-        // Check if class occurs on this day (case-insensitive comparison)
-        const isCorrectDay = daysOfWeek.some((d: string) => 
-          d.toLowerCase() === day.toLowerCase()
-        );
-        
-        // Parse time strings to hours and minutes
-        const [startHour, startMinute] = schedule.startTime.split(':').map(Number);
-        const [endHour, endMinute] = schedule.endTime.split(':').map(Number);
-        
-        // Convert to decimal hours for comparison
-        const scheduleStart = startHour + (startMinute / 60);
-        const scheduleEnd = endHour + (endMinute / 60);
-        
-        const isCorrectTime = time >= scheduleStart && time < scheduleEnd;
-        
-        return isCorrectDay && isCorrectTime;
-      })
-      .map(schedule => ({
-        id: schedule.courseCode,
-        startTime: parseInt(schedule.startTime.split(':')[0]),
-        duration: 
-          (parseInt(schedule.endTime.split(':')[0]) - 
-           parseInt(schedule.startTime.split(':')[0])),
-        name: schedule.courseName,
-        color: generateColorFromString(schedule.courseCode)
-      }))[0];
+    // Find matching class for this time slot
+    const matchingClass = classSchedules.find(schedule => {
+      // Parse days of week if it's a string
+      const daysOfWeek = Array.isArray(schedule.daysOfWeek) 
+        ? schedule.daysOfWeek 
+        : JSON.parse(schedule.daysOfWeek || '[]');
+      
+      // Check if class occurs on this day (case-insensitive comparison)
+      const isCorrectDay = daysOfWeek.some((d: string) => 
+        d.toLowerCase() === day.toLowerCase()
+      );
+      
+      // Parse time strings to hours and minutes
+      const [startHour, startMinute] = schedule.startTime.split(':').map(Number);
+      const [endHour, endMinute] = schedule.endTime.split(':').map(Number);
+      
+      // Convert to decimal hours for comparison
+      const scheduleStart = startHour + (startMinute / 60);
+      const scheduleEnd = endHour + (endMinute / 60);
+      
+      // Only return true if this is the starting hour of the class
+      const isStartingHour = Math.floor(scheduleStart) === time;
+      
+      return isCorrectDay && isStartingHour;
+    });
+
+    if (!matchingClass) return undefined;
+
+    // Calculate duration in hours
+    const [startHour, startMinute] = matchingClass.startTime.split(':').map(Number);
+    const [endHour, endMinute] = matchingClass.endTime.split(':').map(Number);
+    const duration = (endHour + endMinute/60) - (startHour + startMinute/60);
+
+    return {
+      id: matchingClass.courseCode,
+      startTime: startHour,
+      duration: duration,
+      name: matchingClass.courseName,
+      color: generateColorFromString(matchingClass.courseCode)
+    };
   };
 
   const generateColorFromString = (str: string): string => {
@@ -135,45 +142,213 @@ export default function ClassScheduleScreen() {
     return "#" + "00000".substring(0, 6 - c.length) + c;
   };
 
-  const renderClassBlock = (classInfo: ClassInfo, day: string, time: number) => {
+interface ClassBlockProps {
+  classInfo: ClassInfo;
+  day: string;
+  time: number;
+  isDark: boolean;
+  onEdit?: (classInfo: ClassInfo) => void;
+  onDelete?: (id: string) => void;
+  onMarkCompleted?: (classInfo: ClassInfo) => void;
+}
+
+const ClassBlock: React.FC<ClassBlockProps> = ({ 
+  classInfo, 
+  day, 
+  time, 
+  isDark, 
+  onEdit, 
+  onDelete, 
+  onMarkCompleted 
+}) => {
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const blockRef = useRef<View>(null);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  
+  const handleLongPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
+    blockRef.current?.measure((fx, fy, width, height, px, py) => {
+      setMenuPosition({ 
+        x: px + width - 150,
+        y: py - 10
+      });
+      setMenuVisible(true);
+    });
+  };
+
+  return (
+    <>
+      <Animated.View
+        ref={blockRef}
+        style={{
+          transform: [{ scale: scaleAnim }],
+          flex: 1,
+        }}
+      >
+        <Pressable
+          onLongPress={handleLongPress}
+          delayLongPress={300}
+          style={[
+            styles.classBlock,
+            isDark && styles.darkClassBlock,
+            { 
+              backgroundColor: classInfo.color + (isDark ? '90' : ''),
+              height: classInfo.duration * 50 - 4
+            }
+          ]}
+        >
+          <Text 
+            style={[
+              styles.className, 
+              { color: isDark ? '#FFFFFF' : '#000000' }
+            ]}
+            numberOfLines={1}
+          >
+            {classInfo.name}
+          </Text>
+          <Text 
+            style={[
+              styles.classTime, 
+              isDark && styles.darkClassTime
+            ]}
+          >
+            {classInfo.startTime > 12 
+              ? `${classInfo.startTime - 12}` 
+              : classInfo.startTime}{(classInfo.startTime >= 12) ? ' PM' : ' AM'} - 
+            {(classInfo.startTime + classInfo.duration) > 12 
+              ? `${(classInfo.startTime + classInfo.duration) - 12}` 
+              : (classInfo.startTime + classInfo.duration)}{((classInfo.startTime + classInfo.duration) >= 12) ? ' PM' : ' AM'}
+          </Text>
+        </Pressable>
+      </Animated.View>
+
+      {/* Context Menu */}
+      <Modal
+        transparent={true}
+        visible={menuVisible}
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View 
+            style={[
+              styles.contextMenu, 
+              isDark && styles.darkContextMenu,
+              {
+                left: menuPosition.x,
+                top: menuPosition.y,
+              }
+            ]}
+          >
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => {
+                setMenuVisible(false);
+                onEdit && onEdit(classInfo);
+              }}
+            >
+              <Feather name="edit-2" size={18} color={isDark ? '#FFFFFF' : '#333333'} />
+              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Edit</Text>
+            </TouchableOpacity>
+            
+            <View style={[styles.divider, isDark && styles.darkDivider]} />
+            
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                onMarkCompleted && onMarkCompleted(classInfo);
+              }}
+            >
+              <Feather name="check-circle" size={18} color={isDark ? '#FFFFFF' : '#333333'} />
+              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Mark Completed</Text>
+            </TouchableOpacity>
+            
+            <View style={[styles.divider, isDark && styles.darkDivider]} />
+            
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                onDelete && onDelete(classInfo.id);
+              }}
+            >
+              <Feather name="trash-2" size={18} color={isDark ? '#FF453A' : '#FF3B30'} />
+              <Text style={styles.deleteText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  );
+};
+  
+  // Now update the renderClassBlock function in your main component to use this new component
+  interface RenderClassBlockProps {
+    classInfo: ClassInfo;
+    day: string;
+    time: number;
+    isDark: boolean;
+    onEditClass?: (classInfo: ClassInfo) => void;
+    onDeleteClass?: (classId: string) => void;
+  }
+
+  const renderClassBlock = ({ 
+    classInfo, 
+    day, 
+    time, 
+    isDark, 
+    onEditClass, 
+    onDeleteClass 
+  }: RenderClassBlockProps): React.ReactNode => {
     if (!classInfo) return null;
 
     return (
-      <View
-        key={`${day}-${time}`}
-        style={[
-          styles.classBlock,
-          isDark && styles.darkClassBlock,
-          { 
-            backgroundColor: classInfo.color + (isDark ? '90' : ''),
-            height: classInfo.duration * 50 - 4
-          }
-        ]}
-      >
-        <Text 
-          style={[
-            styles.className, 
-            { color: isDark ? '#FFFFFF' : '#000000' }
-          ]}
-        >
-          {classInfo.name}
-        </Text>
-        <Text 
-          style={[
-            styles.classTime, 
-            isDark && styles.darkClassTime
-          ]}
-        >
-          {classInfo.startTime > 12 
-            ? `${classInfo.startTime - 12}` 
-            : classInfo.startTime}{(classInfo.startTime >= 12) ? ' PM' : ' AM'} - 
-          {(classInfo.startTime + classInfo.duration) > 12 
-            ? `${(classInfo.startTime + classInfo.duration) - 12}` 
-            : (classInfo.startTime + classInfo.duration)}{((classInfo.startTime + classInfo.duration) >= 12) ? ' PM' : ' AM'}
-        </Text>
-      </View>
+    <ClassBlock
+      key={`${day}-${time}`}
+      classInfo={classInfo}
+      day={day}
+      time={time}
+      isDark={isDark}
+      onEdit={(classData: ClassInfo) => {
+              // Find the original class schedule from stored data
+              const originalClass = storedClassSchedules.find(
+                schedule => schedule.courseCode === classData.id 
+              );
+              if (originalClass) {
+                // Use the found class schedule instead of classData
+                setSelectedClass(originalClass);
+                setIsEditModalVisible(true);
+              }
+            }}
+        onDelete={(classId: string) => handleDeleteClass(classId)}
+        onMarkCompleted={(classData: ClassInfo) => {
+          // Implement completion marking logic here
+          console.log('Marked as completed:', classData.name);
+          // Show a confirmation toast or some visual indicator
+        }}
+      />
     );
   };
+  
 
   const navigateWeek = (direction: number): void => {
     setCurrentWeek(prev => prev + direction);
@@ -292,31 +467,52 @@ export default function ClassScheduleScreen() {
             />
           ))}
         </View>
-        {TIME_SLOTS.map((time) => (
-          <View key={time} style={styles.timeSlotRow}>
-            <Animated.View
-              style={[
-                styles.timeLabel,
-                {
-                  opacity: pulseAnim,
-                  backgroundColor: isDark ? '#333' : '#e0e0e0',
-                },
-              ]}
-            />
-            {DAYS.map((day) => (
-              <Animated.View
-                key={`${day}-${time}`}
-                style={[
-                  styles.emptySlot,
-                  {
-                    opacity: pulseAnim,
-                    backgroundColor: isDark ? '#333' : '#e0e0e0',
-                  },
-                ]}
-              />
-            ))}
-          </View>
-        ))}
+        {TIME_SLOTS.map(time => (
+  <View key={time} style={styles.timeSlotRow}>
+    <Text style={[styles.timeLabel, isDark && styles.darkTimeLabel]}>
+      {time > 12 ? `${time - 12} PM` : time === 12 ? '12 PM' : `${time} AM`}
+    </Text>
+    
+    {DAYS.map(day => {
+      const classInfo = getClassForTimeSlot(day, time);
+      
+      if (!classInfo) {
+        return (
+          <View 
+            key={`${day}-${time}`} 
+            style={[styles.emptySlot, isDark && styles.darkEmptySlot]} 
+          />
+        );
+      }
+      
+      // If this class spans multiple time slots and this isn't the first,
+      // return an empty fragment to avoid duplicate blocks
+      if (
+        time > classInfo.startTime && 
+        time < (classInfo.startTime + classInfo.duration)
+      ) {
+        return <View key={`${day}-${time}`} />;
+      }
+      
+      return renderClassBlock({
+        classInfo,
+        day,
+        time,
+        isDark,
+        onEditClass: (classData: ClassInfo) => {
+          const originalClass = storedClassSchedules.find(
+            schedule => schedule.courseCode === classData.id
+          );
+          if (originalClass) {
+            setSelectedClass(originalClass);
+            setIsEditModalVisible(true);
+          }
+        },
+        onDeleteClass: handleDeleteClass
+      });
+    })}
+  </View>
+))}
       </ScrollView>
     );
   };
@@ -443,7 +639,22 @@ export default function ClassScheduleScreen() {
                   return <View key={`${day}-${time}`} />;
                 }
                 
-                return renderClassBlock(classInfo, day, time);
+                return renderClassBlock({
+                  classInfo,
+                  day,
+                  time,
+                  isDark,
+                  onEditClass: (classData: ClassInfo) => {
+                    const originalClass = storedClassSchedules.find(
+                      schedule => schedule.courseCode === classData.id
+                    );
+                    if (originalClass) {
+                      setSelectedClass(originalClass);
+                      setIsEditModalVisible(true);
+                    }
+                  },
+                  onDeleteClass: handleDeleteClass
+                });
               })}
             </View>
           ))}
@@ -485,6 +696,8 @@ export default function ClassScheduleScreen() {
           onPress={() => setIsScheduleEditorVisible(true)}
           icon="pencil"
           color="#FF7F50"
+          iconSize={24}
+          iconColor="#FFFFFF"
         />
       )}
       
@@ -533,6 +746,85 @@ export default function ClassScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
+  classBlock: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 12,
+    margin: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  darkClassBlock: {
+    shadowColor: '#FFF',
+    shadowOpacity: 0.05,
+  },
+  className: {
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Vercetti-Regular',
+    marginBottom: 4,
+  },
+  classTime: {
+    fontSize: 11,
+    color: 'rgba(0,0,0,0.7)',
+    fontFamily: 'Vercetti-Regular',
+  },
+  darkClassTime: {
+    color: 'rgba(255,255,255,0.7)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  contextMenu: {
+    position: 'absolute',
+    width: 180,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  darkContextMenu: {
+    backgroundColor: '#2C2C2E',
+    shadowColor: '#000',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  menuText: {
+    fontSize: 15,
+    color: '#000000',
+    marginLeft: 10,
+    fontFamily: 'Vercetti-Regular',
+  },
+  darkMenuText: {
+    color: '#FFFFFF',
+  },
+  deleteText: {
+    fontSize: 15,
+    color: '#FF3B30',
+    marginLeft: 10,
+    fontFamily: 'Vercetti-Regular',
+  },
+  divider: {
+    height: 0.5,
+    backgroundColor: '#E5E5EA',
+    marginHorizontal: 8,
+  },
+  darkDivider: {
+    backgroundColor: '#38383A',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F2F2F7', // iOS system background gray
@@ -636,26 +928,7 @@ const styles = StyleSheet.create({
   darkEmptySlot: {
     borderColor: '#38383A', // Subtle dark mode border
   },
-  classBlock: {
-    flex: 1,
-    padding: 8,
-    borderRadius: 10,
-    margin: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  darkClassBlock: {
-    shadowColor: '#FFF',
-    shadowOpacity: 0.05,
-  },
-  className: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
-  },
+
   timeLabel: {
     width: 60,
     fontSize: 14,
@@ -664,15 +937,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Vercetti-Regular',
   },
   darkTimeLabel: {
-    color: '#98989F',
-  },
-  classTime: {
-    fontSize: 12,
-    color: '#6C6C70',
-    marginTop: 4,
-    fontFamily: 'Vercetti-Regular',
-  },
-  darkClassTime: {
     color: '#98989F',
   },
   placeholderContainer: {
@@ -728,11 +992,5 @@ const styles = StyleSheet.create({
     height: 40,
     marginHorizontal: 2,
     borderRadius: 4,
-  },
-  timeLabel: {
-    width: 50,
-    height: 20,
-    marginVertical: 2,
-    borderRadius: 4,
-  },
+  }
 });
