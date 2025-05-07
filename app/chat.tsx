@@ -13,7 +13,9 @@ import {
   Image,
   Animated,
   useColorScheme,
-  Alert
+  Alert,
+  Modal,
+  ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,6 +42,14 @@ interface Message {
   isAI: boolean;
   timestamp: Date;
   thinking?: boolean;
+}
+
+// Define chat session type
+interface ChatSession {
+  id: string;
+  session_name: string;
+  created_at: string;
+  last_message?: string;
 }
 
 // Define the AI therapist's persona
@@ -108,6 +118,8 @@ export default function ChatScreen() {
   const typingDot1 = useRef(new Animated.Value(1)).current;
   const typingDot2 = useRef(new Animated.Value(1)).current;
   const typingDot3 = useRef(new Animated.Value(1)).current;
+  const [userSessions, setUserSessions] = useState<ChatSession[]>([]);
+  const [showSessionsModal, setShowSessionsModal] = useState(false);
 
   useEffect(() => {
     const animateDot = (dot: Animated.Value, delay: number) => {
@@ -136,77 +148,111 @@ export default function ChatScreen() {
   }, []);
   
   // Add this function to load chat history
-const loadChatHistory = async (sessionId: string) => {
-  try {
-    const { data: messages, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: true });
+  const loadChatHistory = async (sessionId: string) => {
+    try {
+      const { data: messages, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true });
 
-    if (error) throw error;
+      if (error) throw error;
 
-    if (messages) {
-      const formattedMessages = messages.map(msg => ({
-        id: msg.id.toString(),
-        content: msg.content,
-        isAI: msg.is_ai,
-        timestamp: new Date(msg.created_at)
-      }));
-      
-      setMessages(formattedMessages);
-      
-      // Update chat history for context
-      // Create properly ordered history format
-      let historyFormat = messages.map(msg => ({
-        role: msg.is_ai ? "model" : "user",
-        parts: [{ text: msg.content }]
-      }));
-      
-      // Ensure the first message has role 'user' as required by Gemini API
-      if (historyFormat.length > 0 && historyFormat[0].role === 'model') {
-        // If first message is from model (AI welcome message), add a placeholder user message
-        historyFormat = [
-          { role: 'user', parts: [{ text: 'Hello' }] },
-          ...historyFormat
-        ];
+      if (messages) {
+        const formattedMessages = messages.map(msg => ({
+          id: msg.id.toString(),
+          content: msg.content,
+          isAI: msg.is_ai,
+          timestamp: new Date(msg.created_at)
+        }));
+        
+        setMessages(formattedMessages);
+        
+        // Update chat history for context
+        // Create properly ordered history format
+        let historyFormat = messages.map(msg => ({
+          role: msg.is_ai ? "model" : "user",
+          parts: [{ text: msg.content }]
+        }));
+        
+        // Ensure the first message has role 'user' as required by Gemini API
+        if (historyFormat.length > 0 && historyFormat[0].role === 'model') {
+          // If first message is from model (AI welcome message), add a placeholder user message
+          historyFormat = [
+            { role: 'user', parts: [{ text: 'Hello' }] },
+            ...historyFormat
+          ];
+        }
+        
+        setChatHistory(historyFormat);
       }
-      
-      setChatHistory(historyFormat);
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+      Alert.alert('Error', 'Failed to load chat history');
     }
-  } catch (error) {
-    console.error('Error loading chat history:', error);
-    Alert.alert('Error', 'Failed to load chat history');
-  }
-};
+  };
 
-  // Update your initializeChat function to load history
+  // Add this function to load user's chat sessions
+  const loadUserChatSessions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: sessions, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      if (sessions && sessions.length > 0) {
+        setUserSessions(sessions);
+      }
+    } catch (error) {
+      console.error('Error loading chat sessions:', error);
+      Alert.alert('Error', 'Failed to load your chat history');
+    }
+  };
+
+  // Function to select and load a specific chat session
+  const selectChatSession = async (selectedSessionId: string) => {
+    setSessionId(selectedSessionId);
+    await loadChatHistory(selectedSessionId);
+    setShowSessionsModal(false);
+  };
+
+  // Modify your initializeChat function to check for recent sessions
   useEffect(() => {
     const initializeChat = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         
-        // Check for existing session first
-        const { data: existingSession } = await supabase
+        // Load all user sessions first
+        await loadUserChatSessions();
+        
+        // Check for existing session from last 24 hours
+        const { data: recentSession, error } = await supabase
           .from('chat_sessions')
           .select()
           .eq('user_id', user.id)
+          .gt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
-
+        
         let currentSessionId;
         
-        if (existingSession) {
-          currentSessionId = existingSession.id;
+        if (recentSession) {
+          currentSessionId = recentSession.id;
         } else {
-          // Create new session if none exists
+          // Create new session if none exists from the last 24 hours
           const { data: newSession, error } = await supabase
             .from('chat_sessions')
             .insert({
               user_id: user.id,
-              session_name: `Session ${new Date().toLocaleDateString()}`
+              session_name: `Chat ${new Date().toLocaleDateString()}`
             })
             .select()
             .single();
@@ -228,9 +274,10 @@ const loadChatHistory = async (sessionId: string) => {
         });
         setModel(model);
         
-        // Load existing messages or add welcome message
+        // Load existing messages
         await loadChatHistory(currentSessionId);
         
+        // Only add welcome message if there are no messages in this session
         if (messages.length === 0) {
           const welcomeMessage = getWelcomeMessage();
           setMessages([{
@@ -251,9 +298,12 @@ const loadChatHistory = async (sessionId: string) => {
       } catch (error) {
         console.error('Error initializing chat:', error);
         Alert.alert('Error', 'Failed to initialize chat. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
     };
     
+    setIsLoading(true);
     initializeChat();
   }, []);
   
@@ -327,16 +377,26 @@ const loadChatHistory = async (sessionId: string) => {
     }, 100);
     
     try {
-      // Save user message to database
+      // Get user information
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
+      // Save user message to database
       await supabase.from('chat_messages').insert({
         session_id: sessionId,
         user_id: user.id,
         content: userMessage,
         is_ai: false
       });
+      
+      // Update the session with the last message
+      await supabase
+        .from('chat_sessions')
+        .update({ 
+          last_message: userMessage,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sessionId);
       
       // Check for crisis keywords
       const containsCrisisKeyword = CRISIS_KEYWORDS.some(keyword => 
@@ -365,16 +425,25 @@ const loadChatHistory = async (sessionId: string) => {
           is_ai: true
         });
         
+        // Update the session with the AI's last message
+        await supabase
+          .from('chat_sessions')
+          .update({ 
+            last_message: "Crisis resources provided",
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', sessionId);
+        
         return;
       }
       
-      // Update chat history for context
       // Update chat history for context
       const updatedHistory = [
         ...chatHistory,
         { role: "user", parts: [{ text: userMessage }] }
       ];
       setChatHistory(updatedHistory);
+      
       // Generate AI response
       let aiResponse = "";
       
@@ -530,37 +599,70 @@ const loadChatHistory = async (sessionId: string) => {
         is_ai: true
       });
       
-      // Update chat history with AI response
+      // Update the session with the AI's last message
+      await supabase
+        .from('chat_sessions')
+        .update({ 
+          last_message: aiResponse.substring(0, 100) + (aiResponse.length > 100 ? '...' : ''),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sessionId);
+      
       // Update chat history with AI response
       const updatedHistoryWithAIResponse = [...updatedHistory, { role: "model", parts: [{ text: aiResponse }] }];
       setChatHistory(updatedHistoryWithAIResponse);
+      
       // Provide haptic feedback for message received
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
     } catch (error) {
-      console.error('Error generating AI response:', error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      console.error('Error in handleSendMessage:', error);
       
-      // More detailed error logging for debugging
-      if (error instanceof TypeError) {
-        console.error('TypeError details:', (error as Error).message);
-        console.error('Error stack:', (error as Error).stack);
-        
-        // Log specifically for 'in' operator errors
-        if ((error as Error).message.includes("'in'")) {
-          console.error("'in' operator error detected. This usually occurs when trying to check if a property exists in a non-object value.");
+      try {
+        // Get user information for error handling
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && sessionId) {
+          // Error message to show to user
+          const errorMessage = "I'm sorry, I encountered an error. Please try again.";
+          
+          // Remove thinking message and add error message
+          setMessages(prev => 
+            prev.filter(msg => msg.id !== thinkingMessageId).concat({
+              id: Date.now().toString(),
+              content: errorMessage,
+              isAI: true,
+              timestamp: new Date()
+            })
+          );
+          
+          // Save error message to database
+          await supabase.from('chat_messages').insert({
+            session_id: sessionId,
+            user_id: user.id,
+            content: errorMessage,
+            is_ai: true
+          });
+          
+          // Update the session with the error message
+          await supabase
+            .from('chat_sessions')
+            .update({ 
+              last_message: errorMessage,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', sessionId);
+        } else {
+          // Just remove thinking indicator if we can't save the error message
+          setMessages(prev => prev.filter(msg => msg.id !== thinkingMessageId));
         }
+      } catch (innerError) {
+        console.error('Error handling error state:', innerError);
+        // Just remove thinking indicator
+        setMessages(prev => prev.filter(msg => msg.id !== thinkingMessageId));
       }
       
-      // Remove thinking message and add error message
-      setMessages(prev => 
-        prev.filter(msg => msg.id !== thinkingMessageId).concat({
-          id: Date.now().toString(),
-          content: "I'm sorry, I encountered an error. Please try again.",
-          isAI: true,
-          timestamp: new Date()
-        })
-      );
+      // Show error to user
+      Alert.alert('Error', 'Failed to send message. Please check your connection and try again.');
     }
   };
   
@@ -611,16 +713,71 @@ const loadChatHistory = async (sessionId: string) => {
     );
   };
   
-  // Function to handle clearing chat history
+  // Add this function to render the session selection modal
+  const renderSessionsModal = () => {
+    return (
+      <Modal
+        visible={showSessionsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowSessionsModal(false)}
+      >
+        <View style={[styles.modalContainer, isDark && styles.darkModalContainer]}>
+          <View style={[styles.modalContent, isDark && styles.darkModalContent]}>
+            <Text style={[styles.modalTitle, isDark && styles.darkText]}>Your Chat History</Text>
+            
+            <ScrollView style={styles.sessionsList}>
+              {userSessions.map(session => (
+                <TouchableOpacity 
+                  key={session.id} 
+                  style={[
+                    styles.sessionItem,
+                    session.id === sessionId && styles.activeSessionItem,
+                    isDark && styles.darkSessionItem,
+                    session.id === sessionId && isDark && styles.darkActiveSessionItem
+                  ]}
+                  onPress={() => selectChatSession(session.id)}
+                >
+                  <Text style={[styles.sessionName, isDark && styles.darkText]}>
+                    {session.session_name}
+                  </Text>
+                  <Text style={[styles.sessionDate, isDark && styles.darkSubText]}>
+                    {new Date(session.created_at).toLocaleDateString()}
+                  </Text>
+                  {session.last_message && (
+                    <Text 
+                      style={[styles.sessionPreview, isDark && styles.darkSubText]}
+                      numberOfLines={1}
+                    >
+                      {session.last_message}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setShowSessionsModal(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+  
+  // Modify the handleClearChat function to create a new session
   const handleClearChat = async () => {
     Alert.alert(
-      "Clear Conversation",
-      "Are you sure you want to clear this conversation and start a new one?",
+      "Start New Chat",
+      "Are you sure you want to start a new conversation?",
       [
         { text: "Cancel", style: "cancel" },
         { 
-          text: "Clear", 
-          style: "destructive",
+          text: "Start New", 
+          style: "default",
           onPress: async () => {
             try {
               // Create a new session
@@ -631,7 +788,7 @@ const loadChatHistory = async (sessionId: string) => {
                 .from('chat_sessions')
                 .insert({
                   user_id: user.id,
-                  session_name: `Session ${new Date().toLocaleDateString()}`
+                  session_name: `Chat ${new Date().toLocaleDateString()}`
                 })
                 .select()
                 .single();
@@ -660,12 +817,15 @@ const loadChatHistory = async (sessionId: string) => {
                 is_ai: true
               });
               
+              // Update sessions list
+              await loadUserChatSessions();
+              
               // Provide haptic feedback
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               
             } catch (error) {
-              console.error('Error clearing chat:', error);
-              Alert.alert('Error', 'Failed to clear chat. Please try again.');
+              console.error('Error creating new chat:', error);
+              Alert.alert('Error', 'Failed to create new chat. Please try again.');
             }
           }
         }
@@ -709,29 +869,49 @@ const loadChatHistory = async (sessionId: string) => {
           </Text>
         </View>
         
-        <TouchableOpacity 
-          style={styles.clearButton} 
-          onPress={handleClearChat}
-        >
-          <Ionicons 
-            name="refresh-outline" 
-            size={24} 
-            color={isDark ? '#ffffff' : '#000000'} 
-          />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={styles.historyButton} 
+            onPress={() => setShowSessionsModal(true)}
+          >
+            <Ionicons 
+              name="time-outline" 
+              size={24} 
+              color={isDark ? '#ffffff' : '#000000'} 
+            />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.clearButton} 
+            onPress={handleClearChat}
+          >
+            <Ionicons 
+              name="add-circle-outline" 
+              size={24} 
+              color={isDark ? '#ffffff' : '#000000'} 
+            />
+          </TouchableOpacity>
+        </View>
       </BlurView>
       
       {/* Chat Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        showsVerticalScrollIndicator={false}
-      />
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF7F50" />
+          <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading conversation...</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.messagesList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
       
       {/* Input Area */}
       <KeyboardAvoidingView
@@ -778,6 +958,9 @@ const loadChatHistory = async (sessionId: string) => {
           Not a replacement for professional mental health care
         </Text>
       </KeyboardAvoidingView>
+      
+      {/* Render the sessions modal */}
+      {renderSessionsModal()}
     </SafeAreaView>
   );
 }
@@ -815,6 +998,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666666',
     marginTop: 2,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyButton: {
+    padding: 8,
   },
   clearButton: {
     padding: 8,
@@ -971,5 +1161,99 @@ const styles = StyleSheet.create({
   },
   darkSubText: {
     color: '#AAAAAA',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666666',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 20,
+  },
+  darkModalContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    width: '100%',
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  darkModalContent: {
+    backgroundColor: '#1C1C1E',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  sessionsList: {
+    maxHeight: 400,
+    marginBottom: 20,
+  },
+  sessionItem: {
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    backgroundColor: '#F5F5F5',
+    borderLeftWidth: 3,
+    borderLeftColor: '#DDD',
+  },
+  activeSessionItem: {
+    backgroundColor: 'rgba(255, 127, 80, 0.2)',
+    borderLeftColor: '#FF7F50',
+  },
+  darkSessionItem: {
+    backgroundColor: '#2C2C2E',
+    borderLeftColor: '#444',
+  },
+  darkActiveSessionItem: {
+    backgroundColor: 'rgba(255, 127, 80, 0.3)',
+    borderLeftColor: '#FF7F50',
+  },
+  sessionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 4,
+  },
+  sessionDate: {
+    fontSize: 12,
+    color: '#666666',
+    marginBottom: 6,
+  },
+  sessionPreview: {
+    fontSize: 14,
+    color: '#888888',
+    fontStyle: 'italic',
+  },
+  closeButton: {
+    backgroundColor: '#FF7F50',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

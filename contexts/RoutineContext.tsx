@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { format } from 'date-fns/format';
+import { format, parseISO, differenceInDays, isYesterday, isToday } from 'date-fns';
 import { ClassSchedule } from '../types/TimetableTypes'; // Adjust the import based on your types
 import { useAuth } from './AuthContext';
 
@@ -47,14 +47,27 @@ interface HabitAttempt {
 
 interface Streak {
   id: string;
-  type: 'break' | 'build';
-  length: number;
   title: string;
-  startDate: string;
-  startTime: string;
+  type: 'build' | 'break';
   status: string;
+  startDate: string;
+  startTime: string; 
+  length: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastCheckIn: string | null;
+  targetCount: number;
+  color: string;
+  icon: string;
 }
 
+interface CheckIn {
+  id: string;
+  streakId: string;
+  checkDate: string;
+  notes: string | null;
+  createdAt: string;
+}
 interface RoutineContextType {
   plans: WellnessPlan[];
   goals: Goal[];
@@ -81,6 +94,12 @@ interface RoutineContextType {
   updateClassSchedule: (id: string, updates: Partial<ClassSchedule>) => Promise<void>;
   deleteClassSchedule: (id: string) => Promise<void>;
   fetchClassSchedules: () => Promise<ClassSchedule[]>;
+  checkIns: Record<string, CheckIn[]>;
+  checkInStreak: (streakId: string, date?: Date, notes?: string) => Promise<void>;
+  getStreakCheckIns: (streakId: string, days?: number) => Promise<CheckIn[]>;
+  getStreakProgress: (streakId: string) => Promise<{current: number, target: number, percentage: number}>;
+  isTodayCheckedIn: (streakId: string) => boolean;
+  syncOfflineData: () => Promise<void>;
   
 }
 
@@ -95,16 +114,121 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [classSchedules, setClassSchedules] = useState<ClassSchedule[]>([]);
+  const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
+  const [offlineCheckIns, setOfflineCheckIns] = useState<any[]>([]);
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
 
   const { currentUser } = useAuth();
 
   // Fetch initial data
   useEffect(() => {
-    fetchStreaks();
-    fetchClassSchedules();
-    fetchHabits();
+    if (currentUser?.id) {
+      fetchStreaks();
+      fetchClassSchedules();
+      fetchHabits();
+    }
+  }, [currentUser]); // Remove streaks and classSchedules from dependencies
+
+  const checkInStreak = async (streakId: string, date: Date = new Date(), notes?: string) => {
+    const checkDate = format(date, 'yyyy-MM-dd');
     
-  }, [currentUser,streaks,classSchedules]);
+    if (isTodayCheckedIn(streakId)) {
+      return;
+    }
+  
+    try {
+      const { data, error } = await supabase
+        .from('check_ins')
+        .insert({
+          streak_id: streakId,
+          check_date: checkDate,
+          notes,
+        })
+        .select();
+  
+      if (error) throw error;
+  
+      const newCheckIn = formatCheckIn(data[0]);
+      setCheckIns(prev => ({
+        ...prev,
+        [streakId]: [...(prev[streakId] || []), newCheckIn]
+      }));
+  
+      await fetchStreaks(); // Refresh streak data
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+  
+  const getStreakCheckIns = async (streakId: string, days: number = 30): Promise<CheckIn[]> => {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      
+      const { data, error } = await supabase
+        .from('check_ins')
+        .select('*')
+        .eq('streak_id', streakId)
+        .gte('check_date', format(startDate, 'yyyy-MM-dd'))
+        .order('check_date', { ascending: true });
+        
+      if (error) throw error;
+      
+      return data.map(formatCheckIn);
+    } catch (err) {
+      setError((err as Error).message);
+      return [];
+    }
+  };
+  
+  const getStreakProgress = async (streakId: string) => {
+    const streak = streaks.find(s => s.id === streakId);
+    
+    if (!streak) {
+      return { current: 0, target: 30, percentage: 0 };
+    }
+    
+    const percentage = streak.targetCount > 0 
+      ? Math.min(100, (streak.currentStreak / streak.targetCount) * 100)
+      : 0;
+      
+    return {
+      current: streak.currentStreak,
+      target: streak.targetCount,
+      percentage
+    };
+  };
+  
+  const isTodayCheckedIn = (streakId: string): boolean => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const streakCheckIns = checkIns[streakId] || [];
+    return streakCheckIns.some(checkIn => checkIn.checkDate === today);
+  };
+
+  useEffect(() => {
+    const handleConnectivityChange = async (isConnected: boolean) => {
+      setIsConnected(isConnected);
+      if (isConnected) {
+        await syncOfflineData();
+      }
+    };
+  
+    // Initialize connectivity state
+    const checkConnectivity = async () => {
+      try {
+        const response = await fetch('https://www.google.com');
+        handleConnectivityChange(response.ok);
+      } catch {
+        handleConnectivityChange(false);
+      }
+    };
+  
+    checkConnectivity();
+    
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
 
   const formatWellnessPlan = (plan: any): WellnessPlan => ({
     id: plan.id,
@@ -145,40 +269,41 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
 
   const formatStreak = (streak: any): Streak => ({
     id: streak.id,
-    type: streak.type,
-    length: streak.length,
     title: streak.title,
+    type: streak.type,
+    status: streak.status,
     startDate: streak.start_date,
     startTime: streak.start_time,
-    status
+    length: streak.length || 0,
+    currentStreak: streak.current_streak || 0,
+    longestStreak: streak.longest_streak || 0,
+    lastCheckIn: streak.last_check_in || null,
+    targetCount: streak.target_count || 30,
+    color: streak.color || '#007AFF',
+    icon: streak.icon || 'flame'
+  });
+
+  const formatCheckIn = (checkIn: any): CheckIn => ({
+    id: checkIn.id,
+    streakId: checkIn.streak_id,
+    checkDate: checkIn.check_date,
+    notes: checkIn.notes,
+    createdAt: checkIn.created_at
   });
 
 
-
   const fetchStreaks = async () => {
-    // Exit early if no current user
-    if (!currentUser?.id) {
-      return;
-    }
+    if (!currentUser?.id) return;
 
     try {
       const { data, error } = await supabase
         .from('streaks')
-        .select('id, title, type, length, start_date, start_time')
-        .eq('user_id', currentUser.id); // Fetch streaks for the current user
+        .select('*')
+        .eq('user_id', currentUser.id);
 
       if (error) throw error;
 
-      const streaksData: Streak[] = data.map((streak: any) => ({
-        id: streak.id,
-        title: streak.title,
-        type: streak.type,
-        length: streak.length,
-        startDate: streak.start_date,
-        startTime: streak.start_time,
-        status
-      }));
-
+      const streaksData = data.map(formatStreak);
       setStreaks(streaksData);
     } catch (err) {
       setError((err as Error).message);
@@ -463,21 +588,29 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const getStreak = async (streakId: string): Promise<Streak | null> => {
+  const getStreak = useCallback(async (streakId: string): Promise<Streak | null> => {
+    // First check the local state
+    const localStreak = streaks.find(s => s.id === streakId);
+    if (localStreak) return localStreak;
+  
     try {
       const { data, error } = await supabase
         .from('streaks')
         .select('*')
         .eq('id', streakId)
         .single();
-
+  
       if (error) throw error;
-      return data;
+      const formattedStreak = formatStreak(data);
+      
+      // Update local state
+      setStreaks(prev => [...prev, formattedStreak]);
+      return formattedStreak;
     } catch (err) {
       setError((err as Error).message);
       return null;
     }
-  };
+  }, [streaks]);
 
   const deleteStreak = async (streakId: string) => {
     try {
@@ -488,6 +621,31 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
       setStreaks(streaks.filter(streak => streak.id !== streakId));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const syncOfflineData = async () => {
+    if (!isConnected || offlineCheckIns.length === 0) return;
+  
+    try {
+      // Process each offline check-in
+      for (const checkIn of offlineCheckIns) {
+        const { error } = await supabase
+          .from('check_ins')
+          .insert(checkIn);
+          
+        if (error && error.code !== '23505') { // Ignore unique constraint violations
+          throw error;
+        }
+      }
+      
+      // Clear offline check-ins after successful sync
+      setOfflineCheckIns([]);
+      
+      // Refresh streaks data
+      await fetchStreaks();
     } catch (err) {
       setError((err as Error).message);
     }
@@ -519,6 +677,12 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     deleteClassSchedule,
     fetchClassSchedules,
     createRoutine,
+    checkIns,
+    checkInStreak,
+    getStreakCheckIns,
+    getStreakProgress,
+    isTodayCheckedIn,
+    syncOfflineData,
   };
 
   return (
