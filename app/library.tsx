@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
   FlatList,
   Dimensions,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,10 @@ import { BlurView } from 'expo-blur';
 import { useRoutine } from '../contexts/RoutineContext';
 import { supabase } from '../lib/supabase';
 import { scheduleLocalNotification } from '../lib/NotificationHandler';
+import ResourceDetail from '@/components/ResourceDetail';
+import LibraryFilter from '../components/LibraryFilter';
+import ResourceCard from '../components/ResourceCard';
+import FeaturedCard from '../components/FeaturedCard';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -41,6 +46,13 @@ interface Resource {
   dateAdded: string;
   isFeatured: boolean;
   isNew: boolean;
+  relevanceScore?: number;
+}
+
+interface Streak {
+  id: string;
+  title: string; // Changed from habitId to title
+  currentCount: number;
 }
 
 // Categories for content
@@ -65,6 +77,8 @@ export default function LibraryScreen() {
   const [selectedCategory, setSelectedCategory] = useState('featured');
   const [userPreferences, setUserPreferences] = useState<string[]>([]);
   const [categories, setCategories] = useState<{id: string, name: string, color: string}[]>([]);
+  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
   
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = scrollY.interpolate({
@@ -168,6 +182,11 @@ export default function LibraryScreen() {
         // Personalize resources
         const personalizedResources = personalizeResources(transformedResources);
         setResources(personalizedResources);
+        
+        // Schedule notification for new content
+        if (personalizedResources.some(r => r.isNew)) {
+          scheduleNewContentNotification();
+        }
       }
     } catch (error) {
       console.error('Error fetching resources:', error);
@@ -179,7 +198,7 @@ export default function LibraryScreen() {
 
   const personalizeResources = (allResources: Resource[]) => {
     // Get streak titles for recommendation matching
-    const userStreakTitles = streaks.map(streak => streak.habitId.toLowerCase());
+    const userStreakTitles = streaks.map(streak => streak.title.toLowerCase());
     
     // Score each resource based on relevance to user
     const scoredResources = allResources.map(resource => {
@@ -207,15 +226,15 @@ export default function LibraryScreen() {
     });
     
     // Sort by relevance score
-    return scoredResources.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    return scoredResources.sort((a, b) => b.relevanceScore! - a.relevanceScore!);
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setRefreshing(true);
     fetchResources();
-  };
+  }, []);
 
-  const toggleSaveResource = async (resourceId: string) => {
+  const toggleSaveResource = useCallback(async (resourceId: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -241,176 +260,77 @@ export default function LibraryScreen() {
     } catch (error) {
       console.error('Error saving resource:', error);
     }
-  };
+  }, [savedResources]);
 
-  const handleResourcePress = (resourceId: string) => {
-    router.push(`/libraryresources/${resourceId}`);
-  };
+  const handleResourcePress = useCallback((resourceId: string) => {
+    setSelectedResourceId(resourceId);
+    setModalVisible(true);
+  }, []);
   
+  const closeResourceDetail = useCallback(() => {
+    setModalVisible(false);
+    setSelectedResourceId(null);
+  }, []);
 
   const scheduleNewContentNotification = async () => {
     // Schedule a notification for new content
-    await scheduleLocalNotification({
-      title: "New in Your Library",
-      body: "Fresh content based on your interests has been added to your library!",
-      data: { screen: 'library' },
-      trigger: { seconds: 60 * 60 * 24 }, // 24 hours from now
-      identifier: 'new-library-content'
-    });
-  };
-
-  const renderResourceCard = ({ item }: { item: Resource }) => {
-    const isSaved = savedResources.includes(item.id);
-    
-    return (
-      <TouchableOpacity 
-        style={[styles.resourceCard, isDark && styles.darkCard]} 
-        onPress={() => handleResourcePress(item.id)}
-        activeOpacity={0.9}
-      >
-        <Image 
-          source={{ uri: item.imageUrl }} 
-          style={styles.resourceImage} 
-          resizeMode="cover"
-        />
-        
-        <View style={styles.resourceContent}>
-          <View style={styles.resourceHeader}>
-            <View style={styles.resourceTypeContainer}>
-              <Ionicons 
-                name={
-                  item.type === 'article' ? 'document-text' : 
-                  item.type === 'podcast' ? 'headset' : 
-                  item.type === 'video' ? 'videocam' : 'book'
-                } 
-                size={14} 
-                color="#FF7F50" 
-              />
-              <Text style={styles.resourceType}>{item.type}</Text>
-            </View>
-            
-            {item.isNew && (
-              <View style={styles.newBadge}>
-                <Text style={styles.newBadgeText}>NEW</Text>
-              </View>
-            )}
-          </View>
-          
-          <Text style={[styles.resourceTitle, isDark && styles.darkText]} numberOfLines={2}>
-            {item.title}
-          </Text>
-          
-          <Text style={[styles.resourceDescription, isDark && styles.darkSubText]} numberOfLines={2}>
-            {item.description}
-          </Text>
-          
-          <View style={styles.resourceFooter}>
-            <Text style={[styles.resourceDuration, isDark && styles.darkSubText]}>
-              {item.duration}
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.saveButton} 
-              onPress={() => toggleSaveResource(item.id)}
-            >
-              <Ionicons 
-                name={isSaved ? "bookmark" : "bookmark-outline"} 
-                size={20} 
-                color={isSaved ? "#FF7F50" : isDark ? "#ffffff" : "#333333"} 
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableOpacity>
+    await scheduleLocalNotification(
+      "New in Your Library",
+      "Fresh content based on your interests has been added to your library!"
     );
   };
 
-  const renderFeaturedItem = ({ item }: { item: Resource }) => {
+  const handleCategorySelect = useCallback((categoryId: string) => {
+    setSelectedCategory(categoryId);
+  }, []);
+
+  const renderResourceCard = useCallback(({ item }: { item: Resource }) => {
+    return (
+      <ResourceCard
+        id={item.id}
+        title={item.title}
+        description={item.description}
+        imageUrl={item.imageUrl}
+        type={item.type}
+        duration={item.duration}
+        source={item.source}
+        isNew={item.isNew}
+        isSaved={savedResources.includes(item.id)}
+        onPress={handleResourcePress}
+        onSave={toggleSaveResource}
+      />
+    );
+  }, [savedResources, handleResourcePress, toggleSaveResource]);
+
+  const renderFeaturedItem = useCallback(({ item }: { item: Resource }) => {
     if (!item.isFeatured) return null;
     
     return (
-      <TouchableOpacity 
-        style={styles.featuredCard}
-        onPress={() => handleResourcePress(item.id)}
-        activeOpacity={0.9}
-      >
-        <Image source={{ uri: item.imageUrl }} style={styles.featuredImage} />
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.8)']}
-          style={styles.featuredGradient}
-        >
-          <View style={styles.featuredContent}>
-            <View style={styles.featuredTypeContainer}>
-              <Ionicons 
-                name={
-                  item.type === 'article' ? 'document-text' : 
-                  item.type === 'podcast' ? 'headset' : 
-                  item.type === 'video' ? 'videocam' : 'book'
-                } 
-                size={14} 
-                color="#ffffff" 
-              />
-              <Text style={styles.featuredType}>{item.type}</Text>
-            </View>
-            
-            <Text style={styles.featuredTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-            
-            <Text style={styles.featuredDescription} numberOfLines={2}>
-              {item.description}
-            </Text>
-          </View>
-        </LinearGradient>
-      </TouchableOpacity>
+      <FeaturedCard
+        id={item.id}
+        title={item.title}
+        description={item.description}
+        imageUrl={item.imageUrl}
+        type={item.type}
+        onPress={handleResourcePress}
+      />
     );
-  };
+  }, [handleResourcePress]);
 
-  const renderCategoryTabs = () => (
-    <ScrollView 
-      horizontal 
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.categoryTabsContainer}
-    >
-      {CONTENT_CATEGORIES.map(category => (
-        <TouchableOpacity
-          key={category.id}
-          style={[
-            styles.categoryTab,
-            selectedCategory === category.id && styles.selectedCategoryTab,
-            isDark && styles.darkCategoryTab,
-            selectedCategory === category.id && isDark && styles.darkSelectedCategoryTab
-          ]}
-          onPress={() => setSelectedCategory(category.id)}
-        >
-          <Text 
-            style={[
-              styles.categoryTabText,
-              selectedCategory === category.id && styles.selectedCategoryTabText,
-              isDark && styles.darkText
-            ]}
-          >
-            {category.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-
-  const getFilteredResources = () => {
+  const getFilteredResources = useCallback(() => {
     switch (selectedCategory) {
       case 'featured':
         return resources.filter(r => r.isFeatured);
       case 'streak-related':
-        const userStreakTitles = streaks.map(streak => streak.habitId.toLowerCase());
+        const userStreakTitles = streaks.map(streak => streak.title.toLowerCase());
         return resources.filter(r => 
           r.relevantStreaks.some(streakTag => 
             userStreakTitles.some(userStreak => userStreak.includes(streakTag))
           )
         );
       case 'trending':
-        // In a real app, this would be based on popularity metrics
-        return resources.sort(() => 0.5 - Math.random());
+        // For better performance, we'll just sort by view count rather than doing a random sort
+        return [...resources].sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
       case 'new':
         return resources.filter(r => r.isNew);
       case 'saved':
@@ -418,7 +338,21 @@ export default function LibraryScreen() {
       default:
         return resources;
     }
-  };
+  }, [resources, selectedCategory, streaks, savedResources]);
+
+  const EmptyListComponent = useCallback(() => (
+    <View style={styles.emptyState}>
+      <Ionicons name="library-outline" size={64} color="#CCCCCC" />
+      <Text style={[styles.emptyStateText, isDark && styles.darkText]}>
+        No resources found
+      </Text>
+      <Text style={[styles.emptyStateSubText, isDark && styles.darkSubText]}>
+        {selectedCategory === 'saved' 
+          ? "You haven't saved any resources yet." 
+          : "Try selecting a different category."}
+      </Text>
+    </View>
+  ), [selectedCategory, isDark]);
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
@@ -447,7 +381,10 @@ export default function LibraryScreen() {
             </TouchableOpacity>
           </View>
           
-          {renderCategoryTabs()}
+          <LibraryFilter
+            selectedCategory={selectedCategory}
+            onSelectCategory={handleCategorySelect}
+          />
         </BlurView>
       </Animated.View>
 
@@ -459,15 +396,58 @@ export default function LibraryScreen() {
           </Text>
         </View>
       ) : (
-        <Animated.ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+        <Animated.FlatList
+          style={styles.resourceList}
+          contentContainerStyle={styles.resourceListContent}
+          data={getFilteredResources()}
+          renderItem={renderResourceCard}
+          keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
+          ListHeaderComponent={
+            <>
+              {/* Featured Carousel */}
+              {selectedCategory === 'featured' && resources.some(r => r.isFeatured) && (
+                <View style={styles.featuredSection}>
+                  <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+                    Featured For You
+                  </Text>
+                  <FlatList
+                    data={resources.filter(r => r.isFeatured)}
+                    renderItem={renderFeaturedItem}
+                    keyExtractor={item => `featured-${item.id}`}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    decelerationRate="fast"
+                    snapToInterval={width * 0.7 + 16}
+                    contentContainerStyle={styles.featuredList}
+                  />
+                </View>
+              )}
+              
+              {/* Streak-based Recommendations */}
+              {streaks.length > 0 && selectedCategory === 'streak-related' && (
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+                    Based on your {streaks[0]?.title} streak
+                  </Text>
+                  <Text style={[styles.sectionSubtitle, isDark && styles.darkSubText]}>
+                    Resources to help you maintain your momentum
+                  </Text>
+                </View>
+              )}
+              
+              {/* Section Title */}
+              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+                {selectedCategory === 'saved' ? 'Your Saved Items' : 'Resources'}
+              </Text>
+            </>
+          }
+          ListEmptyComponent={EmptyListComponent}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
             { useNativeDriver: false }
           )}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -476,85 +456,27 @@ export default function LibraryScreen() {
               tintColor={isDark ? '#ffffff' : '#FF7F50'}
             />
           }
-        >
-          {/* Featured Carousel */}
-          {selectedCategory === 'featured' && resources.some(r => r.isFeatured) && (
-            <View style={styles.featuredSection}>
-              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-                Featured For You
-              </Text>
-              <FlatList
-                data={resources.filter(r => r.isFeatured)}
-                renderItem={renderFeaturedItem}
-                keyExtractor={item => `featured-${item.id}`}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                snapToInterval={CARD_WIDTH + SPACING}
-                decelerationRate="fast"
-                contentContainerStyle={styles.featuredList}
-              />
-            </View>
-          )}
-          
-          {/* Streak-based Recommendations */}
-          {streaks.length > 0 && selectedCategory === 'streak-related' && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-                Based on your {streaks[0]?.habitId} streak
-              </Text>
-              <Text style={[styles.sectionSubtitle, isDark && styles.darkSubText]}>
-                Resources to help you maintain your momentum
-              </Text>
-              
-              <FlatList
-                data={getFilteredResources()}
-                renderItem={renderResourceCard}
-                keyExtractor={item => `streak-${item.id}`}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.resourcesList}
-              />
-            </View>
-          )}
-          
-          {/* Main Content List */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-              {selectedCategory === 'saved' ? 'Your Saved Items' : 'All Resources'}
-            </Text>
-            
-            {!loading && (
-              <FlatList
-                data={getFilteredResources()}
-                renderItem={renderResourceCard}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.resourceList}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                  <RefreshControl
-                    refreshing={refreshing}
-                    onRefresh={handleRefresh}
-                    tintColor={isDark ? "#ffffff" : "#FF7F50"}
-                  />
-                }
-                ListEmptyComponent={
-                  <View style={styles.emptyState}>
-                    <Ionicons name="library-outline" size={64} color="#CCCCCC" />
-                    <Text style={[styles.emptyStateText, isDark && styles.darkText]}>
-                      No resources found
-                    </Text>
-                    <Text style={[styles.emptyStateSubText, isDark && styles.darkSubText]}>
-                      {selectedCategory === 'saved' 
-                        ? "You haven't saved any resources yet." 
-                        : "Try selecting a different category."}
-                    </Text>
-                  </View>
-                }
-              />
-            )}
-          </View>
-        </Animated.ScrollView>
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          initialNumToRender={10}
+        />
       )}
+
+      {/* Resource Detail Modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={closeResourceDetail}
+      >
+        {selectedResourceId && (
+          <ResourceDetail 
+            resourceId={selectedResourceId} 
+            onClose={closeResourceDetail}
+          />
+        )}
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -602,41 +524,6 @@ const styles = StyleSheet.create({
   searchButton: {
     padding: 8,
   },
-  categoryTabsContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  categoryTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-  },
-  selectedCategoryTab: {
-    backgroundColor: '#FF7F50',
-  },
-  darkCategoryTab: {
-    backgroundColor: '#333333',
-  },
-  darkSelectedCategoryTab: {
-    backgroundColor: '#FF7F50',
-  },
-  categoryTabText: {
-    fontWeight: '500',
-  },
-  selectedCategoryTabText: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 180,
-    paddingBottom: 40,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -648,155 +535,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
+  resourceList: {
+    flex: 1,
+  },
+  resourceListContent: {
+    paddingTop: 180,
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+  },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginHorizontal: 16,
     marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 16,
-    marginHorizontal: 16,
     marginBottom: 16,
     color: '#666666',
-  },
-  resourcesList: {
-    paddingLeft: 16,
-    paddingRight: 8,
-  },
-  resourceList: {
-    paddingHorizontal: 16,
-    paddingTop: 160,
-    paddingBottom: 24,
-  },
-  resourceCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  darkCard: {
-    backgroundColor: '#1e1e1e',
-  },
-  resourceImage: {
-    width: '100%',
-    height: 140,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  resourceContent: {
-    padding: 12,
-  },
-  resourceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  resourceTypeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  resourceType: {
-    fontSize: 12,
-    marginLeft: 4,
-    color: '#FF7F50',
-    textTransform: 'uppercase',
-  },
-  newBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    backgroundColor: '#4CAF50',
-    borderRadius: 4,
-  },
-  newBadgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  resourceTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  resourceDescription: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 12,
-  },
-  resourceFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  resourceDuration: {
-    fontSize: 12,
-    color: '#888888',
-  },
-  saveButton: {
-    padding: 4,
   },
   featuredSection: {
     marginBottom: 24,
   },
   featuredList: {
-    paddingLeft: 16,
     paddingRight: 8,
-    paddingBottom: 8,
-  },
-  featuredCard: {
-    width: CARD_WIDTH,
-    height: 220,
-    marginRight: SPACING,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#000',
-  },
-  featuredImage: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-  },
-  featuredGradient: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  featuredContent: {
-    padding: 16,
-  },
-  featuredTypeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  featuredType: {
-    fontSize: 12,
-    marginLeft: 4,
-    color: '#ffffff',
-    textTransform: 'uppercase',
-  },
-  featuredTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 6,
-  },
-  featuredDescription: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
+    marginTop: 40,
   },
   emptyStateText: {
     fontSize: 18,
