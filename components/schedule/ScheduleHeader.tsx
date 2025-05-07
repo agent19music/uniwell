@@ -7,12 +7,13 @@ import {CalendarDayHeader} from '@/components/schedule/CalendarDayHeader';
 interface ScheduleHeaderProps {
     activeSemester: string | null;
     isDark: boolean;
-    viewMode: string;
-    setViewMode: (mode: string) => void;
+    viewMode: 'day' | 'week';
+    setViewMode: (mode: 'day' | 'week') => void;
     currentDate: Date;
     formatHeaderDate: () => string;
     navigateDay: (direction: number) => void;
     onSemesterPress: () => void;
+    onTodayPress: () => void;
   }
   
   export const ScheduleHeader = ({
@@ -24,8 +25,19 @@ interface ScheduleHeaderProps {
     formatHeaderDate,
     navigateDay,
     onSemesterPress,
+    onTodayPress,
   }: ScheduleHeaderProps) => {
     const styles = useScheduleHeaderStyles(isDark);
+    
+    // Check if currently viewing today
+    const isToday = (): boolean => {
+      const today = new Date();
+      return (
+        today.getDate() === currentDate.getDate() &&
+        today.getMonth() === currentDate.getMonth() &&
+        today.getFullYear() === currentDate.getFullYear()
+      );
+    };
     
     return (
       <View style={styles.header}>
@@ -101,12 +113,24 @@ interface ScheduleHeaderProps {
           </TouchableOpacity>
         </View>
         
-        {/* Calendar Day Header - Shows days horizontally */}
-        <CalendarDayHeader 
-          currentDate={currentDate} 
-          setCurrentDate={(date) => setCurrentDate(date)} 
-          isDark={isDark} 
-        />
+        {/* Today button */}
+        {!isToday() && (
+          <TouchableOpacity 
+            style={[styles.todayButton, isDark && styles.darkTodayButton]} 
+            onPress={onTodayPress}
+          >
+            <Text style={styles.todayButtonText}>Today</Text>
+          </TouchableOpacity>
+        )}
+        
+        {/* Calendar Day Header - Only shown in day view */}
+        {viewMode === 'day' && (
+          <CalendarDayHeader 
+            currentDate={currentDate} 
+            setCurrentDate={(date) => setCurrentDate(date)} 
+            isDark={isDark} 
+          />
+        )}
       </View>
     );
   };
@@ -169,5 +193,27 @@ interface ScheduleHeaderProps {
     },
     darkText: {
       color: '#FFFFFF',
+    },
+    todayButton: {
+      position: 'absolute',
+      right: 16,
+      top: 16,
+      backgroundColor: '#FF7F50',
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    darkTodayButton: {
+      backgroundColor: '#FF9500',
+    },
+    todayButtonText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '600',
     },
   });

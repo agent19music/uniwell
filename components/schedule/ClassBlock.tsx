@@ -14,16 +14,18 @@ export interface ClassInfo {
     name: string;
     color: string;
     location?: string;
+    positionTop?: number;
   }
   
   interface ClassBlockProps {
     classInfo: ClassInfo;
     isDark: boolean;
+    isWeekView?: boolean;
     onEdit: (classInfo: ClassInfo) => void;
     onDelete: (classId: string) => void;
   }
   
- export const ClassBlock = ({ classInfo, isDark, onEdit, onDelete }: ClassBlockProps) => {
+ export const ClassBlock = ({ classInfo, isDark, isWeekView, onEdit, onDelete }: ClassBlockProps) => {
     const styles = useClassBlockStyles(isDark);
     const [menuVisible, setMenuVisible] = useState(false);
     const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -68,36 +70,50 @@ export interface ClassInfo {
             delayLongPress={300}
             style={[
               styles.classBlockContainer,
+              isWeekView && styles.weekViewBlock,
               { 
                 backgroundColor: classInfo.color + (isDark ? '90' : 'D0'),
-                top: classInfo.startTime * 60,
+                top: classInfo.positionTop !== undefined ? classInfo.positionTop : classInfo.startTime * 60,
                 height: classInfo.duration * 60,
               }
             ]}
           >
-            <View style={styles.classBlockContent}>
-              <View style={styles.classBlockDot} />
-              <View style={styles.classBlockHeader}>
-                <Text style={styles.classBlockTime}>
-                  {classInfo.startTimeString} - {classInfo.endTimeString}
-                </Text>
-                <Text style={styles.classBlockName} numberOfLines={1}>
+            {isWeekView ? (
+              <View style={styles.weekViewContent}>
+                <Text style={styles.weekViewClassName} numberOfLines={1}>
                   {classInfo.name}
                 </Text>
                 {classInfo.location && (
-                  <View style={styles.classLocationContainer}>
-                    <Ionicons
-                      name="location-outline"
-                      size={12}
-                      color={isDark ? "#CCCCCC" : "#666666"}
-                    />
-                    <Text style={styles.classBlockLocation} numberOfLines={1}>
-                      {classInfo.location}
-                    </Text>
-                  </View>
+                  <Text style={styles.weekViewLocation} numberOfLines={1}>
+                    {classInfo.location}
+                  </Text>
                 )}
               </View>
-            </View>
+            ) : (
+              <View style={styles.classBlockContent}>
+                <View style={styles.classBlockDot} />
+                <View style={styles.classBlockHeader}>
+                  <Text style={styles.classBlockTime}>
+                    {classInfo.startTimeString} - {classInfo.endTimeString}
+                  </Text>
+                  <Text style={styles.classBlockName} numberOfLines={1}>
+                    {classInfo.name}
+                  </Text>
+                  {classInfo.location && (
+                    <View style={styles.classLocationContainer}>
+                      <Ionicons
+                        name="location-outline"
+                        size={12}
+                        color={isDark ? "#CCCCCC" : "#666666"}
+                      />
+                      <Text style={styles.classBlockLocation} numberOfLines={1}>
+                        {classInfo.location}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
           </Pressable>
         </Animated.View>
   
@@ -175,9 +191,30 @@ export interface ClassInfo {
       marginHorizontal: 4,
       overflow: 'hidden',
     },
+    weekViewBlock: {
+      left: 2,
+      right: 2,
+      marginHorizontal: 1,
+      padding: 4,
+      borderRadius: 4,
+    },
     classBlockContent: {
       flexDirection: 'row',
       alignItems: 'flex-start',
+    },
+    weekViewContent: {
+      flex: 1,
+    },
+    weekViewClassName: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: '#FFFFFF',
+      marginBottom: 2,
+    },
+    weekViewLocation: {
+      fontSize: 8,
+      color: '#FFFFFF',
+      opacity: 0.9,
     },
     classBlockDot: {
       width: 6,

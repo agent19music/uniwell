@@ -19,8 +19,14 @@ interface CurrentTimeIndicatorProps {
       return null;
     }
     
-    // Calculate position (hours since 6am + minutes)
-    const position = (currentHour * 60) + currentMinute;
+    // Don't show if before 6 AM or after 10 PM (our visible grid range)
+    if (currentHour < 6 || currentHour > 22) {
+      return null;
+    }
+    
+    // Calculate position relative to 6 AM (our grid start)
+    // Convert to minutes since 6 AM
+    const position = ((currentHour - 6) * 60) + currentMinute;
     
     return (
       <View style={[styles.currentTimeIndicator, { top: position }]}>
