@@ -20,7 +20,7 @@ export default function RoutinesScreen() {
   const { height } = Dimensions.get('window');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const router = useRouter();
-  const { habits, completeHabit, streaks } = useRoutine();
+  const { habits, completeHabit, streaks, terminateStreak, resetStreak } = useRoutine();
   const [showAddRoutine, setShowAddRoutine] = useState(false);
   const [showAddStreak, setShowAddStreak] = useState(false);
   const [streakMenuVisible, setStreakMenuVisible] = useState(false);
@@ -60,10 +60,34 @@ export default function RoutinesScreen() {
 
   const onMarkCompleted = async (streakId: string) => {
     try {
-      console.log('Marking streak completed:', streakId);
+      await terminateStreak(streakId);
     } catch (error) {
-      console.error('Error marking streak completed:', error);
+      console.error('Error terminating streak:', error);
     }
+  };
+
+  const onReset = async (streakId: string) => {
+    Alert.alert(
+      "Reset Streak",
+      "Are you sure you want to reset this streak? This will clear your current progress.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await resetStreak(streakId);
+            } catch (error) {
+              console.error('Error resetting streak:', error);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const onDelete = async (streakId: string) => {
@@ -217,13 +241,13 @@ export default function RoutinesScreen() {
                 style={styles.menuItem}
                 onPress={() => {
                   setStreakMenuVisible(false);
-                  if (selectedStreakId && onMarkCompleted) {
-                    onMarkCompleted(selectedStreakId);
+                  if (selectedStreakId) {
+                    onReset(selectedStreakId);
                   }
                 }}
               >
-                <Feather name="check-circle" size={16} color={isDark ? '#34C759' : '#34C759'} />
-                <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Mark Completed</Text>
+                <Feather name="refresh-cw" size={16} color={isDark ? '#FF9500' : '#FF9500'} />
+                <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Reset Streak</Text>
               </TouchableOpacity>
 
               <View style={[styles.menuDivider, isDark && styles.darkMenuDivider]} />

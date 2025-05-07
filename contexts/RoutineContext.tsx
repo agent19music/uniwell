@@ -100,7 +100,8 @@ interface RoutineContextType {
   getStreakProgress: (streakId: string) => Promise<{current: number, target: number, percentage: number}>;
   isTodayCheckedIn: (streakId: string) => boolean;
   syncOfflineData: () => Promise<void>;
-  
+  resetStreak: (streakId: string) => Promise<void>;
+  terminateStreak: (streakId: string) => Promise<void>;
 }
 
 const RoutineContext = createContext<RoutineContextType | undefined>(undefined);
@@ -651,6 +652,30 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resetStreak = async (streakId: string) => {
+    try {
+      const { error } = await supabase
+        .rpc('reset_streak', { streak_id: streakId });
+
+      if (error) throw error;
+      await fetchStreaks(); // Refresh streaks after reset
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const terminateStreak = async (streakId: string) => {
+    try {
+      const { error } = await supabase
+        .rpc('terminate_streak', { streak_id: streakId });
+
+      if (error) throw error;
+      await fetchStreaks(); // Refresh streaks after termination
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   const value = {
     plans,
     goals,
@@ -683,6 +708,8 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     getStreakProgress,
     isTodayCheckedIn,
     syncOfflineData,
+    resetStreak,
+    terminateStreak,
   };
 
   return (
