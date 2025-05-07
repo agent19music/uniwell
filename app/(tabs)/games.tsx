@@ -3,7 +3,7 @@ import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useRef, useEffect } from 'react';
-import { Audio } from 'expo-av';
+import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import BreathingExercise from '@/components/BreathingExercise';
 
 const COLORING_PALETTE = [
@@ -14,18 +14,25 @@ const COLORING_PALETTE = [
   { id: '5', color: '#F0E68C', name: 'Khaki' },
 ];
 
-const NATURE_SOUNDS = [
-  { id: '1', name: 'Rain', icon: 'rainy',  source: require('@/assets/nature-sounds/rain.mp3') },
-  { id: '2', name: 'Forest', icon: 'leaf',  source: require('@/assets/nature-sounds/forest.mp3') },
-  { id: '3', name: 'Waves', icon: 'water',  source: require('@/assets/nature-sounds/waves.mp3') },
+interface SoundItem {
+  id: string;
+  name: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  source: any;
+}
+
+const NATURE_SOUNDS: SoundItem[] = [
+  { id: '1', name: 'Rain', icon: 'rainy-outline', source: require('@/assets/nature-sounds/rain.mp3') },
+  { id: '2', name: 'Forest', icon: 'leaf-outline', source: require('@/assets/nature-sounds/forest.mp3') },
+  { id: '3', name: 'Waves', icon: 'water-outline', source: require('@/assets/nature-sounds/waves.mp3') },
 ];
 
 export default function GamesScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [selectedColor, setSelectedColor] = useState(COLORING_PALETTE[0].color);
-  const [selectedSound, setSelectedSound] = useState(null);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [selectedSound, setSelectedSound] = useState<string | null>(null);
+  const [sound, setSound] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
@@ -46,12 +53,13 @@ export default function GamesScreen() {
 
   const setupAudio = async () => {
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        shouldRouteThroughEarpiece: false,
+        interruptionMode: 'mixWithOthers',
+        interruptionModeAndroid: 'duckOthers'
       });
     } catch (error) {
       console.error('Error setting up audio:', error);
@@ -68,19 +76,12 @@ export default function GamesScreen() {
     }
   };
 
-  interface SoundItem {
-    id: string;
-    name: string;
-    icon: string;
-    source: any;
-  }
-
   const playSound = async (soundItem: SoundItem): Promise<void> => {
     try {
       // If there's already a sound playing, stop and unload it
       if (sound) {
-        await sound.stopAsync();
-        await sound.unloadAsync();
+        sound.pause();
+        sound.remove();
       }
 
       // If we're selecting the same sound that's already selected, just stop it
@@ -91,18 +92,17 @@ export default function GamesScreen() {
       }
 
       // Load and play the new sound
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        soundItem.source,
-        { isLooping: true, volume: 1.0 }
-      );
+      const newSound = createAudioPlayer(soundItem.source);
+      newSound.loop = true;
+      newSound.volume = 1.0;
 
       setSound(newSound);
       setSelectedSound(soundItem.name);
       setIsPlaying(true);
-      await newSound.playAsync();
+      newSound.play();
 
       // Add status update listener
-      newSound.setOnPlaybackStatusUpdate((status) => {
+      newSound.addListener('playbackStatusUpdate', (status: any) => {
         if (status.didJustFinish) {
           // Handle end of sound if needed
         }
@@ -114,7 +114,7 @@ export default function GamesScreen() {
   };
 
   // Add volume control
-  const adjustVolume = async (volume) => {
+  const adjustVolume = async (volume: number) => {
     if (sound) {
       try {
         await sound.setVolumeAsync(volume);

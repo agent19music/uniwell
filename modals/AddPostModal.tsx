@@ -12,11 +12,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Video } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useCommunity } from '../contexts/CommunityContext';
 import TagSelector from '@/components/TagSelector';
 import * as ImageManipulator from 'expo-image-manipulator';
-import {Trimmer, VideoPlayer} from 'react-native-video-processing';
+import {Trimmer} from 'react-native-video-processing';
 import { Post } from '@/types/community';
 
 
@@ -185,10 +185,10 @@ export default function AddPostModal({ visible, onClose }: { visible: boolean, o
                     {m.type === 'image' ? (
                       <Image source={{ uri: m.uri }} style={styles.mediaItem} />
                     ) : (
-                      <Video
-                        source={{ uri: m.uri }}
+                      <VideoView
+                        player={useVideoPlayer({ uri: m.uri })}
                         style={styles.mediaItem}
-                        resizeMode="cover"
+                        contentFit="cover"
                       />
                     )}
                     <TouchableOpacity

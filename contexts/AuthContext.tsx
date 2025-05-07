@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { Alert } from 'react-native';
 import { registerForPushNotificationsAsync } from '../lib/NotificationHandler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as burnt from 'burnt';
 
 // Define a type for stored users
 interface StoredUser {
@@ -48,6 +49,7 @@ interface User {
 interface AuthContextType {
   session: Session | null;
   loading: boolean;
+  profileLoading: boolean;
   signOut: () => Promise<void>;
   profile: ProfileType;
   setProfile: React.Dispatch<React.SetStateAction<ProfileType>>;
@@ -56,6 +58,7 @@ interface AuthContextType {
   removeStoredUser: (userId: string) => Promise<void>;
   clearStoredUsers: () => Promise<void>;
   currentUser: User | null;
+  fetchProfile: () => Promise<void>;
 }
 
 const STORED_USERS_KEY = 'uniwell_stored_users';
@@ -63,6 +66,7 @@ const STORED_USERS_KEY = 'uniwell_stored_users';
 export const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
+  profileLoading: true,
   signOut: async () => {},
   profile: {
     username: '',
@@ -75,6 +79,7 @@ export const AuthContext = createContext<AuthContextType>({
   removeStoredUser: async () => {},
   clearStoredUsers: async () => {},
   currentUser: null,
+  fetchProfile: async () => {},
 });
 
 // This hook can be used to access the user info.
@@ -89,21 +94,19 @@ function useProtectedRoute(session: Session | null) {
 
   useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)';
+    const isAuthScreen = ['loginscreen', 'signupscreen', 'index', 'login-callback'].includes(segments[0] || '');
 
     if (
       // If the user is not signed in and the initial segment is not anything in the auth group.
       !session &&
       !inAuthGroup &&
-      segments[0] !== '' &&
-      segments[0] !== 'loginscreen' &&
-      segments[0] !== 'signupscreen' &&
-      segments[0] !== 'login-callback' &&
+      !isAuthScreen &&
       segments[0] !== 'profile-completion' &&
-      segments[0] !== 'user-selection' // Add the new user selection screen
+      segments[0] !== 'user-selection'
     ) {
       // Redirect to the user selection screen if we have stored users
       router.replace('/user-selection');
-    } else if (session && (segments[0] === 'loginscreen' || segments[0] === 'signupscreen' || segments[0] === '' || segments[0] === 'user-selection')) {
+    } else if (session && (inAuthGroup || isAuthScreen || segments[0] === 'user-selection')) {
       // Redirect away from the sign-in page.
       router.replace('/(tabs)/home');
     }
@@ -113,6 +116,7 @@ function useProtectedRoute(session: Session | null) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [storedUsers, setStoredUsers] = useState<StoredUser[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileType>({
@@ -120,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     full_name: '',
     avatar_url: null,
   });
+  const router = useRouter();
 
   useProtectedRoute(session);
 
@@ -165,33 +170,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        setCurrentUser({
-          id: data.user.id,
-          email: data.user.email,
-          user_metadata: {
-            full_name: data.user.user_metadata?.full_name || '',
-            avatar_url: data.user.user_metadata?.avatar_url || '',
-            gender: data.user.user_metadata?.gender || '',
-            interests: data.user.user_metadata?.interests || [],
-            primary_goal: data.user.user_metadata?.primary_goal || '',
-            bio: data.user.user_metadata?.bio || '',
-            occupation: data.user.user_metadata?.occupation || '',
-            university: data.user.user_metadata?.university || '',
-            profile_completion_percentage: data.user.user_metadata?.profile_completion_percentage || 0,
-          },
-        });
-      } catch (error) {
-        console.error('Error fetching current user:', error);
-      }
-    };
-
-    fetchCurrentUser();
-  }, [session]); // Assuming 'session' is the relevant dependency
   // Clear all stored users
   const clearStoredUsers = async () => {
     try {
@@ -202,55 +180,101 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Fetch current user profile data
+  const fetchProfile = async () => {
+    setProfileLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      // Update current user
+      setCurrentUser({
+        id: user.id,
+        email: user.email,
+        user_metadata: {
+          full_name: user.user_metadata?.full_name || data.full_name || '',
+          avatar_url: data.avatar_url || user.user_metadata?.avatar_url || '',
+          gender: data.gender || user.user_metadata?.gender || '',
+          interests: data.interests || user.user_metadata?.interests || [],
+          primary_goal: data.primary_goal || user.user_metadata?.primary_goal || '',
+          bio: data.bio || user.user_metadata?.bio || '',
+          occupation: data.occupation || user.user_metadata?.occupation || '',
+          university: data.university || user.user_metadata?.university || '',
+          profile_completion_percentage: data.profile_completion_percentage || user.user_metadata?.profile_completion_percentage || 0,
+        },
+      });
+
+      // Update profile
+      const userProfile: ProfileType = {
+        username: data.username || user.user_metadata?.full_name || 'User',
+        full_name: user.user_metadata?.full_name || data.full_name || 'User',
+        avatar_url: data.avatar_url || user.user_metadata?.avatar_url,
+        gender: data.gender,
+        interests: data.interests,
+        primary_goal: data.primary_goal,
+        bio: data.bio,
+        occupation: data.occupation,
+        university: data.university,
+        profile_completion_percentage: data.profile_completion_percentage,
+      };
+
+      setProfile(userProfile);
+
+      // Store user in recent users list
+      await addStoredUser({
+        id: user.id,
+        email: user.email || '',
+        username: userProfile.username,
+        full_name: userProfile.full_name,
+        avatar_url: userProfile.avatar_url,
+        last_login: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      burnt.toast({
+        title: 'Error',
+        message: (error as Error).message,
+        preset: 'error',
+      });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (session) {
+      fetchProfile();
+    }
+  }, [session]);
+
   useEffect(() => {
     // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log(`Supabase auth event: ${event}`);
       setSession(newSession);
-      setLoading(false);
-
+      
       if (newSession) {
         // Register for push notifications
         await registerForPushNotificationsAsync();
-        
-        // Fetch user profile
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', newSession.user.id)
-            .single();
-
-          if (error) throw error;
-
-          const userProfile = {
-            username: data.username || newSession.user.user_metadata?.full_name || 'User',
-            full_name: newSession.user.user_metadata?.full_name || 'User',
-            avatar_url: data.avatar_url,
-            gender: data.gender,
-            interests: data.interests,
-            primary_goal: data.primary_goal,
-            bio: data.bio,
-            occupation: data.occupation,
-            university: data.university,
-            profile_completion_percentage: data.profile_completion_percentage,
-          };
-
-          setProfile(userProfile);
-
-          // Store user in recent users list
-          await addStoredUser({
-            id: newSession.user.id,
-            email: newSession.user.email || '',
-            username: userProfile.username,
-            full_name: userProfile.full_name,
-            avatar_url: userProfile.avatar_url,
-            last_login: new Date().toISOString(),
-          });
-        } catch (error) {
-          console.error('Error fetching profile:', error);
-        }
+      } else {
+        // Reset profile when logged out
+        setProfile({
+          username: '',
+          full_name: '',
+          avatar_url: null,
+        });
+        setCurrentUser(null);
       }
+      
+      setLoading(false);
     });
 
     // Initial session check
@@ -272,8 +296,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         full_name: '',
         avatar_url: null,
       });
+      router.replace('/');
+      burnt.toast({
+        title: 'Success',
+        message: 'You have been logged out successfully',
+        preset: 'done',
+      });
     } catch (error) {
       Alert.alert('Error signing out', (error as Error).message);
+      burnt.toast({
+        title: 'Error',
+        message: (error as Error).message,
+        preset: 'error',
+      });
     }
   };
 
@@ -282,6 +317,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         session,
         loading,
+        profileLoading,
         signOut,
         profile,
         setProfile,
@@ -289,7 +325,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         addStoredUser,
         removeStoredUser,
         clearStoredUsers,
-        currentUser,    
+        currentUser,
+        fetchProfile,
       }}>
       {children}
     </AuthContext.Provider>

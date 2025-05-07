@@ -142,11 +142,16 @@ export async function fetchNewsArticles(query: string, pageSize = 10) {
       const wordCount = article.content ? article.content.split(' ').length : 300;
       const readingTime = Math.max(1, Math.round(wordCount / 200));
       
+      // Clean up the content by removing truncation markers
+      let cleanContent = article.content || '';
+      // Remove patterns like '[+4760 chars]' or '{+1234}'
+      cleanContent = cleanContent.replace(/\[\+\d+ chars\]/g, '').replace(/\{\+\s*\d+\}/g, '');
+      
       return {
         title: article.title,
         description: article.description || '',
         thumbnail_url: article.urlToImage || 'https://via.placeholder.com/300x200?text=No+Image',
-        article_content: article.content,
+        article_content: cleanContent,
         url: article.url,
         duration: `${readingTime} min read`,
         source: article.source.name,
