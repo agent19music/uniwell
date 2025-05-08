@@ -21,14 +21,12 @@ export default function NextActivityWidget() {
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
 
-  console.log(classSchedules);
   useEffect(() => {
     const findNextActivity = () => {
       const now = new Date();
       const currentDay = now.getDay();
       const currentTime = now.getHours() * 60 + now.getMinutes();
 
-      console.log('currentDay', currentDay);
 
       // Get today's classes
       const todayClasses = classSchedules.filter(schedule => {
@@ -56,7 +54,6 @@ export default function NextActivityWidget() {
         }
       });
 
-      console.log('today classes', todayClasses);
 
       // Find the next class
       const nextClass = todayClasses.find(schedule => {
