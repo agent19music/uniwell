@@ -25,6 +25,7 @@ interface AddStreakModalProps {
 export default function AddStreakModal({ visible, onClose }: AddStreakModalProps) {
   const { createStreak } = useRoutine();
   const [title, setTitle] = useState('');
+  const [targetCount, setTargetCount] = useState('30');
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [type, setType] = useState<'build' | 'break'>('build');
@@ -101,13 +102,20 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
     if (!title.trim()) return;
     
     try {
-      await createStreak(title, type, startDate, startTime);
+      await createStreak(
+        title, 
+        type, 
+        startDate, 
+        startTime,
+        parseInt(targetCount, 10)
+      );
       onClose();
       // Reset form
       setTitle('');
       setType('build');
       setStartDate(new Date());
       setStartTime(new Date());
+      setTargetCount('30');
     } catch (error) {
       console.error('Error creating streak:', error);
     }
@@ -186,6 +194,21 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
                 placeholder="Streak Title"
                 value={title}
                 onChangeText={setTitle}
+                placeholderTextColor={isDark ? '#666' : '#999'}
+              />
+
+              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Target Days</Text>
+              <TextInput
+                style={[styles.input, isDark && styles.darkInput]}
+                placeholder="Enter target days (e.g., 30)"
+                value={targetCount}
+                onChangeText={(text) => {
+                  // Only allow numbers
+                  if (/^\d*$/.test(text)) {
+                    setTargetCount(text);
+                  }
+                }}
+                keyboardType="numeric"
                 placeholderTextColor={isDark ? '#666' : '#999'}
               />
 

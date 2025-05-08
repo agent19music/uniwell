@@ -172,7 +172,7 @@ export default function RoutinesScreen() {
                       </Text>
                       <View style={styles.streakDetails}>
                         <Text style={[styles.streakCount, isDark && styles.darkText]}>
-                          {streak.length} days
+                          {streak.currentStreak} days
                         </Text>
                         <View style={styles.streakBadge}>
                           <Text style={styles.streakBadgeText}>
@@ -187,7 +187,7 @@ export default function RoutinesScreen() {
                     <View
                       style={[
                         styles.progressBar,
-                        { width: `${Math.min(streak.length * 5, 100)}%` }
+                        { width: `${Math.min(streak.currentStreak * 5, 100)}%` }
                       ]}
                     />
                   </View>

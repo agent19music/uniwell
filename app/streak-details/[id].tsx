@@ -9,7 +9,8 @@ import {
   useColorScheme,
   Animated,
   Easing,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRoutine } from '@/contexts/RoutineContext';
@@ -18,6 +19,7 @@ import { format, subDays, isSameDay, parseISO, differenceInDays } from 'date-fns
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Svg, Circle, Path } from 'react-native-svg';
+import StreakTimer from '@/components/StreakTimer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const colors = {
@@ -40,7 +42,7 @@ export default function StreakDetailsScreen() {
   const params = useLocalSearchParams();
   const id = params.id as string;
   const router = useRouter();
-  const { getStreak, deleteStreak, updateStreak, checkInStreak, isTodayCheckedIn } = useRoutine();
+  const { getStreak, deleteStreak, updateStreak, breakStreak } = useRoutine();
   const [streak, setStreak] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,11 +80,25 @@ export default function StreakDetailsScreen() {
     }
   };
 
-  const handleCheckIn = async () => {
-    if (!isTodayCheckedIn(id)) {
-      await checkInStreak(id);
-      await loadStreakData();
-    }
+  const handleBreakStreak = () => {
+    Alert.alert(
+      'Break Streak',
+      'Are you sure you want to break this streak? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Break Streak',
+          style: 'destructive',
+          onPress: async () => {
+            await breakStreak(id);
+            await loadStreakData();
+          }
+        }
+      ]
+    );
   };
 
   const handleEditStreak = () => {
@@ -151,6 +167,16 @@ export default function StreakDetailsScreen() {
           </View>
         </View>
 
+        <View style={styles.timerContainer}>
+          <View style={[styles.timerCard, isDark && styles.darkTimerCard]}>
+            <Text style={[styles.timerLabel, isDark && styles.darkText]}>Time Elapsed</Text>
+            <StreakTimer 
+              startDate={streak?.startDate || ''} 
+              startTime={streak?.startTime || ''} 
+            />
+          </View>
+        </View>
+
         <View style={styles.progressContainer}>
           <Svg width={SCREEN_WIDTH - 48} height={200} viewBox="0 0 300 200">
             <Path
@@ -190,19 +216,6 @@ export default function StreakDetailsScreen() {
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={[
-            styles.checkInButton,
-            isTodayCheckedIn(id) && styles.checkedInButton
-          ]}
-          onPress={handleCheckIn}
-          disabled={isTodayCheckedIn(id)}
-        >
-          <Text style={styles.checkInButtonText}>
-            {isTodayCheckedIn(id) ? 'Checked In Today' : 'Check In'}
-          </Text>
-        </TouchableOpacity>
-
         <View style={styles.infoSection}>
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>About This Streak</Text>
           <View style={[styles.infoCard, isDark && styles.darkCard]}>
@@ -220,6 +233,23 @@ export default function StreakDetailsScreen() {
             </View>
           </View>
         </View>
+
+        {streak?.status === 'active' && (
+          <View style={styles.breakSection}>
+            <Text style={[styles.breakSectionTitle, isDark && styles.darkText]}>
+              Need to Break Your Streak?
+            </Text>
+            <Text style={[styles.breakSectionSubtitle, isDark && styles.darkSubText]}>
+              This action cannot be undone. Make sure you're certain.
+            </Text>
+            <TouchableOpacity 
+              style={[styles.breakButton, isDark && styles.darkBreakButton]}
+              onPress={handleBreakStreak}
+            >
+              <Text style={styles.breakButtonText}>Break Streak</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -298,18 +328,41 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: 'Vercetti-Regular',
   },
-  checkInButton: {
-    backgroundColor: '#FF7F50',
-    paddingVertical: 16,
+  breakSection: {
+    marginTop: 32,
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: 'rgba(255, 59, 48, 0.05)',
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.1)',
+  },
+  breakSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF3B30',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Vercetti-Regular',
+  },
+  breakSectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    textAlign: 'center',
+    fontFamily: 'Vercetti-Regular',
+  },
+  breakButton: {
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 32,
   },
-  checkedInButton: {
-    backgroundColor: '#ccc',
+  darkBreakButton: {
+    backgroundColor: 'rgba(255, 59, 48, 0.15)',
   },
-  checkInButtonText: {
-    color: '#fff',
+  breakButtonText: {
+    color: '#FF3B30',
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
@@ -377,5 +430,29 @@ const styles = StyleSheet.create({
     color: '#FF7F50',
     fontSize: 16,
     fontFamily: 'Vercetti-Regular',
+  },
+  timerContainer: {
+    marginBottom: 24,
+  },
+  timerCard: {
+    backgroundColor: 'rgba(255, 127, 80, 0.05)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 127, 80, 0.1)',
+  },
+  darkTimerCard: {
+    backgroundColor: 'rgba(255, 127, 80, 0.1)',
+    borderColor: 'rgba(255, 127, 80, 0.2)',
+  },
+  timerLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Vercetti-Regular',
+  },
+  editButton: {
+    padding: 8,
   },
 });

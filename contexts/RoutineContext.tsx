@@ -49,13 +49,11 @@ interface Streak {
   id: string;
   title: string;
   type: 'build' | 'break';
-  status: string;
+  status: 'active' | 'broken';
   startDate: string;
   startTime: string; 
-  length: number;
   currentStreak: number;
   longestStreak: number;
-  lastCheckIn: string | null;
   targetCount: number;
   color: string;
   icon: string;
@@ -86,7 +84,7 @@ interface RoutineContextType {
   deleteHabit: (habitId: string) => Promise<void>;
   streaks: Streak[];
   fetchStreaks: () => Promise<void>;
-  createStreak: (title: string, type: 'build' | 'break', startDate: Date, startTime: Date) => Promise<void>;
+  createStreak: (title: string, type: 'build' | 'break', startDate: Date, startTime: Date, targetCount?: number) => Promise<void>;
   getStreak: (streakId: string) => Promise<Streak | null>;
   updateStreak: (streakId: string, updates: Partial<Streak>) => Promise<void>;
   deleteStreak: (streakId: string) => Promise<void>;
@@ -102,6 +100,7 @@ interface RoutineContextType {
   syncOfflineData: () => Promise<void>;
   resetStreak: (streakId: string) => Promise<void>;
   terminateStreak: (streakId: string) => Promise<void>;
+  breakStreak: (streakId: string) => Promise<void>;
 }
 
 const RoutineContext = createContext<RoutineContextType | undefined>(undefined);
@@ -275,12 +274,10 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     status: streak.status,
     startDate: streak.start_date,
     startTime: streak.start_time,
-    length: streak.length || 0,
     currentStreak: streak.current_streak || 0,
     longestStreak: streak.longest_streak || 0,
-    lastCheckIn: streak.last_check_in || null,
     targetCount: streak.target_count || 30,
-    color: streak.color || '#007AFF',
+    color: streak.color || '#FF7F50',
     icon: streak.icon || 'flame'
   });
 
@@ -331,25 +328,38 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const createStreak = async (title: string, type: 'build' | 'break', startDate: Date, startTime: Date) => {
-    // Extract timezone from the original Date object
-    const timezone = startTime.toString().match(/GMT[+-]\d{4}/)![0];
-    console.log(`Creating streak: title=${title}, type=${type}, startDate=${format(startDate, 'MMMM d, yyyy')}, startTime=${format(startTime, 'h:mm a')} ${timezone}`);
+  const createStreak = async (
+    title: string, 
+    type: 'build' | 'break', 
+    startDate: Date, 
+    startTime: Date,
+    targetCount: number = 30
+  ) => {
     try {
+      // Combine date and time into a single ISO string
+      const combinedDateTime = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate(),
+        startTime.getHours(),
+        startTime.getMinutes()
+      );
+
       const { data, error } = await supabase
         .from('streaks')
         .insert({
           title,
           type,
-          start_date: format(startDate, 'MMMM d, yyyy'),
-          start_time: format(startTime, 'h:mm a'),
-          user_id: currentUser?.id, // Assuming user.id is available
+          start_date: combinedDateTime.toISOString(),
+          start_time: combinedDateTime.toISOString(),
+          user_id: currentUser?.id,
+          status: 'active',
+          current_streak: 0,
+          longest_streak: 0,
+          target_count: targetCount
         })
         .select();
       
-      // Log the response from Supabase
-      console.log('Supabase response:', { data, error });
-
       if (error) throw error;
 
       // Fetch updated streaks
@@ -676,6 +686,18 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const breakStreak = async (streakId: string) => {
+    try {
+      const { error } = await supabase
+        .rpc('break_streak', { streak_id: streakId });
+
+      if (error) throw error;
+      await fetchStreaks(); // Refresh streaks after breaking
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   const value = {
     plans,
     goals,
@@ -710,6 +732,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     syncOfflineData,
     resetStreak,
     terminateStreak,
+    breakStreak,
   };
 
   return (

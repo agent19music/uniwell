@@ -34,6 +34,7 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [title, setTitle] = useState('');
+  const [targetCount, setTargetCount] = useState('30');
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -48,6 +49,7 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
           setType(streak.type);
           setStartDate(new Date(streak.startDate));
           setStartTime(new Date(streak.startTime));
+          setTargetCount(streak.targetCount.toString());
         }
       };
       fetchStreak();
@@ -92,7 +94,8 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
         title, 
         type, 
         startDate: startDate.toISOString(), 
-        startTime: startTime.toISOString() 
+        startTime: startTime.toISOString(),
+        targetCount: parseInt(targetCount, 10)
       });
       onClose();
     } catch (error) {
@@ -218,6 +221,21 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
                 placeholder="Streak Title"
                 value={title}
                 onChangeText={setTitle}
+                placeholderTextColor={isDark ? '#666' : '#999'}
+              />
+
+              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Target Days</Text>
+              <TextInput
+                style={[styles.input, isDark && styles.darkInput]}
+                placeholder="Enter target days (e.g., 30)"
+                value={targetCount}
+                onChangeText={(text) => {
+                  // Only allow numbers
+                  if (/^\d*$/.test(text)) {
+                    setTargetCount(text);
+                  }
+                }}
+                keyboardType="numeric"
                 placeholderTextColor={isDark ? '#666' : '#999'}
               />
 
