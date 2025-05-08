@@ -10,7 +10,8 @@ import {
   Animated,
   Easing,
   Platform,
-  Alert
+  Alert,
+  Modal
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRoutine } from '@/contexts/RoutineContext';
@@ -20,6 +21,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Svg, Circle, Path } from 'react-native-svg';
 import StreakTimer from '@/components/StreakTimer';
+import StreakShareWidget from '@/components/StreakShareWidget';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const colors = {
@@ -38,6 +40,9 @@ const colors = {
   lightSubText: '#666666',
 };
 
+// Define milestone days
+const MILESTONE_DAYS = [7, 21, 30, 50, 100, 150, 200, 365];
+
 export default function StreakDetailsScreen() {
   const params = useLocalSearchParams();
   const id = params.id as string;
@@ -53,6 +58,7 @@ export default function StreakDetailsScreen() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   useEffect(() => {
     loadStreakData();
@@ -140,6 +146,9 @@ export default function StreakDetailsScreen() {
   const target = streak?.targetCount || 30;
   const percentage = Math.min(100, (progress / target) * 100);
 
+  // Check if current streak day is a milestone
+  const isMilestone = streak && MILESTONE_DAYS.includes(streak.currentStreak);
+
   return (
     <ScrollView 
       style={[styles.container, isDark && styles.darkContainer]}
@@ -153,15 +162,52 @@ export default function StreakDetailsScreen() {
           <Ionicons name="chevron-back" size={24} color={isDark ? '#fff' : '#000'} />
         </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={styles.editButton}
-          onPress={handleEditStreak}
-        >
-          <Ionicons name="ellipsis-horizontal" size={24} color={isDark ? '#fff' : '#000'} />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={styles.shareButton}
+            onPress={() => setShareModalVisible(true)}
+          >
+            <Ionicons name="share-social-outline" size={24} color={isDark ? '#fff' : '#000'} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={handleEditStreak}
+          >
+            <Ionicons name="ellipsis-horizontal" size={24} color={isDark ? '#fff' : '#000'} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.content}>
+        {/* Milestone Badge - show only when streak reaches milestone */}
+        {isMilestone && (
+          <TouchableOpacity 
+            style={styles.milestoneBadge}
+            onPress={() => setShareModalVisible(true)}
+          >
+            <LinearGradient
+              colors={['#FFA07A', '#FF4500']}
+              style={styles.milestoneBadgeGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.milestoneContent}>
+                <Ionicons name="trophy" size={24} color="#FFD700" />
+                <View style={styles.milestoneTextContainer}>
+                  <Text style={styles.milestoneTitle}>
+                    {streak.currentStreak} Day Milestone!
+                  </Text>
+                  <Text style={styles.milestoneSubtitle}>
+                    {getMilestoneText(streak.currentStreak)} Tap to share!
+                  </Text>
+                </View>
+                <Ionicons name="share-social" size={22} color="#fff" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.titleContainer}>
           <Text style={[styles.title, isDark && styles.darkText]}>{streak?.title}</Text>
           <View style={[styles.typeBadge, streak?.type === 'break' ? styles.breakBadge : styles.buildBadge]}>
@@ -263,8 +309,40 @@ export default function StreakDetailsScreen() {
           </View>
         )}
       </View>
+
+      {/* Share Success Modal */}
+      <Modal
+        visible={shareModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShareModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, isDark && styles.darkModalContent]}>
+            <StreakShareWidget 
+              streak={streak}
+              onClose={() => setShareModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
+}
+
+// Helper function to get milestone text
+function getMilestoneText(days: number): string {
+  switch(days) {
+    case 7: return "First week complete!";
+    case 21: return "Habit forming point reached!";
+    case 30: return "One month milestone!";
+    case 50: return "Halfway to 100 days!";
+    case 100: return "Triple digits achieved!";
+    case 150: return "150 days of consistency!";
+    case 200: return "200 day achievement!";
+    case 365: return "One full year! Amazing!";
+    default: return "Great achievement!";
+  }
 }
 
 const styles = StyleSheet.create({
@@ -474,5 +552,65 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontFamily: 'Vercetti-Regular',
     fontWeight: '600',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  shareButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: '90%',
+  },
+  darkModalContent: {
+    backgroundColor: '#121212',
+  },
+  milestoneBadge: {
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  milestoneBadgeGradient: {
+    borderRadius: 16,
+    padding: 2,
+  },
+  milestoneContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 14,
+    padding: 12,
+  },
+  milestoneTextContainer: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+  milestoneTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+    fontFamily: 'Vercetti-Regular',
+  },
+  milestoneSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    fontFamily: 'Vercetti-Regular',
   },
 });

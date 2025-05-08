@@ -135,6 +135,7 @@ export default function SleepStatsScreen() {
       <FloatingActionButton
         onPress={() => setIsModalVisible(true)}
         color="#FF7F50"
+        icon="plus"
       />
 
       <SleepEntryModal
