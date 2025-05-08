@@ -56,6 +56,15 @@ export default function StreakDetailsScreen() {
 
   useEffect(() => {
     loadStreakData();
+
+    // Set up periodic refresh every minute
+    const refreshInterval = setInterval(() => {
+      loadStreakData();
+    }, 60000); // Refresh every minute
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
   }, [id]);
 
   const loadStreakData = async () => {
@@ -174,6 +183,9 @@ export default function StreakDetailsScreen() {
               startDate={streak?.startDate || ''} 
               startTime={streak?.startTime || ''} 
             />
+            <Text style={[styles.streakCount, isDark && styles.darkText]}>
+              {progress} days
+            </Text>
           </View>
         </View>
 
@@ -454,5 +466,13 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: 8,
+  },
+  streakCount: {
+    fontSize: 16,
+    color: '#FF7F50',
+    textAlign: 'center',
+    marginTop: 8,
+    fontFamily: 'Vercetti-Regular',
+    fontWeight: '600',
   },
 });

@@ -45,7 +45,7 @@ interface HabitAttempt {
   notes: string | null;
 }
 
-interface Streak {
+export interface Streak {
   id: string;
   title: string;
   type: 'build' | 'break';
@@ -267,19 +267,26 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     notes: attempt.notes,
   });
 
-  const formatStreak = (streak: any): Streak => ({
-    id: streak.id,
-    title: streak.title,
-    type: streak.type,
-    status: streak.status,
-    startDate: streak.start_date,
-    startTime: streak.start_time,
-    currentStreak: streak.current_streak || 0,
-    longestStreak: streak.longest_streak || 0,
-    targetCount: streak.target_count || 30,
-    color: streak.color || '#FF7F50',
-    icon: streak.icon || 'flame'
-  });
+  const formatStreak = (streak: any): Streak => {
+    const startDate = new Date(streak.start_date);
+    const now = new Date();
+    const elapsedDays = differenceInDays(now, startDate);
+    const currentStreak = streak.status === 'active' ? elapsedDays : streak.current_streak || 0;
+    
+    return {
+      id: streak.id,
+      title: streak.title,
+      type: streak.type,
+      status: streak.status,
+      startDate: streak.start_date,
+      startTime: streak.start_time,
+      currentStreak: currentStreak,
+      longestStreak: streak.longest_streak || currentStreak,
+      targetCount: streak.target_count || 30,
+      color: streak.color || '#FF7F50',
+      icon: streak.icon || 'flame'
+    };
+  };
 
   const formatCheckIn = (checkIn: any): CheckIn => ({
     id: checkIn.id,
@@ -497,7 +504,12 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase
         .from('streaks')
-        .update(updates)
+        .update({
+          ...updates,
+          current_streak: updates.status === 'active' ? 
+            differenceInDays(new Date(), new Date(updates.startDate || '')) : 
+            updates.currentStreak
+        })
         .eq('id', streakId);
 
       if (error) throw error;
