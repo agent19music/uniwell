@@ -30,6 +30,10 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // Initialize Google Generative AI with your API key
 const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GOOGLE_GEMINI_API_KEY || '');
 
+// Add near the top with other constants
+const RATE_LIMIT_DELAY = 2000; // 2 seconds between messages
+const MAX_HISTORY_MESSAGES = 10; // Limit context window
+
 // Helper function to safely check if a value is an object
 const isObject = (value: any): boolean => {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -120,6 +124,7 @@ export default function ChatScreen() {
   const typingDot3 = useRef(new Animated.Value(1)).current;
   const [userSessions, setUserSessions] = useState<ChatSession[]>([]);
   const [showSessionsModal, setShowSessionsModal] = useState(false);
+  const lastRequestTime = useRef(0);
 
   useEffect(() => {
     const animateDot = (dot: Animated.Value, delay: number) => {
@@ -154,12 +159,15 @@ export default function ChatScreen() {
         .from('chat_messages')
         .select('*')
         .eq('session_id', sessionId)
-        .order('created_at', { ascending: true });
+        // Add limit and order to get most recent messages
+        .order('created_at', { ascending: false })
+        .limit(MAX_HISTORY_MESSAGES);
 
       if (error) throw error;
 
       if (messages) {
-        const formattedMessages = messages.map(msg => ({
+        // Reverse to get correct chronological order
+        const formattedMessages = messages.reverse().map(msg => ({
           id: msg.id.toString(),
           content: msg.content,
           isAI: msg.is_ai,
@@ -168,21 +176,11 @@ export default function ChatScreen() {
         
         setMessages(formattedMessages);
         
-        // Update chat history for context
-        // Create properly ordered history format
+        // Create limited history format
         let historyFormat = messages.map(msg => ({
           role: msg.is_ai ? "model" : "user",
           parts: [{ text: msg.content }]
         }));
-        
-        // Ensure the first message has role 'user' as required by Gemini API
-        if (historyFormat.length > 0 && historyFormat[0].role === 'model') {
-          // If first message is from model (AI welcome message), add a placeholder user message
-          historyFormat = [
-            { role: 'user', parts: [{ text: 'Hello' }] },
-            ...historyFormat
-          ];
-        }
         
         setChatHistory(historyFormat);
       }
@@ -347,6 +345,14 @@ export default function ChatScreen() {
   const handleSendMessage = async () => {
     if (!inputText.trim() || !sessionId || !model) return;
     
+    // Add rate limiting check
+    const now = Date.now();
+    if (now - lastRequestTime.current < RATE_LIMIT_DELAY) {
+      Alert.alert('Please wait a moment before sending another message');
+      return;
+    }
+    lastRequestTime.current = now;
+    
     const userMessage = inputText.trim();
     setInputText('');
     Keyboard.dismiss();
@@ -439,7 +445,7 @@ export default function ChatScreen() {
       
       // Update chat history for context
       const updatedHistory = [
-        ...chatHistory,
+        ...chatHistory.slice(-MAX_HISTORY_MESSAGES),
         { role: "user", parts: [{ text: userMessage }] }
       ];
       setChatHistory(updatedHistory);
