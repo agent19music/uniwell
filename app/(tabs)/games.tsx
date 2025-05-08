@@ -34,6 +34,7 @@ export default function GamesScreen() {
   const [selectedSound, setSelectedSound] = useState<string | null>(null);
   const [sound, setSound] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isBreathingFullscreen, setIsBreathingFullscreen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -211,11 +212,38 @@ export default function GamesScreen() {
         </View>
 
         {/* Breathing Exercises */}
-        <View style={[styles.section, isDark && styles.darkCard]}>
+        <View style={[styles.section, isDark && styles.darkCard, styles.breathingSection]}>
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Breathing Exercises</Text>
-          <BreathingExercise />
+          <Text style={[styles.sectionDescription, isDark && styles.darkSubText]}>
+            Practice guided breathing to reduce stress and promote relaxation
+          </Text>
+          <View style={styles.breathingWidget}>
+            <TouchableOpacity 
+              style={[styles.breathingWidgetButton, { backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5' }]}
+              onPress={() => setIsBreathingFullscreen(true)}
+            >
+              <Ionicons name="fitness-outline" size={24} color="#4A90E2" />
+              <Text style={[styles.breathingWidgetText, isDark && styles.darkText]}>Start Breathing Exercise</Text>
+              <Ionicons name="chevron-forward" size={20} color="#4A90E2" />
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
+
+      {/* Fullscreen Breathing Exercise Modal */}
+      {isBreathingFullscreen && (
+        <View style={styles.fullscreenModal}>
+          <View style={styles.fullscreenHeader}>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setIsBreathingFullscreen(false)}
+            >
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <BreathingExercise onComplete={() => setIsBreathingFullscreen(false)} />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -273,6 +301,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#333',
+    marginBottom: 8,
+    fontFamily: 'Vercetti-Regular',
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#666',
     marginBottom: 16,
     fontFamily: 'Vercetti-Regular',
   },
@@ -346,5 +380,54 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#FF7F50',
     marginTop: 4,
+  },
+  breathingSection: {
+    minHeight: 200,
+    padding: 20,
+  },
+  breathingWidget: {
+    marginTop: 16,
+  },
+  breathingWidgetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+  },
+  breathingWidgetText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+  },
+  fullscreenModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#000',
+    zIndex: 1000,
+  },
+  fullscreenHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    zIndex: 1001,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
