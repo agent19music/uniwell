@@ -25,9 +25,8 @@ import Reanimated, {
   interpolateColor 
 } from 'react-native-reanimated';
 import { useEvent } from 'expo';
-import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import * as FileSystem from 'expo-file-system';
 
 const { width, height } = Dimensions.get('window');
 
@@ -81,8 +80,6 @@ interface BreathingExerciseProps {
 
 export default function BreathingExercise({ onComplete }: BreathingExerciseProps) {
   const router = useRouter();
-  const navigation = useNavigation();
-  const params = useLocalSearchParams();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   
@@ -115,53 +112,11 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
   const totalDuration = useRef(0);
   const phaseTimings = useRef<number[]>([]);
   const currentPhaseIndex = useRef(0);
-
-  // Video caching setup
-  const [videoUri, setVideoUri] = useState<string | null>(null);
-  const videoSource = "https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/gradientvideobglong.mp4";
-  const videoCacheKey = 'breathing_exercise_background.mp4';
-  const videoCachePath = `${FileSystem.cacheDirectory}${videoCacheKey}`;
-
-  // Handle video caching
-  useEffect(() => {
-    const cacheVideo = async () => {
-      try {
-        // Check if video is already cached
-        const fileInfo = await FileSystem.getInfoAsync(videoCachePath);
-        
-        if (fileInfo.exists) {
-          setVideoUri(videoCachePath);
-          return;
-        }
-
-        // Download and cache the video
-        const downloadResult = await FileSystem.downloadAsync(
-          videoSource,
-          videoCachePath
-        );
-
-        if (downloadResult.status === 200) {
-          setVideoUri(downloadResult.uri);
-        } else {
-          // Fallback to remote URL if download fails
-          setVideoUri(videoSource);
-        }
-      } catch (error) {
-        console.error('Error caching video:', error);
-        // Fallback to remote URL
-        setVideoUri(videoSource);
-      }
-    };
-
-    cacheVideo();
-  }, []);
-
-  // Video player setup with cached video
-  const videoPlayer = useVideoPlayer(videoUri || videoSource, player => {
-    if (player) {
-      player.loop = true;
-      player.play();
-    }
+  // Update the video player setup with loop functionality
+  const videoSource = "https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/gradientvideobglong.mp4"
+  const videoPlayer = useVideoPlayer(videoSource, player => {
+    player.loop = true;
+    player.play();
   });
 
   // Add video playing state tracking
@@ -169,7 +124,78 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
     isPlaying: videoPlayer?.playing ?? false 
   });
 
+  useEffect(() => {
+    setupAudio();
+    startPulseAnimation();
+    
+    // Video player is now configured in the initialization callback
+    
+    return () => {
+      cleanupAudio();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      // No need to explicitly stop video as it will be cleaned up automatically
+    };
+  }, []);
+
+  const setupAudio = async () => {
+    try {
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        shouldRouteThroughEarpiece: false,
+        interruptionMode: 'mixWithOthers',
+        interruptionModeAndroid: 'duckOthers'
+      });
+    } catch (error) {
+      console.error('Error setting up audio:', error);
+    }
+  };
+
+  const cleanupAudio = async () => {
+    if (sound) {
+      try {
+        if (sound.remove) {
+          sound.remove();
+        }
+      } catch (error) {
+        console.error('Error cleaning up audio:', error);
+      }
+    }
+  };
+
+  // Start subtle pulse animation for background
+  const startPulseAnimation = () => {
+    pulseAnimation.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1, // Infinite repeat
+      true // Reverse
+    );
+  };
+
   // Animated styles using Reanimated
+  const animatedBackgroundStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      colorAnimation.value,
+      [0, 0.5, 1],
+      [
+        selectedPattern.colors[0],
+        selectedPattern.colors[1],
+        selectedPattern.colors[0]
+      ]
+    );
+    
+    return {
+      backgroundColor,
+      transform: [{ scale: pulseAnimation.value }]
+    };
+  });
+
   const animatedWidgetStyle = useAnimatedStyle(() => {
     return {
       width: withTiming(widgetExpansion.value ? 280 : 200, { 
@@ -183,11 +209,23 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
     };
   });
 
-  const formatTime = (ms: number) => {
-    const seconds = Math.ceil(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  const playBreathingCue = async (phase: 'inhale' | 'hold' | 'exhale' | 'holdEnd') => {
+    if (isMuted) return;
+    
+    try {
+      const soundFile = phase === 'inhale' 
+        ? require('../assets/sounds/inhale.mp3') 
+        : phase === 'exhale'
+          ? require('../assets/sounds/exhale.mp3')
+          : require('../assets/sounds/hold.mp3');
+          
+      // Create and play the sound using expo-audio
+      const newSound = createAudioPlayer(soundFile);
+      setSound(newSound);
+      newSound.play();
+    } catch (error) {
+      console.error('Error playing breathing cue:', error);
+    }
   };
 
   const startBreathing = (pattern = selectedPattern) => {
@@ -224,178 +262,6 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
     // Start timer
     startTimer();
   };
-
-  const pauseBreathing = () => {
-    setIsPaused(true);
-    breathAnimation.stopAnimation();
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-  };
-
-  const resumeBreathing = () => {
-    setIsPaused(false);
-    startPhase(currentPhase);
-    startTimer();
-  };
-
-  const handleEndSession = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    setIsActive(false);
-    setCurrentPhase('inhale');
-    onComplete?.();
-  };
-
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-    if (sound) {
-      sound.volume = isMuted ? 1 : 0;
-    }
-  };
-
-  const toggleHaptic = () => {
-    setHapticEnabled(!hapticEnabled);
-    if (hapticEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  };
-
-  // Improved navigation handling
-  const handleBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      router.replace('/games');
-    }
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanupAudio();
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      if (videoPlayer) {
-        videoPlayer.pause();
-      }
-    };
-  }, []);
-
-  const cleanupAudio = async () => {
-    if (sound) {
-      try {
-        if (sound.remove) {
-          sound.remove();
-        }
-      } catch (error) {
-        console.error('Error cleaning up audio:', error);
-      }
-    }
-  };
-
-  const getPhaseIcon = () => {
-    switch (currentPhase) {
-      case 'inhale':
-        return 'arrow-up-outline';
-      case 'hold':
-        return 'pause-outline';
-      case 'exhale':
-        return 'arrow-down-outline';
-      case 'holdEnd':
-        return 'pause-outline';
-      default:
-        return 'pulse-outline';
-    }
-  };
-
-  const getPhaseLabel = () => {
-    switch (currentPhase) {
-      case 'inhale':
-        return 'Inhale';
-      case 'hold':
-        return 'Hold';
-      case 'exhale':
-        return 'Exhale';
-      case 'holdEnd':
-        return 'Hold';
-      default:
-        return 'Breathe';
-    }
-  };
-
-  const renderTimerWidget = () => (
-    <Reanimated.View
-      style={[
-        styles.timerWidget, 
-        isDark && styles.darkTimerWidget,
-        animatedWidgetStyle
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.timerContent}
-        onPress={() => {
-          widgetExpansion.value = widgetExpansion.value ? 0 : 1;
-          setShowControls(!showControls);
-        }}
-      >
-        <Ionicons name={getPhaseIcon()} size={18} color={selectedPattern.colors[0]} style={styles.phaseIcon} />
-        <Text style={[styles.timerText, isDark && styles.darkText]}>
-          {isActive ? getPhaseLabel() : 'Tap to Start'}
-        </Text>
-        <Text style={[styles.timerDigits, { color: selectedPattern.colors[0] }]}>
-          {formatTime(remainingTime)}
-        </Text>
-      </TouchableOpacity>
-
-      {showControls && (
-        <View style={styles.controls}>
-          {isActive ? (
-            <View style={styles.controlRow}>
-              {isPaused ? (
-                <TouchableOpacity onPress={resumeBreathing} style={styles.controlButton}>
-                  <Ionicons name="play" size={22} color={selectedPattern.colors[0]} />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity onPress={pauseBreathing} style={styles.controlButton}>
-                  <Ionicons name="pause" size={22} color={selectedPattern.colors[0]} />
-                </TouchableOpacity>
-              )}
-              
-              <TouchableOpacity onPress={handleEndSession} style={styles.controlButton}>
-                <Ionicons name="close-circle-outline" size={22} color={selectedPattern.colors[0]} />
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={toggleMute} style={styles.controlButton}>
-                <Ionicons
-                  name={isMuted ? 'volume-mute' : 'volume-high'}
-                  size={22}
-                  color={selectedPattern.colors[0]}
-                />
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={toggleHaptic} style={styles.controlButton}>
-                <Ionicons
-                  name={hapticEnabled ? 'fitness-outline' : 'fitness-sharp'}
-                  size={22}
-                  color={selectedPattern.colors[0]}
-                />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={[styles.startButton, { backgroundColor: selectedPattern.colors[0] }]}
-              onPress={() => startBreathing()}
-            >
-              <Text style={styles.startButtonText}>Begin Exercise</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-    </Reanimated.View>
-  );
 
   const startPhase = (phase: 'inhale' | 'hold' | 'exhale' | 'holdEnd') => {
     setCurrentPhase(phase);
@@ -506,35 +372,161 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
     }, 1000) as unknown as NodeJS.Timeout;
   };
 
-  const playBreathingCue = async (phase: 'inhale' | 'hold' | 'exhale' | 'holdEnd') => {
-    if (isMuted) return;
-    
-    try {
-      const soundFile = phase === 'inhale' 
-        ? require('../assets/sounds/inhale.mp3') 
-        : phase === 'exhale'
-          ? require('../assets/sounds/exhale.mp3')
-          : require('../assets/sounds/hold.mp3');
-          
-      // Create and play the sound using expo-audio
-      const newSound = createAudioPlayer(soundFile);
-      setSound(newSound);
-      newSound.play();
-    } catch (error) {
-      console.error('Error playing breathing cue:', error);
+  const pauseBreathing = () => {
+    setIsPaused(true);
+    breathAnimation.stopAnimation();
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
     }
   };
 
+  const resumeBreathing = () => {
+    setIsPaused(false);
+    startPhase(currentPhase);
+    startTimer();
+  };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    if (sound) {
+      sound.volume = isMuted ? 1 : 0;
+    }
+  };
+
+  const toggleHaptic = () => {
+    setHapticEnabled(!hapticEnabled);
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  };
+
+  const formatTime = (ms: number) => {
+    const seconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const getPhaseLabel = () => {
+    switch (currentPhase) {
+      case 'inhale':
+        return 'Inhale';
+      case 'hold':
+        return 'Hold';
+      case 'exhale':
+        return 'Exhale';
+      case 'holdEnd':
+        return 'Hold';
+      default:
+        return 'Breathe';
+    }
+  };
+
+  const getPhaseIcon = () => {
+    switch (currentPhase) {
+      case 'inhale':
+        return 'arrow-up-outline';
+      case 'hold':
+        return 'pause-outline';
+      case 'exhale':
+        return 'arrow-down-outline';
+      case 'holdEnd':
+        return 'pause-outline';
+      default:
+        return 'pulse-outline';
+    }
+  };
+
+  const handleEndSession = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    setIsActive(false);
+    setCurrentPhase('inhale');
+    onComplete?.();
+  };
+
+  const renderTimerWidget = () => (
+    <Reanimated.View
+      style={[
+        styles.timerWidget, 
+        isDark && styles.darkTimerWidget,
+        animatedWidgetStyle
+      ]}
+    >
+      <TouchableOpacity
+        style={styles.timerContent}
+        onPress={() => {
+          widgetExpansion.value = widgetExpansion.value ? 0 : 1;
+          setShowControls(!showControls);
+        }}
+      >
+        <Ionicons name={getPhaseIcon()} size={18} color={selectedPattern.colors[0]} style={styles.phaseIcon} />
+        <Text style={[styles.timerText, isDark && styles.darkText]}>
+          {isActive ? getPhaseLabel() : 'Tap to Start'}
+        </Text>
+        <Text style={[styles.timerDigits, { color: selectedPattern.colors[0] }]}>
+          {formatTime(remainingTime)}
+        </Text>
+      </TouchableOpacity>
+
+      {showControls && (
+        <View style={styles.controls}>
+          {isActive ? (
+            <View style={styles.controlRow}>
+              {isPaused ? (
+                <TouchableOpacity onPress={resumeBreathing} style={styles.controlButton}>
+                  <Ionicons name="play" size={22} color={selectedPattern.colors[0]} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={pauseBreathing} style={styles.controlButton}>
+                  <Ionicons name="pause" size={22} color={selectedPattern.colors[0]} />
+                </TouchableOpacity>
+              )}
+              
+              <TouchableOpacity onPress={handleEndSession} style={styles.controlButton}>
+                <Ionicons name="close-circle-outline" size={22} color={selectedPattern.colors[0]} />
+              </TouchableOpacity>
+              
+              <TouchableOpacity onPress={toggleMute} style={styles.controlButton}>
+                <Ionicons
+                  name={isMuted ? 'volume-mute' : 'volume-high'}
+                  size={22}
+                  color={selectedPattern.colors[0]}
+                />
+              </TouchableOpacity>
+              
+              <TouchableOpacity onPress={toggleHaptic} style={styles.controlButton}>
+                <Ionicons
+                  name={hapticEnabled ? 'fitness-outline' : 'fitness-sharp'}
+                  size={22}
+                  color={selectedPattern.colors[0]}
+                />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.startButton, { backgroundColor: selectedPattern.colors[0] }]}
+              onPress={() => startBreathing()}
+            >
+              <Text style={styles.startButtonText}>Begin Exercise</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    </Reanimated.View>
+  );
+
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
-      <View style={styles.headerContainer}>
+      <View style={[styles.header, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
         <BlurView 
           intensity={isDark ? 40 : 60} 
           tint={isDark ? 'dark' : 'light'} 
           style={styles.headerBlur}
         >
           <View style={styles.headerContent}>
-            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#000000'} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, isDark && styles.darkText]}>Breathing Exercise</Text>
@@ -544,13 +536,11 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
       </View>
 
       <View style={styles.mainContent}>
-        {videoUri && (
-          <VideoView
-            player={videoPlayer}
-            style={styles.backgroundVideo}
-            contentFit="cover"
-          />
-        )}
+        <VideoView
+          player={videoPlayer}
+          style={styles.backgroundVideo}
+          contentFit="cover"
+        />
         <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]} />
 
         <View style={styles.content}>
@@ -654,7 +644,7 @@ const styles = StyleSheet.create({
   darkContainer: {
     backgroundColor: '#121212',
   },
-  headerContainer: {
+  header: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -664,7 +654,6 @@ const styles = StyleSheet.create({
   headerBlur: {
     flex: 1,
     paddingTop: 10,
-    backgroundColor: 'transparent',
   },
   headerContent: {
     flexDirection: 'row',
@@ -864,4 +853,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
   },
-}); 
+});

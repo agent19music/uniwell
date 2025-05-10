@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useRef, useEffect } from 'react';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
-import BreathingExercise from '@/components/BreathingExercise';
+import BreathingExercise from '@/app/BreathingExercise';
+import { useRouter } from 'expo-router';
 
 const COLORING_PALETTE = [
   { id: '1', color: '#FF69B4', name: 'Pink' },
@@ -35,6 +36,13 @@ export default function GamesScreen() {
   const [sound, setSound] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBreathingFullscreen, setIsBreathingFullscreen] = useState(false);
+  const router = useRouter(); 
+
+  const handleBreathingExercisePress = () => {
+    setIsBreathingFullscreen(false);
+    router.push('/breathing-exercise');
+  };
+
 
   useEffect(() => {
     return () => {
@@ -220,7 +228,7 @@ export default function GamesScreen() {
           <View style={styles.breathingWidget}>
             <TouchableOpacity 
               style={[styles.breathingWidgetButton, { backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5' }]}
-              onPress={() => setIsBreathingFullscreen(true)}
+              onPress={handleBreathingExercisePress}
             >
               <Ionicons name="fitness-outline" size={24} color="#4A90E2" />
               <Text style={[styles.breathingWidgetText, isDark && styles.darkText]}>Start Breathing Exercise</Text>
@@ -230,20 +238,7 @@ export default function GamesScreen() {
         </View>
       </ScrollView>
 
-      {/* Fullscreen Breathing Exercise Modal */}
-      {isBreathingFullscreen && (
-        <View style={styles.fullscreenModal}>
-          <View style={styles.fullscreenHeader}>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setIsBreathingFullscreen(false)}
-            >
-              <Ionicons name="close" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
-          <BreathingExercise onComplete={() => setIsBreathingFullscreen(false)} />
-        </View>
-      )}
+     
     </SafeAreaView>
   );
 }

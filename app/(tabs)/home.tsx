@@ -111,7 +111,7 @@ export default function HomeScreen() {
   };
 
   const handleChatCardPress = () => {
-    router.push('/chat');
+    router.push('/chatUI');
   };
 
   useEffect(() => {
