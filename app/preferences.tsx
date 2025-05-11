@@ -19,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import * as burnt from 'burnt';
 import { LinearGradient } from 'expo-linear-gradient';
 import Octicons from '@expo/vector-icons/Octicons';
+import ProgressArchive from '../components/ProgressArchive';
 
 interface SettingItemProps {
   icon: string;
@@ -36,7 +37,7 @@ const SettingItem = ({ icon, title, subtitle, value, onPress, isDark, type = 'na
     onPress={onPress}
   >
     <View style={styles.settingIcon}>
-      <Ionicons name={icon} size={24} color="#FF7F50" />
+      <Ionicons name={icon as any} size={24} color="#FF7F50" />
     </View>
     <View style={styles.settingContent}>
       <Text style={[styles.settingTitle, isDark && styles.darkText]}>{title}</Text>
@@ -70,6 +71,7 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [loading, setLoading] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [userData, setUserData] = useState({
     name: '',
     email: '',
@@ -82,7 +84,7 @@ export default function ProfileScreen() {
     profileCompletion: 0,
   });
   
-  const { profile, signOut, setProfile } = useAuth();
+  const { profile, signOut, setProfile, currentUser } = useAuth();
   
   const [notifications, setNotifications] = useState({
     reminders: true,
@@ -92,8 +94,10 @@ export default function ProfileScreen() {
   });
 
   useEffect(() => {
-    fetchUserData();
-  }, []);
+    if (currentUser?.id) {
+      fetchUserData();
+    }
+  }, [currentUser?.id]);
 
   async function fetchUserData() {
     setLoading(true);
@@ -309,6 +313,21 @@ export default function ProfileScreen() {
         </View>
 
         <View style={[styles.section, isDark && styles.darkSection]}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Progress</Text>
+          
+          <TouchableOpacity 
+            style={[styles.menuItem, isDark && styles.darkMenuItem]} 
+            onPress={() => setShowArchiveModal(true)}
+          >
+            <View style={styles.menuItemContent}>
+              <Ionicons name="time-outline" size={24} color={isDark ? '#ffffff' : '#333333'} />
+              <Text style={[styles.menuItemText, isDark && styles.darkText]}>View Progress Archive</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? '#ffffff' : '#333333'} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.section, isDark && styles.darkSection]}>
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Notification Preferences</Text>
           
           <View style={styles.preferenceItem}>
@@ -408,6 +427,11 @@ export default function ProfileScreen() {
           <Text style={[styles.versionText, isDark && styles.darkSubText]}>UniWell v1.0.0</Text>
         </View>
       </ScrollView>
+
+      <ProgressArchive
+        visible={showArchiveModal}
+        onClose={() => setShowArchiveModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -701,5 +725,8 @@ const styles = StyleSheet.create({
   darkCard: {
     backgroundColor: '#1e1e1e',
     borderColor: '#333333',
+  },
+  darkMenuItem: {
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
 });
