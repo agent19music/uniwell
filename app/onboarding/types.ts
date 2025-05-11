@@ -6,6 +6,7 @@ export interface OnboardingSlide {
   description: string;
   imageSource: ImageSourcePropType;
   backgroundColor: string;
+  icon?: string;
 }
 
 export interface OnboardingContextType {

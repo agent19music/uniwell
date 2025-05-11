@@ -1,52 +1,61 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet, Platform } from 'react-native';
+import { Pressable, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  withDelay,
   Easing,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 
 interface WebCTAButtonProps {
   title: string;
   onPress: () => void;
-  icon?: string;
   primary?: boolean;
-  delay?: number;
+  icon?: string;
+  delay: number;
+  style?: ViewStyle;
+  textStyle?: TextStyle;
 }
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const WebCTAButton: React.FC<WebCTAButtonProps> = ({
   title,
   onPress,
+  primary = false,
   icon,
-  primary = true,
-  delay = 0,
+  delay,
+  style,
+  textStyle,
 }) => {
-  const scale = useSharedValue(0.95);
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
+  const scale = useSharedValue(0.95);
 
   React.useEffect(() => {
-    setTimeout(() => {
-      scale.value = withTiming(1, {
-        duration: 500,
+    opacity.value = withDelay(
+      delay,
+      withTiming(1, {
+        duration: 800,
         easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      });
-      
-      opacity.value = withTiming(1, {
-        duration: 700,
+      })
+    );
+    
+    translateY.value = withDelay(
+      delay,
+      withTiming(0, {
+        duration: 800,
         easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      });
-      
-      translateY.value = withTiming(0, {
-        duration: 600,
+      })
+    );
+    
+    scale.value = withDelay(
+      delay,
+      withTiming(1, {
+        duration: 800,
         easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      });
-    }, delay);
-  }, [scale, opacity, translateY, delay]);
+      })
+    );
+  }, [delay, opacity, translateY, scale]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -59,79 +68,84 @@ const WebCTAButton: React.FC<WebCTAButtonProps> = ({
   });
 
   const handlePressIn = () => {
-    scale.value = withTiming(0.97, { duration: 150 });
+    scale.value = withTiming(0.97, { duration: 200 });
   };
 
   const handlePressOut = () => {
-    scale.value = withTiming(1, { duration: 150 });
+    scale.value = withTiming(1, { duration: 200 });
   };
 
   return (
-    <AnimatedPressable
-      style={[
-        styles.button,
-        primary ? styles.primaryButton : styles.secondaryButton,
-        animatedStyle,
-      ]}
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-    >
-      {icon && (
-        <Ionicons
-          name={icon as any}
-          size={20}
-          color={primary ? 'white' : '#304FFE'}
-          style={styles.icon}
-        />
-      )}
-      <Text style={[styles.text, primary ? styles.primaryText : styles.secondaryText]}>
-        {title}
-      </Text>
-    </AnimatedPressable>
+    <Animated.View style={[animatedStyle]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={({ pressed }) => [
+          styles.container,
+          primary ? styles.primaryContainer : styles.secondaryContainer,
+          {
+            transform: [
+              { scale: pressed ? 0.98 : 1 },
+            ],
+          },
+          style,
+        ]}
+      >
+        <Text
+          style={[
+            styles.text,
+            primary ? styles.primaryText : styles.secondaryText,
+            textStyle,
+          ]}
+        >
+          {title}
+          {icon && <Text style={styles.icon}> {icon === 'arrow-forward' ? '→' : icon}</Text>}
+        </Text>
+      </Pressable>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
-  button: {
-    flexDirection: 'row',
+  container: {
+    minWidth: 180,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 100,
-    minWidth: 160,
-    margin: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    flexDirection: 'row',
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
     shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
+    elevation: 5,
   },
-  primaryButton: {
-    backgroundColor: '#304FFE',
+  primaryContainer: {
+    backgroundColor: '#212121',
   },
-  secondaryButton: {
+  secondaryContainer: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#304FFE',
+    borderColor: '#212121',
   },
   text: {
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    fontFamily: 'SF-Regular',
   },
   primaryText: {
-    color: 'white',
+    color: '#FFFFFF',
   },
   secondaryText: {
-    color: '#304FFE',
+    color: '#212121',
   },
   icon: {
-    marginRight: 8,
+    marginLeft: 8,
+    fontSize: 18,
   },
 });
 
-export default WebCTAButton; 
+export default WebCTAButton;

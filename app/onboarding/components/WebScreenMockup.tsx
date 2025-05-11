@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, Text, StyleSheet, ImageSourcePropType, Pressable } from 'react-native';
+import { View, Image, Text, StyleSheet, Pressable, ImageSourcePropType } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -15,6 +15,7 @@ interface WebScreenMockupProps {
   backgroundColor: string;
   delay: number;
   index: number;
+  isActive?: boolean;
 }
 
 const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
@@ -24,10 +25,48 @@ const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
   backgroundColor,
   delay,
   index,
+  isActive = false,
 }) => {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(50);
   const scale = useSharedValue(0.95);
+
+  // Sample images based on the inspo design
+  const demoImages: ImageSourcePropType[] = [
+    { uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/caregiverillustration-removebg.png' },
+    { uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/communityillustration-removebg.png' },
+    { uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/productivityillustration-removebg.png' },
+    {uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/selfcareillustration-removebg.png' },
+  ];
+
+  // Sample content based on the inspo design
+  interface DemoContent {
+    title: string;
+    description: string;
+  }
+  
+  const demoContent: DemoContent[] = [
+    {
+      title: 'Proffessional Support',
+    description: 'Book counseling appointments, browse mental health resources, and access crisis support when you need it most.',
+    },
+    {
+      title: 'Join the Community',
+      description: 'Connect with peers through discussion forums, group activities, and anonymous sharing in a supportive environment.'
+    },
+    {
+      title: 'Self-Help Resources',
+      description: 'Access personalized resources like podcasts, articles, and videos to support your mental health journey.'
+    },
+    {
+      title: 'Boost Your Productivity',
+      description: 'Stay on track with study timers, focus sessions, and goal tracking tools designed specifically for students.'
+    }
+  ];
+
+  // Use the demo content based on index
+  const currentTitle = demoContent[index]?.title || title;
+  const currentDescription = demoContent[index]?.description || description;
 
   // Animate mockup entrance
   React.useEffect(() => {
@@ -76,24 +115,59 @@ const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
 
   return (
     <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut}>
-      <Animated.View style={[styles.container, animatedStyle, { backgroundColor }]}>
+      <Animated.View 
+        style={[
+          styles.container, 
+          animatedStyle, 
+          { backgroundColor }
+        ]}
+      >
         <View style={styles.mockupHeader}>
           <View style={styles.statusBar}>
-            <View style={styles.statusBarIndicator} />
+            <Text style={styles.statusText}>{index + 1} of 4</Text>
+            <Text style={styles.skipText}>Skip</Text>
           </View>
         </View>
         
         <View style={styles.contentContainer}>
-          <Image source={imageSource} style={styles.image} />
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.description}>{description}</Text>
+          <View style={styles.illustrationContainer}>
+            {/* Rendering the image similar to the inspo screenshot */}
+            <Image 
+              source={demoImages[index] || imageSource} 
+              style={styles.image} 
+              resizeMode="contain"
+            />
+          </View>
+          
+          <View style={styles.textContainer}>
+            <Text style={styles.title}>{currentTitle}</Text>
+            <Text style={styles.description}>{currentDescription}</Text>
+          </View>
         </View>
         
-        <View style={styles.indicatorContainer}>
-          <View style={[styles.indicator, index === 0 && styles.activeIndicator]} />
-          <View style={[styles.indicator, index === 1 && styles.activeIndicator]} />
-          <View style={[styles.indicator, index === 2 && styles.activeIndicator]} />
-          <View style={[styles.indicator, index === 3 && styles.activeIndicator]} />
+        <View style={styles.footer}>
+          <View style={styles.indicatorContainer}>
+            <View style={[styles.indicator, index === 0 && styles.activeIndicator]} />
+            <View style={[styles.indicator, index === 1 && styles.activeIndicator]} />
+            <View style={[styles.indicator, index === 2 && styles.activeIndicator]} />
+            <View style={[styles.indicator, index === 3 && styles.activeIndicator]} />
+          </View>
+          
+          {index === 3 && (
+            <View style={styles.buttonContainer}>
+              <View style={styles.getStartedButton}>
+                <Text style={styles.buttonText}>Let's Get Started</Text>
+              </View>
+            </View>
+          )}
+          
+          {index !== 3 && (
+            <View style={styles.buttonContainer}>
+              <View style={styles.nextButton}>
+                <Text style={styles.nextButtonText}>→</Text>
+              </View>
+            </View>
+          )}
         </View>
       </Animated.View>
     </Pressable>
@@ -102,39 +176,39 @@ const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    width: 240,
-    height: 480,
-    borderRadius: 30,
+    width: 280,
+    height: 580,
+    borderRadius: 40,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 10,
     },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 10,
-    margin: 10,
   },
   mockupHeader: {
-    height: 50,
+    height: 60,
     width: '100%',
-    alignItems: 'center',
-    paddingTop: 10,
+    paddingHorizontal: 20,
+    paddingTop: 15,
   },
   statusBar: {
-    width: 120,
-    height: 25,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 20,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  statusBarIndicator: {
-    width: 40,
-    height: 5,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderRadius: 3,
+  statusText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  skipText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    opacity: 0.8,
   },
   contentContainer: {
     flex: 1,
@@ -142,43 +216,89 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  illustrationContainer: {
+    width: '100%',
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 40,
+  },
   image: {
-    width: 150,
-    height: 150,
-    resizeMode: 'contain',
-    marginBottom: 20,
+    width: 200,
+    height: 200,
+  },
+  textContainer: {
+    width: '100%',
+    alignItems: 'center',
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 10,
-    color: '#333',
+    marginBottom: 16,
+    color: '#FFFFFF',
+    fontFamily: 'SF-Regular',
   },
   description: {
     fontSize: 14,
     textAlign: 'center',
-    color: '#555',
+    color: '#FFFFFF',
+    opacity: 0.8,
     lineHeight: 20,
+    fontFamily: 'SF-Regular',
+  },
+  footer: {
+    height: 100,
+    width: '100%',
+    paddingHorizontal: 20,
+    alignItems: 'center',
   },
   indicatorContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     height: 40,
-    marginBottom: 20,
   },
   indicator: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     marginHorizontal: 4,
   },
   activeIndicator: {
-    width: 20,
-    backgroundColor: '#304FFE',
+    width: 24,
+    backgroundColor: '#FFFFFF',
+  },
+  buttonContainer: {
+    paddingTop: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  nextButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nextButtonText: {
+    fontSize: 20,
+    color: '#212121',
+    fontWeight: '600',
+  },
+  getStartedButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+  },
+  buttonText: {
+    fontSize: 16,
+    color: '#212121',
+    fontWeight: '600',
   },
 });
 
-export default WebScreenMockup; 
+export default WebScreenMockup;
