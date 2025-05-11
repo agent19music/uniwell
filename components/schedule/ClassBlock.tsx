@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, Modal, TouchableOpacity, ViewProps } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, Modal, TouchableOpacity, ViewProps, Dimensions } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -31,6 +31,9 @@ export interface ClassInfo {
     const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
     const blockRef = useRef<View>(null);
     const scaleAnim = useRef(new Animated.Value(1)).current;
+    const menuScaleAnim = useRef(new Animated.Value(0.9)).current;
+    const menuOpacityAnim = useRef(new Animated.Value(0)).current;
+    const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
     
     const handleLongPress = () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -49,11 +52,50 @@ export interface ClassInfo {
       ]).start();
       
       blockRef.current?.measure((fx, fy, width, height, px, py) => {
-        setMenuPosition({ 
-          x: px + width - 150,
-          y: py - 10
-        });
+        // Calculate initial position
+        let x = px + width - 150; // Menu width is 180, offset by 30
+        let y = py - 10;
+        
+        // Ensure menu stays within screen bounds
+        if (x < 10) x = 10;
+        if (x + 180 > screenWidth) x = screenWidth - 190;
+        if (y < 10) y = 10;
+        if (y + 200 > screenHeight) y = screenHeight - 210;
+        
+        setMenuPosition({ x, y });
         setMenuVisible(true);
+        
+        // Animate menu appearance
+        Animated.parallel([
+          Animated.spring(menuScaleAnim, {
+            toValue: 1,
+            friction: 7,
+            tension: 40,
+            useNativeDriver: true,
+          }),
+          Animated.timing(menuOpacityAnim, {
+            toValue: 1,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    };
+  
+    const handleMenuClose = () => {
+      Animated.parallel([
+        Animated.timing(menuScaleAnim, {
+          toValue: 0.9,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(menuOpacityAnim, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setMenuVisible(false);
       });
     };
   
@@ -121,27 +163,29 @@ export interface ClassInfo {
         <Modal
           transparent={true}
           visible={menuVisible}
-          animationType="fade"
-          onRequestClose={() => setMenuVisible(false)}
+          animationType="none"
+          onRequestClose={handleMenuClose}
         >
           <Pressable
             style={styles.modalOverlay}
-            onPress={() => setMenuVisible(false)}
+            onPress={handleMenuClose}
           >
-            <View 
+            <Animated.View 
               style={[
                 styles.contextMenu, 
                 isDark && styles.darkContextMenu,
                 {
                   left: menuPosition.x,
                   top: menuPosition.y,
+                  opacity: menuOpacityAnim,
+                  transform: [{ scale: menuScaleAnim }],
                 }
               ]}
             >
               <TouchableOpacity 
                 style={styles.menuItem} 
                 onPress={() => {
-                  setMenuVisible(false);
+                  handleMenuClose();
                   onEdit(classInfo);
                 }}
               >
@@ -154,7 +198,7 @@ export interface ClassInfo {
               <TouchableOpacity 
                 style={styles.menuItem}
                 onPress={() => {
-                  setMenuVisible(false);
+                  handleMenuClose();
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 }}
               >
@@ -167,14 +211,14 @@ export interface ClassInfo {
               <TouchableOpacity 
                 style={styles.menuItem}
                 onPress={() => {
-                  setMenuVisible(false);
+                  handleMenuClose();
                   onDelete(classInfo.id);
                 }}
               >
                 <Feather name="trash-2" size={18} color={isDark ? '#FF453A' : '#FF3B30'} />
                 <Text style={styles.deleteText}>Delete</Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           </Pressable>
         </Modal>
       </>
