@@ -519,21 +519,7 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
-      <View style={[styles.header, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
-        <BlurView 
-          intensity={isDark ? 40 : 60} 
-          tint={isDark ? 'dark' : 'light'} 
-          style={styles.headerBlur}
-        >
-          <View style={styles.headerContent}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#000000'} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, isDark && styles.darkText]}>Breathing Exercise</Text>
-            <View style={styles.headerRight} />
-          </View>
-        </BlurView>
-      </View>
+      
 
       <View style={styles.mainContent}>
         <VideoView
