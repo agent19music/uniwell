@@ -66,7 +66,6 @@ export default function UserSelectionScreen() {
 
       if (error) throw error;
       
-      router.push('/routines');
     } catch (error) {
       console.error('Error signing in:', (error as Error).message);
       Alert.alert(
