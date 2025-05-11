@@ -26,6 +26,7 @@ import ResourceDetail from '@/components/ResourceDetail';
 import LibraryFilter from '../components/LibraryFilter';
 import ResourceCard from '../components/ResourceCard';
 import FeaturedCard from '../components/FeaturedCard';
+import InterestSelectionModal from '../components/InterestSelectionModal';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -62,7 +63,12 @@ const CONTENT_CATEGORIES = [
   { id: 'trending', label: 'Trending Now' },
   { id: 'new', label: 'New Additions' },
   { id: 'saved', label: 'Saved Items' },
+  { id: 'academic', label: 'Academic Success' },
+  { id: 'career', label: 'Career Development' },
+  { id: 'wellness', label: 'Student Wellness' },
 ];
+
+// Expanded interest categories for university students
 
 export default function LibraryScreen() {
   const router = useRouter();
@@ -79,6 +85,8 @@ export default function LibraryScreen() {
   const [categories, setCategories] = useState<{id: string, name: string, color: string}[]>([]);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [showInterestModal, setShowInterestModal] = useState(false);
+  const [hasInterests, setHasInterests] = useState(false);
   
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = scrollY.interpolate({
@@ -117,10 +125,13 @@ export default function LibraryScreen() {
           .select('interests, saved_resources')
           .eq('id', user.id)
           .single();
+
+          console.log(profileData);
           
         if (profileData) {
           setUserPreferences(profileData.interests || []);
           setSavedResources(profileData.saved_resources || []);
+          setHasInterests(profileData.interests?.length > 0);
         }
       }
     } catch (error) {
@@ -196,6 +207,12 @@ export default function LibraryScreen() {
     }
   };
 
+  const handleInterestsUpdated = useCallback((newInterests: string[]) => {
+    setUserPreferences(newInterests);
+    setHasInterests(newInterests.length > 0);
+    fetchResources(); // Refetch resources with new interests
+  }, []);
+
   const personalizeResources = (allResources: Resource[]) => {
     // Get streak titles for recommendation matching
     const userStreakTitles = streaks.map(streak => streak.title.toLowerCase());
@@ -221,6 +238,12 @@ export default function LibraryScreen() {
       
       // Boost featured content
       if (resource.isFeatured) score += 2;
+      
+      // Boost content that matches multiple interests
+      const matchingInterests = resource.tags.filter(tagId => 
+        userPreferences.includes(tagId)
+      ).length;
+      score += matchingInterests * 0.5;
       
       return { ...resource, relevanceScore: score };
     });
@@ -307,12 +330,13 @@ export default function LibraryScreen() {
     
     return (
       <FeaturedCard
+        key={item.id}
         id={item.id}
         title={item.title}
         description={item.description}
         imageUrl={item.imageUrl}
         type={item.type}
-        onPress={handleResourcePress}
+        onPress={() => handleResourcePress(item.id)}
       />
     );
   }, [handleResourcePress]);
@@ -355,30 +379,50 @@ export default function LibraryScreen() {
   ), [selectedCategory, isDark]);
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
-      <Animated.View 
-        style={[
-          styles.header, 
-          { 
-            height: headerHeight,
-            opacity: headerOpacity,
-            backgroundColor: isDark ? '#121212' : '#ffffff'
-          }
-        ]}
-      >
+    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+      <Animated.View style={[styles.header, { height: headerHeight }]}>
         <BlurView 
           intensity={isDark ? 40 : 60} 
           tint={isDark ? 'dark' : 'light'} 
           style={styles.headerBlur}
         >
           <View style={styles.headerContent}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#000000'} />
+            <TouchableOpacity 
+              onPress={() => router.back()} 
+              style={styles.backButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons 
+                name="chevron-back" 
+                size={28} 
+                color={isDark ? '#ffffff' : '#000000'} 
+              />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, isDark && styles.darkText]}>Library</Text>
-            <TouchableOpacity onPress={() => router.push('/search')} style={styles.searchButton}>
-              <Ionicons name="search" size={24} color={isDark ? '#ffffff' : '#000000'} />
-            </TouchableOpacity>
+            <View style={styles.headerRight}>
+              <TouchableOpacity 
+                onPress={() => setShowInterestModal(true)} 
+                style={styles.interestButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons 
+                  name="options-outline" 
+                  size={24} 
+                  color={isDark ? '#ffffff' : '#000000'} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => router.push('/search')} 
+                style={styles.searchButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons 
+                  name="search" 
+                  size={24} 
+                  color={isDark ? '#ffffff' : '#000000'} 
+                />
+              </TouchableOpacity>
+            </View>
           </View>
           
           <LibraryFilter
@@ -402,41 +446,56 @@ export default function LibraryScreen() {
           data={getFilteredResources()}
           renderItem={renderResourceCard}
           keyExtractor={item => item.id}
-          showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <>
-              {/* Featured Carousel */}
-              {selectedCategory === 'featured' && resources.some(r => r.isFeatured) && (
+              {selectedCategory === 'featured' && (
                 <View style={styles.featuredSection}>
                   <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
                     Featured For You
                   </Text>
-                  <FlatList
-                    data={resources.filter(r => r.isFeatured)}
-                    renderItem={renderFeaturedItem}
-                    keyExtractor={item => `featured-${item.id}`}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    decelerationRate="fast"
-                    snapToInterval={width * 0.7 + 16}
-                    contentContainerStyle={styles.featuredList}
-                  />
-                </View>
-              )}
-              
-              {/* Streak-based Recommendations */}
-              {streaks.length > 0 && selectedCategory === 'streak-related' && (
-                <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-                    Based on your {streaks[0]?.title} streak
-                  </Text>
                   <Text style={[styles.sectionSubtitle, isDark && styles.darkSubText]}>
-                    Resources to help you maintain your momentum
+                    Personalized recommendations based on your interests
                   </Text>
+                  {!hasInterests ? (
+                    <View style={styles.emptyState}>
+                      <Ionicons name="library-outline" size={80} color={isDark ? '#444444' : '#CCCCCC'} />
+                      <Text style={[styles.emptyStateText, isDark && styles.darkText]}>
+                        Personalize Your Library
+                      </Text>
+                      <Text style={[styles.emptyStateSubText, isDark && styles.darkSubText]}>
+                        Select your interests to get personalized recommendations
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.interestButton, styles.primaryButton]}
+                        onPress={() => setShowInterestModal(true)}
+                      >
+                        <Text style={styles.primaryButtonText}>Select Interests</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.featuredList}
+                      contentContainerStyle={styles.featuredListContent}
+                    >
+                      {resources
+                        .filter(r => r.isFeatured)
+                        .map(resource => (
+                          <FeaturedCard
+                            key={resource.id}
+                            id={resource.id}
+                            title={resource.title}
+                            description={resource.description}
+                            imageUrl={resource.imageUrl}
+                            type={resource.type}
+                            onPress={() => handleResourcePress(resource.id)}
+                          />
+                        ))}
+                    </ScrollView>
+                  )}
                 </View>
               )}
-              
-              {/* Section Title */}
               <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
                 {selectedCategory === 'saved' ? 'Your Saved Items' : 'Resources'}
               </Text>
@@ -477,6 +536,14 @@ export default function LibraryScreen() {
           />
         )}
       </Modal>
+
+      {/* Interest Selection Modal */}
+      <InterestSelectionModal
+        visible={showInterestModal}
+        onClose={() => setShowInterestModal(false)}
+        onInterestsUpdated={handleInterestsUpdated}
+        initialInterests={userPreferences}
+      />
     </SafeAreaView>
   );
 }
@@ -511,8 +578,8 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#000000',
   },
   darkText: {
@@ -524,6 +591,14 @@ const styles = StyleSheet.create({
   searchButton: {
     padding: 8,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  interestButton: {
+    padding: 8,
+    marginRight: 8,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -534,6 +609,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     textAlign: 'center',
+    fontWeight: '500',
   },
   resourceList: {
     flex: 1,
@@ -547,37 +623,69 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '700',
     marginBottom: 8,
+    color: '#000000',
   },
   sectionSubtitle: {
     fontSize: 16,
     marginBottom: 16,
     color: '#666666',
+    fontWeight: '500',
   },
   featuredSection: {
-    marginBottom: 24,
+    marginBottom: 32,
   },
   featuredList: {
     paddingRight: 8,
+  },
+  featuredListContent: {
+    paddingLeft: 4,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
-    marginTop: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 24,
+    marginTop: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   emptyStateText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '700',
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: 24,
+    color: '#000000',
   },
   emptyStateSubText: {
-    fontSize: 14,
+    fontSize: 16,
     textAlign: 'center',
     marginTop: 8,
     color: '#666666',
+    fontWeight: '500',
+  },
+  primaryButton: {
+    backgroundColor: '#FF7F50',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 16,
+    marginTop: 24,
+    shadowColor: '#FF7F50',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '600',
   },
 }); 
