@@ -16,6 +16,7 @@ import { useRoutine } from '@/contexts/RoutineContext';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { BlurView } from 'expo-blur';
+import { TimePickerInteraction } from '@/components/TimePickerInteraction';
 
 interface AddStreakModalProps {
   visible: boolean;
@@ -32,7 +33,6 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
   const [startDate, setStartDate] = useState(new Date());
   const [startTime, setStartTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -82,19 +82,6 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setStartDate(selectedDate);
-      if (Platform.OS === 'android') {
-        setShowTimePicker(true);
-      }
-    }
-  };
-
-  const onTimeChange = (event: any, selectedTime?: Date) => {
-    setShowTimePicker(Platform.OS === 'ios');
-    if (selectedTime) {
-      const newDateTime = new Date(startDate);
-      newDateTime.setHours(selectedTime.getHours());
-      newDateTime.setMinutes(selectedTime.getMinutes());
-      setStartTime(newDateTime);
     }
   };
 
@@ -290,7 +277,7 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
               <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Start Date & Time</Text>
               <View style={styles.dateTimeContainer}>
                 <TouchableOpacity 
-                  style={[styles.dateTimeButton, isDark && styles.darkDateTimeButton]}
+                  style={[styles.dateTimeButton, styles.dateButton, isDark && styles.darkDateTimeButton, {backgroundColor: isDark ? '#2c2c2e' : '#fff'}]}
                   onPress={() => setShowDatePicker(true)}
                 >
                   <Ionicons name="calendar-outline" size={24} color={isDark ? '#fff' : '#666'} />
@@ -299,15 +286,10 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={[styles.dateTimeButton, isDark && styles.darkDateTimeButton]}
-                  onPress={() => setShowTimePicker(true)}
-                >
-                  <Ionicons name="time-outline" size={24} color={isDark ? '#fff' : '#666'} />
-                  <Text style={[styles.dateTimeText, isDark && styles.darkText]}>
-                    {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                </TouchableOpacity>
+                <TimePickerInteraction
+                  value={startTime}
+                  onChange={setStartTime}
+                />
               </View>
 
               {showDatePicker && (
@@ -317,16 +299,6 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
                   display="default"
                   onChange={onDateChange}
                   maximumDate={new Date()}
-                />
-              )}
-
-              {showTimePicker && (
-                <DateTimePicker
-                  value={startTime}
-                  mode="time"
-                  display="default"
-                  onChange={onTimeChange}
-                  is24Hour={false}
                 />
               )}
             </ScrollView>
@@ -356,6 +328,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
   },
   darkModalContent: {
     backgroundColor: '#1c1c1e',
@@ -399,10 +372,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 24,
     fontFamily: 'Vercetti-Regular',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
   },
   darkInput: {
     backgroundColor: '#2c2c2e',
     color: '#fff',
+    borderColor: '#38383A',
   },
   sectionTitle: {
     fontSize: 16,
@@ -424,12 +400,16 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
   },
   darkTypeButton: {
     backgroundColor: '#2c2c2e',
+    borderColor: '#38383A',
   },
   selectedType: {
     backgroundColor: '#FF7F50',
+    borderColor: '#FF7F50',
   },
   typeText: {
     fontSize: 16,
@@ -451,9 +431,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 16,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
   },
   darkDateTimeButton: {
     backgroundColor: '#2c2c2e',
+    borderColor: '#38383A',
   },
   dateTimeText: {
     fontSize: 16,
@@ -465,6 +448,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  dateButton: {
+    backgroundColor: 'white',
     padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
   },
 });

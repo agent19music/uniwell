@@ -19,7 +19,7 @@ import {
   ClassFrequency, 
   DayOfTheWeek
 } from '../types/TimetableTypes';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { TimePickerInteraction } from '@/components/TimePickerInteraction';
 import { Switch } from 'react-native';
 import * as burnt from 'burnt';
 import { useSemester } from '../contexts/SemesterContext';
@@ -96,20 +96,14 @@ export default function AddClassModal({
     });
   };
 
-  const handleStartTimeChange = (event: any, selectedDate?: Date) => {
-    setShowStartTimePicker(false);
-    if (selectedDate) {
-      const timeString = `${selectedDate.getHours()}:${selectedDate.getMinutes()}`;
-      setEditingData(prev => ({...prev, startTime: timeString}));
-    }
+  const handleStartTimeChange = (date: Date) => {
+    const timeString = `${date.getHours()}:${date.getMinutes()}`;
+    setEditingData(prev => ({...prev, startTime: timeString}));
   };
 
-  const handleEndTimeChange = (event: any, selectedDate?: Date) => {
-    setShowEndTimePicker(false);
-    if (selectedDate) {
-      const timeString = `${selectedDate.getHours()}:${selectedDate.getMinutes()}`;
-      setEditingData(prev => ({...prev, endTime: timeString}));
-    }
+  const handleEndTimeChange = (date: Date) => {
+    const timeString = `${date.getHours()}:${date.getMinutes()}`;
+    setEditingData(prev => ({...prev, endTime: timeString}));
   };
 
   const handleSave = async () => {
@@ -210,26 +204,30 @@ export default function AddClassModal({
       <View style={styles.timePickerContainer}>
         <View style={styles.timePickerRow}>
           <Text style={[styles.timeLabel, isDark && styles.darkLabel]}>Start Time</Text>
-          <TouchableOpacity 
-            style={[styles.timeButton, isDark && styles.darkTimeButton]}
-            onPress={() => setShowStartTimePicker(true)}
-          >
-            <Text style={[styles.timeButtonText, isDark && styles.darkText]}>
-              {formatTime(editingData.startTime)}
-            </Text>
-          </TouchableOpacity>
+          <TimePickerInteraction
+            value={(() => {
+              const [hours, minutes] = editingData.startTime.split(':');
+              const date = new Date();
+              date.setHours(parseInt(hours, 10));
+              date.setMinutes(parseInt(minutes, 10));
+              return date;
+            })()}
+            onChange={handleStartTimeChange}
+          />
         </View>
 
         <View style={styles.timePickerRow}>
           <Text style={[styles.timeLabel, isDark && styles.darkLabel]}>End Time</Text>
-          <TouchableOpacity 
-            style={[styles.timeButton, isDark && styles.darkTimeButton]}
-            onPress={() => setShowEndTimePicker(true)}
-          >
-            <Text style={[styles.timeButtonText, isDark && styles.darkText]}>
-              {formatTime(editingData.endTime)}
-            </Text>
-          </TouchableOpacity>
+          <TimePickerInteraction
+            value={(() => {
+              const [hours, minutes] = editingData.endTime.split(':');
+              const date = new Date();
+              date.setHours(parseInt(hours, 10));
+              date.setMinutes(parseInt(minutes, 10));
+              return date;
+            })()}
+            onChange={handleEndTimeChange}
+          />
         </View>
       </View>
 
@@ -348,38 +346,6 @@ export default function AddClassModal({
           </View>
 
           {renderEditForm()}
-
-          {showStartTimePicker && (
-            <DateTimePicker
-              value={(() => {
-                const [hours, minutes] = editingData.startTime.split(':');
-                const date = new Date();
-                date.setHours(parseInt(hours, 10));
-                date.setMinutes(parseInt(minutes, 10));
-                return date;
-              })()}
-              mode="time"
-              is24Hour={false}
-              display="default"
-              onChange={handleStartTimeChange}
-            />
-          )}
-
-          {showEndTimePicker && (
-            <DateTimePicker
-              value={(() => {
-                const [hours, minutes] = editingData.endTime.split(':');
-                const date = new Date();
-                date.setHours(parseInt(hours, 10));
-                date.setMinutes(parseInt(minutes, 10));
-                return date;
-              })()}
-              mode="time"
-              is24Hour={false}
-              display="default"
-              onChange={handleEndTimeChange}
-            />
-          )}
         </Animated.View>
       </BlurView>
     </Modal>

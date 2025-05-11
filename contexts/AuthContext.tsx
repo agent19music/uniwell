@@ -91,26 +91,55 @@ export function useAuth() {
 function useProtectedRoute(session: Session | null) {
   const segments = useSegments();
   const router = useRouter();
+  const [storedUsers, setStoredUsers] = useState<StoredUser[]>([]);
+
+  // Load stored users first
+  useEffect(() => {
+    const loadStoredUsers = async () => {
+      try {
+        const storedUsersJson = await AsyncStorage.getItem(STORED_USERS_KEY);
+        if (storedUsersJson) {
+          setStoredUsers(JSON.parse(storedUsersJson));
+        }
+      } catch (error) {
+        console.error('Error loading stored users:', error);
+      }
+    };
+
+    loadStoredUsers();
+  }, []);
 
   useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)';
-    const isAuthScreen = ['loginscreen', 'signupscreen', 'index', 'login-callback'].includes(segments[0] || '');
+    const isAuthScreen = ['loginscreen', 'signupscreen', 'index', 'login-callback', 'reset-password'].includes(segments[0] || '');
+    const isOnboardingScreen = segments[0] === 'onboarding';
 
     if (
       // If the user is not signed in and the initial segment is not anything in the auth group.
       !session &&
       !inAuthGroup &&
       !isAuthScreen &&
+      !isOnboardingScreen &&
       segments[0] !== 'profile-completion' &&
       segments[0] !== 'user-selection'
     ) {
-      // Redirect to the user selection screen if we have stored users
-      router.replace('/user-selection');
+      // If we have stored users, redirect to user selection instead of login
+      if (storedUsers.length > 0) {
+        router.replace('/user-selection');
+      } else {
+        // Otherwise go to login screen
+        router.replace('/loginscreen');
+      }
     } else if (session && (inAuthGroup || isAuthScreen || segments[0] === 'user-selection')) {
-      // Redirect away from the sign-in page.
+      // Redirect away from auth screens when signed in
       router.replace('/(tabs)/home');
     }
-  }, [session, segments]);
+
+    // If user is on onboarding screen but has a session, skip to home
+    if (session && isOnboardingScreen) {
+      router.replace('/(tabs)/home');
+    }
+  }, [session, segments, storedUsers]);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

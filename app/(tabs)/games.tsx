@@ -40,7 +40,7 @@ export default function GamesScreen() {
 
   const handleBreathingExercisePress = () => {
     setIsBreathingFullscreen(false);
-    router.push('/breathing-exercise');
+    router.push('/BreathingExercise');
   };
 
 

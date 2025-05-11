@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import FluidTabBar from '../../components/FluidTabBar';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -9,16 +10,19 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <FluidTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
           backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
-          borderTopColor: isDark ? '#333333' : '#e5e5e5',
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
           height: 60,
           paddingBottom: 8,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: '#FF7F50',
+        tabBarActiveTintColor: isDark ? '#FF7F50' : '#FF7F50',
         tabBarInactiveTintColor: isDark ? '#888888' : '#666666',
         tabBarLabelStyle: {
           fontSize: 12,
@@ -28,8 +32,8 @@ export default function TabLayout() {
       }}>
       <Tabs.Screen
         name="home"
-        options={{
-          title: 'Home',
+        options={{    
+          title: 'Home' ,
           tabBarIcon: ({ size, color }) => (
             <Feather name="home" size={size} color={color} />
           ),

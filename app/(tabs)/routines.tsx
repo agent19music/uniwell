@@ -10,18 +10,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import * as Haptics from 'expo-haptics';
 import { Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, isToday, isYesterday, isTomorrow } from 'date-fns';
 import { Streak } from '@/contexts/RoutineContext';
 import NextActivityWidget from '@/components/NextActivityWidget';
+import EditRoutineModal from '@/modals/EditRoutineModal';
 
 export default function RoutinesScreen() {
   const { currentUser } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { width } = Dimensions.get('window');
+  const { width, height } = Dimensions.get('window');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const router = useRouter();
-  const { habits, completeHabit, streaks, terminateStreak, resetStreak } = useRoutine();
+  const { habits, completeHabit, streaks, terminateStreak, resetStreak, deleteHabit } = useRoutine();
   const [showAddRoutine, setShowAddRoutine] = useState(false);
   const [showAddStreak, setShowAddStreak] = useState(false);
   const [streakMenuVisible, setStreakMenuVisible] = useState(false);
@@ -29,6 +30,10 @@ export default function RoutinesScreen() {
   const [selectedStreakId, setSelectedStreakId] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const [showEditRoutine, setShowEditRoutine] = useState(false);
+  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
+  const [routineMenuVisible, setRoutineMenuVisible] = useState(false);
+  const [routineMenuPosition, setRoutineMenuPosition] = useState({ x: 0, y: 0 });
 
   const handleAddRoutine = () => {
     setShowAddRoutine(true);
@@ -53,27 +58,51 @@ export default function RoutinesScreen() {
   const handleStreakLongPress = (streakId: string, event: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSelectedStreakId(streakId);
-    // Position menu near the touch point
-    setStreakMenuPosition({ 
-      x: event.nativeEvent.pageX - 75, 
-      y: event.nativeEvent.pageY - 20 
-    });
+    
+    // Calculate initial position
+    let x = event.nativeEvent.pageX - 75;
+    let y = event.nativeEvent.pageY - 20;
+    
+    // Ensure menu stays within screen bounds
+    if (x < 10) x = 10;
+    if (x + 160 > width) x = width - 170;
+    if (y < 10) y = 10;
+    if (y + 200 > height) y = height - 210;
+    
+    setStreakMenuPosition({ x, y });
     setStreakMenuVisible(true);
     
     // Animate menu appearance
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
       Animated.spring(scaleAnim, {
         toValue: 1,
         friction: 7,
         tension: 40,
         useNativeDriver: true,
       }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
     ]).start();
+  };
+
+  const handleStreakMenuClose = () => {
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 0.9,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setStreakMenuVisible(false);
+    });
   };
 
   const onReset = async (streakId: string) => {
@@ -153,6 +182,92 @@ export default function RoutinesScreen() {
     );
   };
 
+  const handleRoutineLongPress = (routineId: string, event: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedRoutineId(routineId);
+    
+    // Calculate initial position
+    let x = event.nativeEvent.pageX - 75;
+    let y = event.nativeEvent.pageY - 20;
+    
+    // Ensure menu stays within screen bounds
+    if (x < 10) x = 10;
+    if (x + 160 > width) x = width - 170;
+    if (y < 10) y = 10;
+    if (y + 200 > height) y = height - 210;
+    
+    setRoutineMenuPosition({ x, y });
+    setRoutineMenuVisible(true);
+    
+    // Animate menu appearance
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 7,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handleRoutineMenuClose = () => {
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 0.9,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setRoutineMenuVisible(false);
+    });
+  };
+
+  const getRoutineStatus = (habit: any) => {
+    const today = new Date();
+    const isCompleted = habit.completed?.includes(today.toDateString());
+    const isDue = habit.frequency === 'daily' || 
+                 (habit.frequency === 'weekly' && habit.customDays?.includes(today.getDay())) ||
+                 (habit.frequency === 'custom' && habit.customDays?.includes(today.getDay()));
+
+    if (isCompleted) return 'completed';
+    if (isDue) return 'due';
+    return 'upcoming';
+  };
+
+  const getRoutineIcon = (habit: any) => {
+    const status = getRoutineStatus(habit);
+    switch (status) {
+      case 'completed':
+        return "checkmark-circle";
+      case 'due':
+        return "alert-circle";
+      default:
+        return "ellipse-outline";
+    }
+  };
+
+  const getRoutineIconColor = (habit: any) => {
+    const status = getRoutineStatus(habit);
+    switch (status) {
+      case 'completed':
+        return "#34C759";
+      case 'due':
+        return "#FF3B30";
+      default:
+        return "#8E8E93";
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -229,11 +344,15 @@ export default function RoutinesScreen() {
                 <TouchableOpacity
                   key={habit.id}
                   style={[styles.routineCard, isDark && styles.darkCard]}
+                  onLongPress={(e) => handleRoutineLongPress(habit.id, e)}
+                  delayLongPress={300}
                 >
                   <View style={styles.routineInfo}>
                     <Text style={[styles.routineTitle, isDark && styles.darkText]}>{habit.title}</Text>
                     <Text style={[styles.routineFrequency, isDark && styles.darkSubText]}>
-                      {habit.frequency}
+                      {habit.frequency === 'weekly' ? `Every ${habit.customDays?.[0]}` : 
+                       habit.frequency === 'custom' ? habit.customDays?.join(', ') : 
+                       'Daily'}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -241,9 +360,9 @@ export default function RoutinesScreen() {
                     onPress={() => handleCompleteTask(habit.id)}
                   >
                     <Ionicons
-                      name={habit.completed?.includes(selectedDate.toDateString()) ? "checkmark-circle" : "checkmark-circle-outline"}
+                      name={getRoutineIcon(habit)}
                       size={24}
-                      color="#FF7F50"
+                      color={getRoutineIconColor(habit)}
                     />
                   </TouchableOpacity>
                 </TouchableOpacity>
@@ -270,11 +389,11 @@ export default function RoutinesScreen() {
         transparent={true}
         visible={streakMenuVisible}
         animationType="none"
-        onRequestClose={() => setStreakMenuVisible(false)}
+        onRequestClose={handleStreakMenuClose}
       >
         <Pressable
           style={styles.modalOverlay}
-          onPress={() => setStreakMenuVisible(false)}
+          onPress={handleStreakMenuClose}
         >
           <Animated.View
             style={[
@@ -291,7 +410,7 @@ export default function RoutinesScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
-                setStreakMenuVisible(false);
+                handleStreakMenuClose();
                 router.push(`/streak-details/${selectedStreakId}`);
               }}
             >
@@ -304,7 +423,7 @@ export default function RoutinesScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
-                setStreakMenuVisible(false);
+                handleStreakMenuClose();
                 router.push(`/edit-streak/${selectedStreakId}`);
               }}
             >
@@ -317,7 +436,7 @@ export default function RoutinesScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
-                setStreakMenuVisible(false);
+                handleStreakMenuClose();
                 if (selectedStreakId) {
                   onReset(selectedStreakId);
                 }
@@ -330,6 +449,73 @@ export default function RoutinesScreen() {
         </Pressable>
       </Modal>
 
+      {/* Routine Context Menu */}
+      <Modal
+        transparent={true}
+        visible={routineMenuVisible}
+        animationType="none"
+        onRequestClose={handleRoutineMenuClose}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={handleRoutineMenuClose}
+        >
+          <Animated.View
+            style={[
+              styles.routineContextMenu,
+              isDark && styles.darkRoutineContextMenu,
+              {
+                left: routineMenuPosition.x,
+                top: routineMenuPosition.y,
+                opacity: fadeAnim,
+                transform: [{ scale: scaleAnim }],
+              }
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                handleRoutineMenuClose();
+                setShowEditRoutine(true);
+              }}
+            >
+              <Feather name="edit-2" size={16} color={isDark ? '#FFFFFF' : '#333333'} />
+              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Edit</Text>
+            </TouchableOpacity>
+
+            <View style={[styles.menuDivider, isDark && styles.darkMenuDivider]} />
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                handleRoutineMenuClose();
+                if (selectedRoutineId) {
+                  handleCompleteTask(selectedRoutineId);
+                }
+              }}
+            >
+              <Feather name="check-circle" size={16} color={isDark ? '#34C759' : '#34C759'} />
+              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Mark Completed</Text>
+            </TouchableOpacity>
+
+            <View style={[styles.menuDivider, isDark && styles.darkMenuDivider]} />
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                handleRoutineMenuClose();
+                if (selectedRoutineId) {
+                  deleteHabit(selectedRoutineId);
+                }
+              }}
+            >
+              <Feather name="trash-2" size={16} color={isDark ? '#FF3B30' : '#FF3B30'} />
+              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Delete</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
       <AddRoutineModal
         visible={showAddRoutine}
         onClose={() => setShowAddRoutine(false)}
@@ -337,6 +523,11 @@ export default function RoutinesScreen() {
       <AddStreakModal
         visible={showAddStreak}
         onClose={() => setShowAddStreak(false)}
+      />
+      <EditRoutineModal
+        visible={showEditRoutine}
+        onClose={() => setShowEditRoutine(false)}
+        routineId={selectedRoutineId || ''}
       />
     </SafeAreaView>
   );
@@ -621,5 +812,20 @@ const styles = StyleSheet.create({
   },
   darkSubText: {
     color: '#8E8E93',
+  },
+  routineContextMenu: {
+    position: 'absolute',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 8,
+    width: 160,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  darkRoutineContextMenu: {
+    backgroundColor: '#2C2C2E',
   },
 });

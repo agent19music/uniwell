@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, useColorScheme , ScrollView} from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, useColorScheme, ScrollView } from 'react-native';
 import { useRoutine } from '@/contexts/RoutineContext';
 import { Ionicons } from '@expo/vector-icons';
 import { DayOfTheWeek } from '@/types/TimetableTypes';
@@ -16,20 +16,93 @@ export default function AddRoutineModal({ visible, onClose }: AddRoutineModalPro
   const [title, setTitle] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('daily');
   const [selectedDays, setSelectedDays] = useState<DayOfTheWeek[]>([]);
+  const [selectedWeekDay, setSelectedWeekDay] = useState<DayOfTheWeek | null>(null);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   const handleSave = async () => {
     try {
-      await createRoutine(title, frequency, frequency === 'custom' ? selectedDays : []);
+      const days = frequency === 'weekly' && selectedWeekDay ? [selectedWeekDay] : selectedDays;
+      await createRoutine(title, frequency, days);
       // Reset form
       setTitle('');
       setFrequency('daily');
       setSelectedDays([]);
-      onClose(); // Moved onClose() to after resetting the form
+      setSelectedWeekDay(null);
+      onClose();
     } catch (error) {
       console.error('Error creating routine:', error);
     }
+  };
+
+  const renderDaySelector = () => {
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    
+    if (frequency === 'weekly') {
+      return (
+        <View style={styles.daysSection}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Day</Text>
+          <View style={styles.daysGrid}>
+            {days.map((day) => (
+              <TouchableOpacity
+                key={day}
+                style={[
+                  styles.dayButton,
+                  isDark && styles.darkDayButton,
+                  selectedWeekDay === day && styles.selectedDayButton,
+                ]}
+                onPress={() => setSelectedWeekDay(day as DayOfTheWeek)}
+              >
+                <Text style={[
+                  styles.dayButtonText,
+                  isDark && styles.darkDayButtonText,
+                  selectedWeekDay === day && styles.selectedDayButtonText
+                ]}>
+                  {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    if (frequency === 'custom') {
+      return (
+        <View style={styles.daysSection}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Days</Text>
+          <View style={styles.daysGrid}>
+            {days.map((day) => (
+              <TouchableOpacity
+                key={day}
+                style={[
+                  styles.dayButton,
+                  isDark && styles.darkDayButton,
+                  selectedDays.includes(day as DayOfTheWeek) && styles.selectedDayButton,
+                ]}
+                onPress={() => {
+                  if (selectedDays.includes(day as DayOfTheWeek)) {
+                    setSelectedDays(selectedDays.filter(d => d !== day));
+                  } else {
+                    setSelectedDays([...selectedDays, day as DayOfTheWeek]);
+                  }
+                }}
+              >
+                <Text style={[
+                  styles.dayButtonText,
+                  isDark && styles.darkDayButtonText,
+                  selectedDays.includes(day as DayOfTheWeek) && styles.selectedDayButtonText
+                ]}>
+                  {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -39,69 +112,49 @@ export default function AddRoutineModal({ visible, onClose }: AddRoutineModalPro
       transparent={true}
       onRequestClose={onClose}
     >
-      <ScrollView  style={[styles.editFormScroll, isDark && styles.darkEditFormScroll]}>
+      <ScrollView style={[styles.editFormScroll, isDark && styles.darkEditFormScroll]}>
         <View style={styles.header}>
-        <TouchableOpacity onPress={onClose}>
-          <Ionicons name="close" size={24} color="#FF7F50" />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, isDark && styles.darkText]}>New Routine</Text>
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={styles.saveButton}>Save</Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={24} color="#FF7F50" />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, isDark && styles.darkText]}>New Routine</Text>
+          <TouchableOpacity onPress={handleSave}>
+            <Text style={styles.saveButton}>Save</Text>
+          </TouchableOpacity>
         </View>
         
         <View style={styles.form}>
-        <TextInput
-          style={[styles.input, isDark && styles.darkInput]}
-          placeholder="Routine Title"
-          value={title}
-          onChangeText={setTitle}
-          placeholderTextColor="#666"
-        />
+          <TextInput
+            style={[styles.input, isDark && styles.darkInput]}
+            placeholder="Routine Title"
+            value={title}
+            onChangeText={setTitle}
+            placeholderTextColor="#666"
+          />
 
-        <View style={styles.frequencySection}>
-          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Frequency</Text>
-          <TouchableOpacity 
-          style={[styles.frequencyButton, frequency === 'daily' && styles.selectedFrequency]}
-          onPress={() => setFrequency('daily')}
-          >
-          <Text style={[styles.frequencyText, frequency === 'daily' && styles.selectedText]}>Daily</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-          style={[styles.frequencyButton, frequency === 'weekly' && styles.selectedFrequency]}
-          onPress={() => setFrequency('weekly')}
-          >
-          <Text style={[styles.frequencyText, frequency === 'weekly' && styles.selectedText]}>Weekly</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-          style={[styles.frequencyButton, frequency === 'custom' && styles.selectedFrequency]}
-          onPress={() => setFrequency('custom')}
-          >
-          <Text style={[styles.frequencyText, frequency === 'custom' && styles.selectedText]}>Custom</Text>
-          </TouchableOpacity>
-        </View>
-
-        {frequency === 'custom' && (
-          <View style={styles.daysSection}>
-          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Days</Text>
-          {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
-            <View key={day} style={styles.dayRow}>
-            <Text style={[styles.dayText, isDark && styles.darkText]}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
-            <Switch
-              value={selectedDays.includes(day as DayOfTheWeek)}
-              onValueChange={(value) => {
-              if (value) {
-                setSelectedDays([...selectedDays, day as DayOfTheWeek]);
-              } else {
-                setSelectedDays(selectedDays.filter(d => d !== day));
-              }
-              }}
-              trackColor={{ false: '#767577', true: '#FF7F50' }}
-            />
-            </View>
-          ))}
+          <View style={styles.frequencySection}>
+            <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Frequency</Text>
+            <TouchableOpacity 
+              style={[styles.frequencyButton, frequency === 'daily' && styles.selectedFrequency]}
+              onPress={() => setFrequency('daily')}
+            >
+              <Text style={[styles.frequencyText, frequency === 'daily' && styles.selectedText]}>Daily</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.frequencyButton, frequency === 'weekly' && styles.selectedFrequency]}
+              onPress={() => setFrequency('weekly')}
+            >
+              <Text style={[styles.frequencyText, frequency === 'weekly' && styles.selectedText]}>Weekly</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.frequencyButton, frequency === 'custom' && styles.selectedFrequency]}
+              onPress={() => setFrequency('custom')}
+            >
+              <Text style={[styles.frequencyText, frequency === 'custom' && styles.selectedText]}>Custom</Text>
+            </TouchableOpacity>
           </View>
-        )}
+
+          {renderDaySelector()}
         </View>
       </ScrollView>
     </Modal>
@@ -195,15 +248,39 @@ const styles = StyleSheet.create({
   daysSection: {
     marginTop: 20,
   },
-  dayRow: {
+  daysGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
   },
-  dayText: {
-    fontSize: 16,
+  dayButton: {
+    width: '30%',
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  darkDayButton: {
+    backgroundColor: '#1e1e1e',
+    borderColor: '#3A3A3C',
+  },
+  selectedDayButton: {
+    backgroundColor: '#FF7F50',
+    borderColor: '#FF7F50',
+  },
+  dayButtonText: {
+    fontSize: 14,
     color: '#333',
     fontFamily: 'Vercetti-Regular',
+  },
+  darkDayButtonText: {
+    color: '#FFFFFF',
+  },
+  selectedDayButtonText: {
+    color: '#FFFFFF',
   },
 });

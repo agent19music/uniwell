@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,44 +6,53 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Linking,
   useColorScheme,
   ActivityIndicator,
+  Dimensions,
+  Linking,
   Platform,
-  SafeAreaView
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { supabase } from '@/lib/supabase';
-import { StatusBar } from 'expo-status-bar';
+import { WebView } from 'react-native-webview';
+import { supabase } from '../lib/supabase';
+import * as burnt from 'burnt';
 
 interface ResourceDetailProps {
   resourceId: string;
   onClose: () => void;
 }
 
+interface Resource {
+  id: string;
+  title: string;
+  description: string;
+  content_type: string;
+  thumbnail_url: string;
+  source: string;
+  author: string;
+  duration: string;
+  media_url?: string;
+  article_content?: string;
+  created_at: string;
+}
+
 export default function ResourceDetail({ resourceId, onClose }: ResourceDetailProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  
-  const [resource, setResource] = useState<any>(null);
+  const [resource, setResource] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  
-  const webViewRef = useRef<WebView>(null);
-  
+  const [showFullContent, setShowFullContent] = useState(false);
+
   useEffect(() => {
     fetchResourceDetails();
     checkIfSaved();
   }, [resourceId]);
-  
+
   const fetchResourceDetails = async () => {
     try {
       setLoading(true);
-      
       const { data, error } = await supabase
         .from('resources')
         .select(`
@@ -52,29 +61,28 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
         `)
         .eq('id', resourceId)
         .single();
-        
+
       if (error) throw error;
-      
+
       if (data) {
         setResource({
-          id: data.id,
-          title: data.title,
-          description: data.description,
-          thumbnail_url: data.thumbnail_url,
-          type: data.content_type,
-          duration: data.duration,
-          source: data.source,
-          content: data.resource_content[0] || {}
+          ...data,
+          media_url: data.resource_content[0]?.media_url,
+          article_content: data.resource_content[0]?.article_content,
         });
       }
-    } catch (err) {
-      console.error('Error fetching resource details:', err);
-      setError('Failed to load resource details');
+    } catch (error) {
+      console.error('Error fetching resource details:', error);
+      burnt.toast({
+        title: 'Error',
+        message: 'Failed to load resource details',
+        preset: 'error',
+      });
     } finally {
       setLoading(false);
     }
   };
-  
+
   const checkIfSaved = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -94,7 +102,7 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       console.error('Error checking saved status:', error);
     }
   };
-  
+
   const toggleSaveResource = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -123,279 +131,182 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
         .eq('id', user.id);
         
       setIsSaved(!isSaved);
+      
+      burnt.toast({
+        title: isSaved ? 'Removed from Saved' : 'Saved to Library',
+        message: isSaved ? 'Resource removed from your saved items' : 'Resource added to your saved items',
+        preset: 'done',
+      });
     } catch (error) {
       console.error('Error toggling save status:', error);
+      burnt.toast({
+        title: 'Error',
+        message: 'Failed to update saved status',
+        preset: 'error',
+      });
     }
   };
-  
-  const handleOpenSpotify = async () => {
-    if (!resource?.content?.media_url) return;
-    
-    const spotifyUrl = resource.content.media_url;
-    const spotifyAppUrl = spotifyUrl.replace('https://open.spotify.com', 'spotify:');
+
+  const handleOpenInBrowser = async () => {
+    if (!resource?.media_url) return;
     
     try {
-      const canOpenSpotify = await Linking.canOpenURL(spotifyAppUrl);
+      const supported = await Linking.canOpenURL(resource.media_url);
       
-      if (canOpenSpotify) {
-        await Linking.openURL(spotifyAppUrl);
+      if (supported) {
+        await Linking.openURL(resource.media_url);
       } else {
-        await Linking.openURL(spotifyUrl);
+        burnt.toast({
+          title: 'Error',
+          message: 'Cannot open this URL',
+          preset: 'error',
+        });
       }
     } catch (error) {
-      console.error('Error opening Spotify:', error);
-      await Linking.openURL(spotifyUrl);
+      console.error('Error opening URL:', error);
+      burnt.toast({
+        title: 'Error',
+        message: 'Failed to open in browser',
+        preset: 'error',
+      });
     }
   };
-  
-  const renderYouTubeEmbed = () => {
-    if (!resource?.content?.media_url) return null;
-    
-    // Extract video ID from YouTube URL
-    const getYoutubeVideoId = (url: string) => {
-      const regExp = /^.*(youtu.be\/|v\/|e\/|u\/\w+\/|embed\/|v=)([^#\&\?]*).*/;
-      const match = url.match(regExp);
-      return (match && match[2].length === 11) ? match[2] : null;
-    };
-    
-    const videoId = getYoutubeVideoId(resource.content.media_url);
-    
-    if (!videoId) return null;
-    
-    const youtubeHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <style>
-            body, html {
-              margin: 0;
-              padding: 0;
-              background-color: ${isDark ? '#000' : '#fff'};
-              overflow: hidden;
-              height: 100%;
-            }
-            .video-container {
-              position: relative;
-              width: 100%;
-              height: 100%;
-              overflow: hidden;
-            }
-            iframe {
-              position: absolute;
-              top: 0;
-              left: 0;
-              width: 100%;
-              height: 100%;
-              border: none;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="video-container">
-            <iframe 
-              src="https://www.youtube.com/embed/${videoId}?playsinline=1&rel=0&showinfo=0&autoplay=0" 
-              frameborder="0" 
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-              allowfullscreen>
-            </iframe>
-          </div>
-        </body>
-      </html>
-    `;
-    
-    return (
-      <View style={styles.videoContainer}>
-        <WebView
-          ref={webViewRef}
-          source={{ html: youtubeHtml }}
-          style={styles.webView}
-          allowsFullscreenVideo={true}
-          allowsInlineMediaPlayback={true}
-          mediaPlaybackRequiresUserAction={false}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          onShouldStartLoadWithRequest={() => true}
-          startInLoadingState={true}
-          renderLoading={() => (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#FF7F50" />
-            </View>
-          )}
-        />
-        {!isFullscreen && (
-          <TouchableOpacity
-            style={styles.fullscreenButton}
-            onPress={() => setIsFullscreen(true)}
-          >
-            <Ionicons name="expand" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
-  
-  const cleanArticleContent = (content: string) => {
-    if (!content) return '';
-    // Remove the "chars" pattern that appears in article content
-    return content.replace(/\[\+\d+ chars\]/g, '').replace(/\{\+\s*\d+\}/g, '');
-  };
-  
-  const renderArticleContent = () => {
-    if (!resource?.content?.article_content) return null;
-    
-    const cleanedContent = cleanArticleContent(resource.content.article_content);
-    
-    return (
-      <View style={styles.articleContainer}>
-        <ScrollView style={styles.articleScrollView}>
-          <Text style={[styles.articleText, isDark && styles.darkText]}>
-            {cleanedContent}
-          </Text>
-          
-          {resource.content.media_url && (
+
+  const renderContent = () => {
+    if (!resource) return null;
+
+    switch (resource.content_type) {
+      case 'video':
+        return (
+          <View style={styles.videoContainer}>
+            <WebView
+              source={{ uri: resource.media_url }}
+              style={styles.videoPlayer}
+              allowsFullscreenVideo
+              javaScriptEnabled
+              domStorageEnabled
+              startInLoadingState
+              renderLoading={() => (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#FF7F50" />
+                </View>
+              )}
+            />
             <TouchableOpacity
-              style={styles.readMoreButton}
-              onPress={() => Linking.openURL(resource.content.media_url)}
+              style={styles.browserButton}
+              onPress={handleOpenInBrowser}
             >
-              <Text style={styles.readMoreButtonText}>Read Full Article</Text>
+              <Ionicons name="open-outline" size={20} color="#ffffff" />
+              <Text style={styles.browserButtonText}>Open in Browser</Text>
             </TouchableOpacity>
-          )}
-        </ScrollView>
-      </View>
-    );
+          </View>
+        );
+      
+      case 'article':
+        return (
+          <ScrollView style={styles.articleContainer}>
+            <Text style={[styles.articleContent, isDark && styles.darkText]}>
+              {resource.article_content}
+            </Text>
+            {resource.media_url && (
+              <TouchableOpacity
+                style={styles.browserButton}
+                onPress={handleOpenInBrowser}
+              >
+                <Ionicons name="open-outline" size={20} color="#ffffff" />
+                <Text style={styles.browserButtonText}>Read Full Article</Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+        );
+      
+      case 'podcast':
+        return (
+          <View style={styles.podcastContainer}>
+            <Image
+              source={{ uri: resource.thumbnail_url }}
+              style={styles.podcastImage}
+            />
+            <TouchableOpacity
+              style={styles.browserButton}
+              onPress={handleOpenInBrowser}
+            >
+              <Ionicons name="play-circle-outline" size={20} color="#ffffff" />
+              <Text style={styles.browserButtonText}>Listen on Spotify</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      
+      default:
+        return null;
+    }
   };
-  
-  const renderPodcastInfo = () => {
-    if (!resource?.content?.media_url) return null;
-    
-    return (
-      <View style={styles.podcastContainer}>
-        <Image
-          source={{ uri: resource.thumbnail_url }}
-          style={styles.podcastImage}
-          resizeMode="cover"
-        />
-        
-        <View style={styles.podcastInfo}>
-          <Text style={[styles.podcastInfoText, isDark && styles.darkText]}>
-            Listen to this podcast on Spotify
-          </Text>
-          
-          <TouchableOpacity
-            style={styles.spotifyButton}
-            onPress={handleOpenSpotify}
-          >
-            <Ionicons name="musical-notes" size={20} color="#FFFFFF" />
-            <Text style={styles.spotifyButtonText}>Open in Spotify</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-  
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-        <StatusBar style={isDark ? "light" : "dark"} />
-        <View style={styles.loadingWrapper}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FF7F50" />
           <Text style={[styles.loadingText, isDark && styles.darkText]}>
-            Loading...
+            Loading resource...
           </Text>
         </View>
       </SafeAreaView>
     );
   }
-  
-  if (error || !resource) {
+
+  if (!resource) {
     return (
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-        <StatusBar style={isDark ? "light" : "dark"} />
         <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color="#FF7F50" />
           <Text style={[styles.errorText, isDark && styles.darkText]}>
-            {error || 'Resource not found'}
+            Resource not found
           </Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchResourceDetails}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.closeButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
-  
-  if (isFullscreen && resource.type === 'video') {
-    return (
-      <View style={styles.fullscreenContainer}>
-        <StatusBar style="light" />
-        {renderYouTubeEmbed()}
-        <TouchableOpacity
-          style={styles.exitFullscreenButton}
-          onPress={() => setIsFullscreen(false)}
-        >
-          <Ionicons name="contract" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-    );
-  }
-  
+
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-      <StatusBar style={isDark ? "light" : "dark"} />
-      
-      <View style={[styles.header, isDark && styles.darkHeader]}>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Ionicons name="arrow-back" size={24} color={isDark ? '#FFFFFF' : '#000000'} />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose} style={styles.backButton}>
+          <Ionicons name="close" size={24} color={isDark ? '#ffffff' : '#000000'} />
         </TouchableOpacity>
-        
-        <Text style={[styles.headerTitle, isDark && styles.darkText]} numberOfLines={1}>
-          {resource.source}
-        </Text>
-        
-        <TouchableOpacity style={styles.actionButton} onPress={toggleSaveResource}>
-          <Ionicons 
-            name={isSaved ? "bookmark" : "bookmark-outline"} 
-            size={24} 
-            color={isSaved ? "#FF7F50" : isDark ? '#FFFFFF' : '#000000'} 
+        <TouchableOpacity onPress={toggleSaveResource} style={styles.saveButton}>
+          <Ionicons
+            name={isSaved ? 'bookmark' : 'bookmark-outline'}
+            size={24}
+            color={isDark ? '#ffffff' : '#000000'}
           />
         </TouchableOpacity>
       </View>
-      
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+
+      <ScrollView style={styles.content}>
         <Text style={[styles.title, isDark && styles.darkText]}>
           {resource.title}
         </Text>
         
         <View style={styles.metaContainer}>
-          <View style={styles.typeContainer}>
-            <Ionicons 
-              name={
-                resource.type === 'article' ? 'document-text' : 
-                resource.type === 'podcast' ? 'headset' : 
-                resource.type === 'video' ? 'videocam' : 'book'
-              } 
-              size={16} 
-              color="#FF7F50" 
-            />
-            <Text style={styles.typeText}>{resource.type}</Text>
-          </View>
-          
-          <Text style={[styles.duration, isDark && styles.darkSubText]}>
-            {resource.duration}
+          <Text style={[styles.metaText, isDark && styles.darkSubText]}>
+            {resource.source} • {resource.duration}
           </Text>
+          {resource.author && (
+            <Text style={[styles.authorText, isDark && styles.darkSubText]}>
+              By {resource.author}
+            </Text>
+          )}
         </View>
-        
-        <Text style={[styles.description, isDark && styles.darkSubText]}>
+
+        <Text style={[styles.description, isDark && styles.darkText]}>
           {resource.description}
         </Text>
-        
-        {resource.type === 'video' && renderYouTubeEmbed()}
-        {resource.type === 'article' && renderArticleContent()}
-        {resource.type === 'podcast' && renderPodcastInfo()}
+
+        {renderContent()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -404,222 +315,134 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#ffffff',
   },
   darkContainer: {
     backgroundColor: '#121212',
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.9)',
   },
-  darkHeader: {
-    backgroundColor: 'rgba(18,18,18,0.8)',
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+  backButton: {
+    padding: 8,
   },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  saveButton: {
+    padding: 8,
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    textAlign: 'center',
+  content: {
     flex: 1,
-    paddingHorizontal: 16,
-  },
-  actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
+    padding: 16,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginHorizontal: 16,
-    marginTop: 16,
+    color: '#000000',
     marginBottom: 12,
   },
   metaContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: 16,
     marginBottom: 16,
   },
-  typeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  typeText: {
+  metaText: {
     fontSize: 14,
-    color: '#FF7F50',
-    marginLeft: 4,
-    textTransform: 'capitalize',
+    color: '#666666',
+    marginBottom: 4,
   },
-  duration: {
+  authorText: {
     fontSize: 14,
     color: '#666666',
   },
   description: {
     fontSize: 16,
-    lineHeight: 24,
-    marginHorizontal: 16,
-    marginBottom: 24,
     color: '#333333',
-  },
-  darkText: {
-    color: '#FFFFFF',
-  },
-  darkSubText: {
-    color: '#AAAAAA',
+    lineHeight: 24,
+    marginBottom: 24,
   },
   videoContainer: {
-    height: 230,
-    marginHorizontal: 16,
-    marginBottom: 24,
-    borderRadius: 12,
-    overflow: 'hidden',
-    position: 'relative',
+    width: '100%',
+    aspectRatio: 16 / 9,
+    marginBottom: 16,
   },
-  webView: {
-    backgroundColor: 'transparent',
-  },
-  fullscreenButton: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 8,
+  videoPlayer: {
+    flex: 1,
+    backgroundColor: '#000000',
   },
   articleContainer: {
-    marginHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  articleScrollView: {
-    maxHeight: 500,
-  },
-  articleText: {
+  articleContent: {
     fontSize: 16,
-    lineHeight: 24,
     color: '#333333',
-  },
-  readMoreButton: {
-    backgroundColor: '#FF7F50',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  readMoreButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 16,
+    lineHeight: 24,
   },
   podcastContainer: {
-    marginHorizontal: 16,
-    marginBottom: 24,
+    alignItems: 'center',
+    marginBottom: 16,
   },
   podcastImage: {
     width: '100%',
-    height: 200,
+    aspectRatio: 1,
     borderRadius: 12,
     marginBottom: 16,
   },
-  podcastInfo: {
-    alignItems: 'center',
-  },
-  podcastInfoText: {
-    fontSize: 16,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  spotifyButton: {
-    backgroundColor: '#1DB954', // Spotify green
+  browserButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
+    backgroundColor: '#FF7F50',
     paddingVertical: 12,
     paddingHorizontal: 24,
-    width: '80%',
+    borderRadius: 8,
+    marginTop: 16,
   },
-  spotifyButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+  browserButtonText: {
+    color: '#ffffff',
     fontSize: 16,
+    fontWeight: '600',
     marginLeft: 8,
   },
-  loadingWrapper: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
   loadingText: {
+    marginTop: 16,
     fontSize: 16,
-    marginTop: 12,
-    color: '#333333',
+    color: '#666666',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 40,
   },
   errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#333333',
+    marginTop: 16,
+    marginBottom: 24,
   },
-  retryButton: {
+  closeButton: {
     backgroundColor: '#FF7F50',
-    borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    alignItems: 'center',
+    borderRadius: 8,
   },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+  closeButtonText: {
+    color: '#ffffff',
     fontSize: 16,
+    fontWeight: '600',
   },
-  fullscreenContainer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
+  darkText: {
+    color: '#ffffff',
   },
-  exitFullscreenButton: {
-    position: 'absolute',
-    top: 50,
-    right: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 8,
-    zIndex: 100,
+  darkSubText: {
+    color: '#aaaaaa',
   },
 }); 

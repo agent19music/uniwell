@@ -132,4 +132,9 @@ export const NotificationTriggers = {
     minute,
     repeats: true,
   }),
-}; 
+};
+
+// Dummy component to satisfy Expo Router's default export requirement
+export default function NotificationHandler() {
+  return null;
+}

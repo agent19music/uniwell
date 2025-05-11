@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, useColorSc
 import { useRouter } from 'expo-router';
 import { useRoutine } from '@/contexts/RoutineContext';
 import { Ionicons } from '@expo/vector-icons';
+import { TimePickerInteraction } from '@/components/TimePickerInteraction';
 
 type Frequency = 'daily' | 'weekly' | 'custom';
 type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -13,12 +14,13 @@ export default function AddRoutineModal() {
   const [title, setTitle] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('daily');
   const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
+  const [routineTime, setRoutineTime] = useState(new Date());
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   const handleSave = async () => {
     try {
-      await createRoutine(title, frequency, frequency === 'custom' ? selectedDays : []);
+      await createRoutine(title, frequency, frequency === 'custom' ? selectedDays : [], routineTime);
       router.back();
     } catch (error) {
       console.error('Error creating routine:', error);
@@ -67,6 +69,12 @@ export default function AddRoutineModal() {
             <Text style={[styles.frequencyText, frequency === 'custom' && styles.selectedText]}>Custom</Text>
           </TouchableOpacity>
         </View>
+
+        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Routine Time</Text>
+        <TimePickerInteraction
+          value={routineTime}
+          onChange={setRoutineTime}
+        />
 
         {frequency === 'custom' && (
           <View style={styles.daysSection}>

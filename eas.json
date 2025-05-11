@@ -12,7 +12,14 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle",
+        "image": "auto",
+        "env": {
+          "EAS_SKIP_AUTO_FINGERPRINT": "1"
+        }
+      }
     }
   },
   "submit": {

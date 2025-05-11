@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useRoutine } from '@/contexts/RoutineContext';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { TimePickerInteraction } from '@/components/TimePickerInteraction';
 
 type StreakType = 'build' | 'break';
 
@@ -15,7 +16,6 @@ export default function AddStreakModal() {
   const [startDate, setStartDate] = useState(new Date());
   const [startTime, setStartTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -36,19 +36,6 @@ export default function AddStreakModal() {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setStartDate(selectedDate);
-      if (Platform.OS === 'android') {
-        setShowTimePicker(true);
-      }
-    }
-  };
-
-  const onTimeChange = (event: any, selectedTime?: Date) => {
-    setShowTimePicker(Platform.OS === 'ios');
-    if (selectedTime) {
-      const newDateTime = new Date(startDate);
-      newDateTime.setHours(selectedTime.getHours());
-      newDateTime.setMinutes(selectedTime.getMinutes());
-      setStartTime(newDateTime);
     }
   };
 
@@ -116,15 +103,10 @@ export default function AddStreakModal() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.dateTimeButton, styles.timeButton]}
-            onPress={() => setShowTimePicker(true)}
-          >
-            <Ionicons name="time-outline" size={24} color="#666" />
-            <Text style={styles.dateTimeText}>
-              {startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-          </TouchableOpacity>
+          <TimePickerInteraction
+            value={startTime}
+            onChange={setStartTime}
+          />
         </View>
 
         {showDatePicker && (
@@ -134,16 +116,6 @@ export default function AddStreakModal() {
             display="default"
             onChange={onDateChange}
             maximumDate={new Date()}
-          />
-        )}
-
-        {showTimePicker && (
-          <DateTimePicker
-            value={startTime}
-            mode="time"
-            display="default"
-            onChange={onTimeChange}
-            is24Hour={false}
           />
         )}
       </View>

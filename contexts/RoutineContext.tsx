@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { format, parseISO, differenceInDays, isYesterday, isToday } from 'date-fns';
+import { format, parseISO, differenceInDays, isYesterday, isToday, isFuture } from 'date-fns';
 import { ClassSchedule } from '../types/TimetableTypes'; // Adjust the import based on your types
 import { useAuth } from './AuthContext';
+import * as Notifications from 'expo-notifications';
 
 type Frequency = 'daily' | 'weekly' | 'custom';
 type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-type Status = 'active' | 'completed' | 'abandoned';
+type CompletionStatus = 'completed' | 'missed' | 'pending';
 
 interface WellnessPlan {
   id: string;
@@ -25,7 +26,7 @@ interface Goal {
 
 interface Habit {
   id: string;
-  goalId: string;
+  userId: string;
   completed?: string[];
   title: string;
   frequency: Frequency;
@@ -66,6 +67,45 @@ interface CheckIn {
   notes: string | null;
   createdAt: string;
 }
+
+interface Routine {
+  id: string;
+  userId: string;
+  title: string;
+  frequency: Frequency;
+  customDays: string[];
+  color: string;
+  icon: string;
+  isActive: boolean;
+  notificationTime?: string;
+  notificationEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface RoutineCompletion {
+  id: string;
+  routineId: string;
+  userId: string;
+  completionDate: string;
+  completedAt: string;
+  status: CompletionStatus;
+  notes?: string;
+}
+
+interface ProgressArchive {
+  id: string;
+  userId: string;
+  date: string;
+  hasRoutineCompletion: boolean;
+  hasJournalEntry: boolean;
+  hasSleepEntry: boolean;
+  streakCount: number;
+  sleepQualityRating?: number;
+  moodRating?: number;
+  createdAt: string;
+}
+
 interface RoutineContextType {
   plans: WellnessPlan[];
   goals: Goal[];
@@ -76,7 +116,7 @@ interface RoutineContextType {
   createPlan: (title: string, startDate: Date, endDate?: Date) => Promise<void>;
   createGoal: (planId: string, description: string, targetDate: Date) => Promise<void>;
   createHabit: (goalId: string, title: string, frequency: Frequency, customDays?: DayOfWeek[]) => Promise<void>;
-  createRoutine: (title: string, frequency: Frequency, customDays?: DayOfWeek[]) => Promise<void>;
+  createRoutine: (title: string, frequency: Frequency, customDays?: string[], notificationTime?: string) => Promise<void>;
   completeHabit: (habitId: string, date: Date, notes?: string) => Promise<void>;
   getHabitHistory: (habitId: string) => Promise<HabitAttempt[]>;
   getStreakInfo: (habitId: string) => Promise<{ current: number; longest: number }>;
@@ -101,6 +141,18 @@ interface RoutineContextType {
   resetStreak: (streakId: string) => Promise<void>;
   terminateStreak: (streakId: string) => Promise<void>;
   breakStreak: (streakId: string) => Promise<void>;
+  updateRoutine: (routineId: string, updates: Partial<Routine>) => Promise<void>;
+  deleteRoutine: (routineId: string) => Promise<void>;
+  getRoutine: (habitId: string) => Promise<Habit | null>;
+  routines: Routine[];
+  routineCompletions: Record<string, RoutineCompletion[]>;
+  progressArchive: ProgressArchive[];
+  completeRoutine: (routineId: string, date: Date, notes?: string) => Promise<void>;
+  getRoutineCompletions: (date: Date) => Promise<RoutineCompletion[]>;
+  getProgressArchive: (startDate: Date, endDate: Date) => Promise<ProgressArchive[]>;
+  isRoutineCompleted: (routineId: string, date: Date) => boolean;
+  canCompleteRoutine: (routineId: string, date: Date) => boolean;
+  getRoutineStatus: (routineId: string, date: Date) => CompletionStatus;
 }
 
 const RoutineContext = createContext<RoutineContextType | undefined>(undefined);
@@ -117,6 +169,9 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
   const [offlineCheckIns, setOfflineCheckIns] = useState<any[]>([]);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [routineCompletions, setRoutineCompletions] = useState<Record<string, RoutineCompletion[]>>({});
+  const [progressArchive, setProgressArchive] = useState<ProgressArchive[]>([]);
 
   const { currentUser } = useAuth();
 
@@ -126,8 +181,83 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
       fetchStreaks();
       fetchClassSchedules();
       fetchHabits();
+      fetchRoutines();
+      fetchProgressArchive();
     }
-  }, [currentUser]); // Remove streaks and classSchedules from dependencies
+  }, [currentUser]);
+
+  useEffect(() => {
+    // Request notification permissions
+    (async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Notification permissions not granted');
+      }
+    })();
+  }, []);
+
+  const scheduleRoutineNotifications = async (habit: Habit) => {
+    try {
+      // Cancel any existing notifications for this habit
+      await Notifications.cancelScheduledNotificationAsync(habit.id);
+
+      if (habit.frequency === 'daily') {
+        // Schedule daily notification
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: habit.title,
+            body: "Don't forget to complete your daily routine!",
+            data: { habitId: habit.id },
+          },
+          trigger: {
+            hour: 9, // 9 AM
+            minute: 0,
+            repeats: true,
+          },
+        });
+      } else if (habit.frequency === 'weekly' && habit.customDays?.length === 1) {
+        const day = habit.customDays[0];
+        // Schedule weekly notification
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: habit.title,
+            body: `Your weekly routine is due tomorrow!`,
+            data: { habitId: habit.id },
+          },
+          trigger: {
+            weekday: getDayNumber(day),
+            hour: 9,
+            minute: 0,
+            repeats: true,
+          },
+        });
+      } else if (habit.frequency === 'custom' && habit.customDays?.length > 0) {
+        // Schedule notifications for each custom day
+        for (const day of habit.customDays) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: habit.title,
+              body: `Your routine is due tomorrow!`,
+              data: { habitId: habit.id },
+            },
+            trigger: {
+              weekday: getDayNumber(day),
+              hour: 9,
+              minute: 0,
+              repeats: true,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error scheduling notifications:', error);
+    }
+  };
+
+  const getDayNumber = (day: string): number => {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return days.indexOf(day.toLowerCase());
+  };
 
   const checkInStreak = async (streakId: string, date: Date = new Date(), notes?: string) => {
     const checkDate = format(date, 'yyyy-MM-dd');
@@ -181,6 +311,16 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
+  const getRoutine = async (habitId: string) => {
+    const { data, error } = await supabase
+      .from('habits')
+      .select('*')
+      .eq('id', habitId);
+
+      if (error) throw error;
+    return data[0];
+  }
+
   const getStreakProgress = async (streakId: string) => {
     const streak = streaks.find(s => s.id === streakId);
     
@@ -591,21 +731,33 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const createRoutine = async (title: string, frequency: Frequency, customDays?: DayOfWeek[]) => {
+  const createRoutine = async (
+    title: string,
+    frequency: Frequency,
+    customDays?: string[],
+    notificationTime?: string
+  ) => {
     try {
       const { data, error } = await supabase
-        .from('habits')
+        .from('routines')
         .insert({
+          user_id: currentUser?.id,
           title,
           frequency,
-          custom_days: customDays,
-          user_id: currentUser?.id, // Assuming user.id is available
+          custom_days: customDays || [],
+          notification_time: notificationTime,
+          notification_enabled: !!notificationTime
         })
         .select();
+
       if (error) throw error;
 
-      // Fetch updated habits
-      await fetchHabits();
+      // Schedule notification if enabled
+      if (notificationTime && data[0]) {
+        await scheduleRoutineNotification(data[0]);
+      }
+
+      setRoutines([...routines, data[0]]);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -710,6 +862,192 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateRoutine = async (routineId: string, updates: Partial<Routine>) => {
+    try {
+      const { data, error } = await supabase
+        .from('routines')
+        .update(updates)
+        .eq('id', routineId)
+        .select();
+
+      if (error) throw error;
+
+      // Update notification if time changed
+      if (updates.notificationTime && data[0]) {
+        await scheduleRoutineNotification(data[0]);
+      }
+
+      setRoutines(routines.map(r => r.id === routineId ? data[0] : r));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const deleteRoutine = async (routineId: string) => {
+    try {
+      const { error } = await supabase
+        .from('routines')
+        .delete()
+        .eq('id', routineId);
+
+      if (error) throw error;
+
+      // Cancel notification
+      await Notifications.cancelScheduledNotificationAsync(routineId);
+
+      setRoutines(routines.filter(r => r.id !== routineId));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const fetchRoutines = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('routines')
+        .select('*')
+        .eq('user_id', currentUser?.id);
+
+      if (error) throw error;
+      setRoutines(data || []);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const fetchProgressArchive = async () => {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30); // Last 30 days
+
+      const { data, error } = await supabase
+        .from('progress_archive')
+        .select('*')
+        .eq('user_id', currentUser?.id)
+        .gte('date', format(startDate, 'yyyy-MM-dd'))
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      setProgressArchive(data || []);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const scheduleRoutineNotification = async (routine: Routine) => {
+    if (!routine.notificationEnabled || !routine.notificationTime) return;
+
+    try {
+      // Cancel existing notification
+      await Notifications.cancelScheduledNotificationAsync(routine.id);
+
+      // Schedule new notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: routine.title,
+          body: "Time to complete your routine!",
+          data: { routineId: routine.id },
+        },
+        trigger: {
+          hour: parseInt(routine.notificationTime.split(':')[0]),
+          minute: parseInt(routine.notificationTime.split(':')[1]),
+          repeats: true,
+        },
+      });
+    } catch (error) {
+      console.error('Error scheduling notification:', error);
+    }
+  };
+
+  const completeRoutine = async (routineId: string, date: Date, notes?: string) => {
+    if (!canCompleteRoutine(routineId, date)) {
+      throw new Error('Cannot complete routines older than 2 days');
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('routine_completions')
+        .insert({
+          routine_id: routineId,
+          user_id: currentUser?.id,
+          completion_date: format(date, 'yyyy-MM-dd'),
+          status: 'completed',
+          notes
+        })
+        .select();
+
+      if (error) throw error;
+
+      // Update local state
+      const completion = data[0];
+      setRoutineCompletions(prev => ({
+        ...prev,
+        [format(date, 'yyyy-MM-dd')]: [
+          ...(prev[format(date, 'yyyy-MM-dd')] || []),
+          completion
+        ]
+      }));
+
+      // Refresh progress archive
+      await fetchProgressArchive();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const getRoutineCompletions = async (date: Date) => {
+    try {
+      const { data, error } = await supabase
+        .from('routine_completions')
+        .select('*')
+        .eq('user_id', currentUser?.id)
+        .eq('completion_date', format(date, 'yyyy-MM-dd'));
+
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      setError((err as Error).message);
+      return [];
+    }
+  };
+
+  const getProgressArchive = async (startDate: Date, endDate: Date) => {
+    try {
+      const { data, error } = await supabase
+        .from('progress_archive')
+        .select('*')
+        .eq('user_id', currentUser?.id)
+        .gte('date', format(startDate, 'yyyy-MM-dd'))
+        .lte('date', format(endDate, 'yyyy-MM-dd'))
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      setError((err as Error).message);
+      return [];
+    }
+  };
+
+  const isRoutineCompleted = (routineId: string, date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return routineCompletions[dateStr]?.some(
+      completion => completion.routineId === routineId && completion.status === 'completed'
+    ) || false;
+  };
+
+  const canCompleteRoutine = (routineId: string, date: Date) => {
+    if (isFuture(date)) return false;
+    const daysDiff = differenceInDays(new Date(), date);
+    return daysDiff <= 2;
+  };
+
+  const getRoutineStatus = (routineId: string, date: Date): CompletionStatus => {
+    if (isFuture(date)) return 'pending';
+    if (!canCompleteRoutine(routineId, date)) return 'missed';
+    return isRoutineCompleted(routineId, date) ? 'completed' : 'pending';
+  };
+
   const value = {
     plans,
     goals,
@@ -745,6 +1083,18 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     resetStreak,
     terminateStreak,
     breakStreak,
+    updateRoutine,      
+    deleteRoutine,
+    getRoutine,
+    routines,
+    routineCompletions,
+    progressArchive,
+    completeRoutine,
+    getRoutineCompletions,
+    getProgressArchive,
+    isRoutineCompleted,
+    canCompleteRoutine,
+    getRoutineStatus,
   };
 
   return (
