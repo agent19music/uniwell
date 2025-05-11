@@ -26,7 +26,7 @@ export default function LoginScreen() {
       if (error) throw error;
       
       // User is now logged in and will be stored by the AuthContext
-      router.push('/routines');
+      router.replace('/(tabs)/home');
     } catch (error) {
       console.error('Error signing in:', (error as Error).message);
       burnt.toast({
@@ -56,6 +56,11 @@ export default function LoginScreen() {
       }
     } catch (error: unknown) {
       console.error('OAuth login error:', error instanceof Error ? error.message : 'Unknown error');
+      burnt.toast({
+        title: 'Login Failed',
+        message: error instanceof Error ? error.message : 'Failed to sign in with Google',
+        preset: 'error',
+      });
     }
   };
 
@@ -154,7 +159,10 @@ export default function LoginScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.forgotPassword}>
+                <TouchableOpacity 
+                  style={styles.forgotPassword}
+                  onPress={() => router.push('/reset-password')}
+                >
                   <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                 </TouchableOpacity>
 
@@ -184,7 +192,7 @@ export default function LoginScreen() {
                 >
                   <BlurView intensity={30} style={styles.googleButtonContent}>
                     <Ionicons name="logo-google" size={24} color="#DB4437" />
-                    <Text style={styles.googleButtonText}>Sign in with Google</Text>
+                    <Text style={styles.googleButtonText}>Continue with Google</Text>
                   </BlurView>
                 </TouchableOpacity>
               </View>
