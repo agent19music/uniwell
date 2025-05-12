@@ -18,9 +18,9 @@ const OnboardingScreen: React.FC = () => {
   }
   
   // If not first time, don't show onboarding
-  if (!isFirstTime) {
-    return null;
-  }
+  // if (!isFirstTime) {
+  //   return null;
+  // }
   
   // Log platform for debugging
   console.log('Platform:', Platform.OS);

@@ -52,6 +52,11 @@ const OnboardingSlide: React.FC<Props> = ({ item, index, scrollX, onContinue }) 
   const currentTitle = demoContent[index]?.title || item.title;
   const currentDescription = demoContent[index]?.description || item.description;
 
+  // Determine background color based on slide index
+  const getBackgroundColor = () => {
+    return index === 0 ? '#FF7F50' : '#171717';
+  };
+
   const animatedImageStyle = useAnimatedStyle(() => {
     const inputRange = [
       (index - 1) * width,
