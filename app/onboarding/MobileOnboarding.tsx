@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from 'react';
-import { View, StyleSheet, SafeAreaView, useWindowDimensions, StatusBar } from 'react-native';
+import { StyleSheet, SafeAreaView, useWindowDimensions, StatusBar, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -7,10 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { onboardingSlides } from './slidesData';
-import OnboardingSlide from './components/OnboardingSlide';
-import Pagination from './components/Pagination';
-import OnboardingButton from './components/OnboardingButton';
-import SkipButton from './components/SkipButton';
+import WebScreenMockup from './components/WebScreenMockup';
 import { useOnboarding } from './OnboardingContext';
 
 const MobileOnboarding: React.FC = () => {
@@ -25,6 +22,12 @@ const MobileOnboarding: React.FC = () => {
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollX.value = event.contentOffset.x;
+      
+      // Calculate the current index based on the scroll position
+      const newIndex = Math.round(event.contentOffset.x / width);
+      if (newIndex !== flatListIndex.value) {
+        flatListIndex.value = newIndex;
+      }
     },
   });
   
@@ -44,21 +47,36 @@ const MobileOnboarding: React.FC = () => {
   ]);
   
   // Go to the next slide or complete onboarding
-  const handleContinue = () => {
-    if (flatListIndex.value < onboardingSlides.length - 1) {
+  const handleContinue = useCallback((index: number) => {
+    if (index < onboardingSlides.length - 1) {
       flatListRef.current?.scrollToIndex({
-        index: flatListIndex.value + 1,
+        index: index + 1,
         animated: true,
       });
+    } else {
+      skipOnboarding();
     }
-  };
+  }, [skipOnboarding]);
   
-  // Render each slide
+  // Render each slide as a WebScreenMockup
   const renderItem = useCallback(
     ({ item, index }: { item: any; index: number }) => (
-      <OnboardingSlide item={item} index={index} scrollX={scrollX} />
+      <Pressable 
+        style={[styles.slideContainer, { width }]} 
+      >
+        <WebScreenMockup
+          title={item.title}
+          description={item.description}
+          imageSource={item.imageSource}
+          backgroundColor={item.backgroundColor}
+          delay={0} // No delay for mobile slides
+          index={index}
+          isActive={true} // Always active in mobile view for better UX
+          onContinue={handleContinue}
+        />
+      </Pressable>
     ),
-    [scrollX]
+    [width, handleContinue]
   );
   
   // Extract item keys
@@ -70,12 +88,6 @@ const MobileOnboarding: React.FC = () => {
         translucent
         backgroundColor="transparent"
         barStyle="dark-content"
-      />
-      
-      <SkipButton
-        currentIndex={flatListIndex}
-        dataLength={onboardingSlides.length}
-        onSkip={skipOnboarding}
       />
       
       <Animated.FlatList
@@ -91,19 +103,9 @@ const MobileOnboarding: React.FC = () => {
         bounces={false}
         viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
         decelerationRate="fast"
+        style={styles.flatList}
+        contentContainerStyle={styles.flatListContent}
       />
-      
-      <View style={styles.bottomContainer}>
-        <Pagination scrollX={scrollX} data={onboardingSlides} />
-        
-        <OnboardingButton
-          currentIndex={flatListIndex}
-          scrollX={scrollX}
-          dataLength={onboardingSlides.length}
-          onContinue={handleContinue}
-          onGetStarted={skipOnboarding}
-        />
-      </View>
     </SafeAreaView>
   );
 };
@@ -111,17 +113,18 @@ const MobileOnboarding: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#f5f5f5',
   },
-  bottomContainer: {
-    position: 'absolute',
-    bottom: 50,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  flatList: {
+    flex: 1,
+  },
+  flatListContent: {
     alignItems: 'center',
-    paddingHorizontal: 30,
+  },
+  slideContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

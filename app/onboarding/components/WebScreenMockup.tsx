@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Image, Text, StyleSheet, Pressable, ImageSourcePropType } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -16,6 +16,7 @@ interface WebScreenMockupProps {
   delay: number;
   index: number;
   isActive?: boolean;
+  onContinue?: (index: number) => void;
 }
 
 const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
@@ -26,10 +27,14 @@ const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
   delay,
   index,
   isActive = false,
+  onContinue,
 }) => {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(50);
   const scale = useSharedValue(0.95);
+  const activeBorderOpacity = useSharedValue(0);
+  const activeScale = useSharedValue(1);
+  const buttonScale = useSharedValue(1);
 
   // Sample images based on the inspo design
   const demoImages: ImageSourcePropType[] = [
@@ -37,7 +42,6 @@ const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
     { uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/communityillustration-removebg.png' },
     {uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/selfcareillustration-removebg.png' },
     { uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/productivityillustration-removebg.png' },
-
   ];
 
   // Sample content based on the inspo design
@@ -70,7 +74,7 @@ const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
   const currentDescription = demoContent[index]?.description || description;
 
   // Animate mockup entrance
-  React.useEffect(() => {
+  useEffect(() => {
     translateY.value = withDelay(
       delay,
       withTiming(0, {
@@ -96,13 +100,34 @@ const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
     );
   }, [delay, opacity, translateY, scale]);
 
+  // Handle active state changes
+  useEffect(() => {
+    activeBorderOpacity.value = withTiming(isActive ? 1 : 0, { duration: 300 });
+    activeScale.value = withTiming(isActive ? 1.05 : 1, { duration: 300 });
+  }, [isActive, activeBorderOpacity, activeScale]);
+
   const animatedStyle = useAnimatedStyle(() => {
     return {
       opacity: opacity.value,
       transform: [
         { translateY: translateY.value },
-        { scale: scale.value },
+        { scale: activeScale.value },
       ],
+    };
+  });
+
+  const activeBorderStyle = useAnimatedStyle(() => {
+    return {
+      opacity: activeBorderOpacity.value,
+      borderWidth: 3,
+      borderColor: '#FFFFFF',
+      borderRadius: 42, // Slightly larger than the container
+    };
+  });
+
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }],
     };
   });
 
@@ -111,71 +136,118 @@ const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
   };
 
   const handlePressOut = () => {
-    scale.value = withTiming(1, { duration: 200 });
+    scale.value = withTiming(isActive ? 1.05 : 1, { duration: 200 });
+  };
+
+  const handleButtonPressIn = () => {
+    buttonScale.value = withTiming(0.95, { duration: 100 });
+  };
+
+  const handleButtonPressOut = () => {
+    buttonScale.value = withTiming(1, { duration: 100 });
+  };
+
+  const handleContinue = () => {
+    if (onContinue) {
+      onContinue(index);
+    }
   };
 
   return (
-    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut}>
-      <Animated.View 
-        style={[
-          styles.container, 
-          animatedStyle, 
-          { backgroundColor }
-        ]}
-      >
-        <View style={styles.mockupHeader}>
-          <View style={styles.statusBar}>
-            <Text style={styles.statusText}>{index + 1} of 4</Text>
-            <Text style={styles.skipText}>Skip</Text>
-          </View>
-        </View>
-        
-        <View style={styles.contentContainer}>
-          <View style={styles.illustrationContainer}>
-            {/* Rendering the image similar to the inspo screenshot */}
-            <Image 
-              source={demoImages[index] || imageSource} 
-              style={styles.image} 
-              resizeMode="contain"
-            />
-          </View>
-          
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>{currentTitle}</Text>
-            <Text style={styles.description}>{currentDescription}</Text>
-          </View>
-        </View>
-        
-        <View style={styles.footer}>
-          <View style={styles.indicatorContainer}>
-            <View style={[styles.indicator, index === 0 && styles.activeIndicator]} />
-            <View style={[styles.indicator, index === 1 && styles.activeIndicator]} />
-            <View style={[styles.indicator, index === 2 && styles.activeIndicator]} />
-            <View style={[styles.indicator, index === 3 && styles.activeIndicator]} />
-          </View>
-          
-          {index === 3 && (
-            <View style={styles.buttonContainer}>
-              <View style={styles.getStartedButton}>
-                <Text style={styles.buttonText}>Let's Get Started</Text>
+    <View style={styles.outerContainer}>
+      <Animated.View style={[styles.activeBorder, activeBorderStyle]}>
+        <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut}>
+          <Animated.View 
+            style={[
+              styles.container, 
+              animatedStyle, 
+              { backgroundColor }
+            ]}
+          >
+            <View style={styles.mockupHeader}>
+              <View style={styles.statusBar}>
+                <Text style={styles.statusText}>{index + 1} of 4</Text>
+                <Pressable onPress={() => onContinue && onContinue(3)}>
+                  <Text style={styles.skipText}>Skip</Text>
+                </Pressable>
               </View>
             </View>
-          )}
-          
-          {index !== 3 && (
-            <View style={styles.buttonContainer}>
-              <View style={styles.nextButton}>
-                <Text style={styles.nextButtonText}>→</Text>
+            
+            <View style={styles.contentContainer}>
+              <View style={styles.illustrationContainer}>
+                {/* Rendering the image similar to the inspo screenshot */}
+                <Image 
+                  source={demoImages[index] || imageSource} 
+                  style={styles.image} 
+                  resizeMode="contain"
+                />
+              </View>
+              
+              <View style={styles.textContainer}>
+                <Text style={styles.title}>{currentTitle}</Text>
+                <Text style={styles.description}>{currentDescription}</Text>
               </View>
             </View>
-          )}
-        </View>
+            
+            <View style={styles.footer}>
+              <View style={styles.indicatorContainer}>
+                <View style={[styles.indicator, index === 0 && styles.activeIndicator]} />
+                <View style={[styles.indicator, index === 1 && styles.activeIndicator]} />
+                <View style={[styles.indicator, index === 2 && styles.activeIndicator]} />
+                <View style={[styles.indicator, index === 3 && styles.activeIndicator]} />
+              </View>
+              
+              {index === 3 && (
+                <View style={styles.buttonContainer}>
+                  <Pressable 
+                    onPress={handleContinue}
+                    onPressIn={handleButtonPressIn}
+                    onPressOut={handleButtonPressOut}
+                  >
+                    <Animated.View style={[styles.getStartedButton, buttonAnimatedStyle]}>
+                      <Text style={styles.buttonText}>Let's Get Started</Text>
+                    </Animated.View>
+                  </Pressable>
+                </View>
+              )}
+              
+              {index !== 3 && (
+                <View style={styles.buttonContainer}>
+                  <Pressable 
+                    onPress={handleContinue}
+                    onPressIn={handleButtonPressIn}
+                    onPressOut={handleButtonPressOut}
+                  >
+                    <Animated.View style={[styles.nextButton, buttonAnimatedStyle]}>
+                      <Text style={styles.nextButtonText}>→</Text>
+                    </Animated.View>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        </Pressable>
       </Animated.View>
-    </Pressable>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    padding: 5,
+  },
+  activeBorder: {
+    padding: 5,
+    borderRadius: 45,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 15,
+  },
   container: {
     width: 280,
     height: 580,
