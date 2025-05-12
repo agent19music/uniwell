@@ -35,8 +35,9 @@ const WebScreenMockup: React.FC<WebScreenMockupProps> = ({
   const demoImages: ImageSourcePropType[] = [
     { uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/caregiverillustration-removebg.png' },
     { uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/communityillustration-removebg.png' },
-    { uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/productivityillustration-removebg.png' },
     {uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/selfcareillustration-removebg.png' },
+    { uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/productivityillustration-removebg.png' },
+
   ];
 
   // Sample content based on the inspo design
@@ -180,7 +181,6 @@ const styles = StyleSheet.create({
     height: 580,
     borderRadius: 40,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 10,

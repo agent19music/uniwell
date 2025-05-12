@@ -85,7 +85,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   footerContent: {
-    width: '100%',
+    width: '80%',
+    alignSelf: 'center',
   },
   sectionsContainer: {
     flexDirection: 'row',
