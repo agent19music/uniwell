@@ -8,6 +8,7 @@ import { Camera } from 'expo-camera';
 import { RoutineProvider } from '@/contexts/RoutineContext';
 import { MoodProvider } from '@/contexts/MoodContext';
 import { CommunityProvider } from '@/contexts/CommunityContext';
+import { PostNavigationProvider } from '@/contexts/PostNavigationContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SemesterProvider } from '@/contexts/SemesterContext';
 import { MaskedSplashScreen } from '../components/MaskedSplashScreen';
@@ -111,27 +112,29 @@ export default function RootLayout() {
       ) : (
         <AuthProvider>  
           <CommunityProvider>
-            <MoodProvider>
-              <RoutineProvider>
-                <SemesterProvider>
-                  <AppContainer>
-                    <Stack screenOptions={{
-                      headerShown: false,
-                      contentStyle: {
-                        backgroundColor: isDark ? '#121212' : '#f5f5f5',
-                      },
-                    }}>
-                      <Stack.Screen name="index" />
-                      <Stack.Screen name="loginscreen" />
-                      <Stack.Screen name="signupscreen" />
-                      <Stack.Screen name="onboarding" />
-                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                    </Stack>
-                    <StatusBar style={isDark ? 'light' : 'dark'} />
-                  </AppContainer>
-                </SemesterProvider>
-              </RoutineProvider>
-            </MoodProvider>
+            <PostNavigationProvider>
+              <MoodProvider>
+                <RoutineProvider>
+                  <SemesterProvider>
+                    <AppContainer>
+                      <Stack screenOptions={{
+                        headerShown: false,
+                        contentStyle: {
+                          backgroundColor: isDark ? '#121212' : '#f5f5f5',
+                        },
+                      }}>
+                        <Stack.Screen name="index" />
+                        <Stack.Screen name="loginscreen" />
+                        <Stack.Screen name="signupscreen" />
+                        <Stack.Screen name="onboarding" />
+                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                      </Stack>
+                      <StatusBar style={isDark ? 'light' : 'dark'} />
+                    </AppContainer>
+                  </SemesterProvider>
+                </RoutineProvider>
+              </MoodProvider>
+            </PostNavigationProvider>
           </CommunityProvider>
         </AuthProvider>
       )}

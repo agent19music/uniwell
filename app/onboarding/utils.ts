@@ -2,15 +2,18 @@ import { Platform, Dimensions } from 'react-native';
 import { PlatformType } from './types';
 
 export const getPlatformType = (): PlatformType => {
-  return Platform.OS === 'web' ? PlatformType.WEB : PlatformType.MOBILE;
+  if (Platform.OS === 'web') {
+    return PlatformType.WEB;
+  }
+  return PlatformType.MOBILE;
 };
 
 export const isWeb = (): boolean => {
-  return getPlatformType() === PlatformType.WEB;
+  return Platform.OS === 'web';
 };
 
 export const isMobile = (): boolean => {
-  return getPlatformType() === PlatformType.MOBILE;
+  return Platform.OS === 'ios' || Platform.OS === 'android';
 };
 
 export const getWindowDimensions = () => {

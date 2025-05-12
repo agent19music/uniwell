@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { OnboardingProvider, useOnboarding } from './OnboardingContext';
 import MobileOnboarding from './MobileOnboarding';
 import WebOnboarding from './WebOnboarding';
-import { isMobile, isWeb } from './utils';
+import { isWeb } from './utils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const OnboardingScreen: React.FC = () => {
@@ -21,6 +21,10 @@ const OnboardingScreen: React.FC = () => {
   if (!isFirstTime) {
     return null;
   }
+  
+  // Log platform for debugging
+  console.log('Platform:', Platform.OS);
+  console.log('isWeb():', isWeb());
   
   // Render the appropriate onboarding experience based on platform
   if (isWeb()) {

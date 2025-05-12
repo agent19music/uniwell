@@ -58,6 +58,7 @@
     "react-dom": "19.0.0",
     "react-hot-toast": "^2.5.2",
     "react-native": "0.79.2",
+    "react-native-calendars": "^1.1312.0",
     "react-native-chart-kit": "^6.12.0",
     "react-native-error-boundary": "^2.0.0",
     "react-native-gesture-handler": "~2.24.0",

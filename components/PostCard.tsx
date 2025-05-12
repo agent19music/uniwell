@@ -5,12 +5,14 @@ import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { Post } from '@/types/community';
 import { useCommunity } from '@/contexts/CommunityContext';
+import { usePostNavigation } from '@/contexts/PostNavigationContext';
 import { Menu } from '@/components/Menu';
 
 export default function PostCard({ post, isOwner }: { post: Post, isOwner: boolean }) {
   const router = useRouter();
   const isDark = useColorScheme() === 'dark';
   const { deletePost, mutePost, notInterestedPost, likePost } = useCommunity();
+  const { navigateToPost } = usePostNavigation();
   const [menuVisible, setMenuVisible] = useState(false);
 
   const menuItems = isOwner ? [
@@ -46,10 +48,14 @@ export default function PostCard({ post, isOwner }: { post: Post, isOwner: boole
     }
   ];
 
+  const handlePostPress = () => {
+    navigateToPost(post);
+  };
+
   return (
     <TouchableOpacity
       style={[styles.postCard, isDark && styles.darkCard]}
-      onPress={() => router.push(`/post/${post.id}`)}
+      onPress={handlePostPress}
     >
       <View style={styles.postHeader}>
         <View style={styles.userInfo}>

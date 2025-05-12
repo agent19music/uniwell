@@ -114,6 +114,10 @@ export default function HomeScreen() {
     router.push('/chatUI');
   };
 
+  const handleTherapistDashboardPress = () => {
+    router.push('/therapistdashboard');
+  };
+
   useEffect(() => {
     async function getUserData() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -271,6 +275,20 @@ export default function HomeScreen() {
         </View>
         <Text style={[styles.cardSubtitle, isDark && styles.darkSubText]}>
           Chat with your AI therapist
+        </Text>
+      </TouchableOpacity>
+
+      {/* Therapist Dashboard Card */}
+      <TouchableOpacity 
+        style={[styles.card, isDark && styles.darkCard]} 
+        onPress={handleTherapistDashboardPress}
+      >
+        <View style={styles.cardHeader}>
+          <Ionicons name="calendar-outline" size={24} color="#FF7F50" />
+          <Text style={[styles.cardTitle, isDark && styles.darkText]}>Therapist</Text>
+        </View>
+        <Text style={[styles.cardSubtitle, isDark && styles.darkSubText]}>
+          Open therapist dashboard
         </Text>
       </TouchableOpacity>
 

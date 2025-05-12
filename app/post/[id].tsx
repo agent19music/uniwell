@@ -16,32 +16,58 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useCommunity } from '../../contexts/CommunityContext';
+import { usePostNavigation } from '../../contexts/PostNavigationContext';
 import ThreadedReply from '../../components/ThreadedReply';
 import { format } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 import { Post, Reply } from '@/types/community';
 
-
-
-
 export default function PostScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const isDark = useColorScheme() === 'dark';
-  const [post, setPost] = useState<Post | null>(null);
+  const { currentPost, getCachedPost } = usePostNavigation();
+  const [post, setPost] = useState<Post | null>(currentPost);
   const [replies, setReplies] = useState<Reply[]>([]);
   const [replyContent, setReplyContent] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!post);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const { createReply, likePost, deletePost } = useCommunity();
-
+  
   useEffect(() => {
-    fetchPost();
-    subscribeToReplies();
-  }, [id]);
+    const stringId = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : '';
+    
+    // First, check if we have a currentPost from navigation
+    if (currentPost && currentPost.id === stringId) {
+      setPost(currentPost);
+      setIsLoading(false);
+      fetchReplies();
+    } 
+    // Then, check if we have a cached post
+    else if (stringId) {
+      const cachedPost = getCachedPost(stringId);
+      if (cachedPost) {
+        setPost(cachedPost);
+        setIsLoading(false);
+        fetchReplies();
+      } else {
+        // Fallback to fetch from API
+        fetchPost(stringId);
+      }
+    }
+    
+    // Set up subscription regardless of data source
+    if (stringId) {
+      const unsubscribe = subscribeToReplies(stringId);
+      return () => {
+        if (unsubscribe) unsubscribe();
+      };
+    }
+  }, [id, currentPost]);
 
-  const fetchPost = async () => {
+  const fetchPost = async (postId: string) => {
     try {
+      setIsLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from('community_posts')
@@ -57,7 +83,7 @@ export default function PostScreen() {
             user_id
           )
         `)
-        .eq('id', id)
+        .eq('id', postId)
         .single();
 
       if (error) throw error;
@@ -71,6 +97,9 @@ export default function PostScreen() {
   };
 
   const fetchReplies = async () => {
+    const postId = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : '';
+    if (!postId) return;
+    
     try {
       const { data, error } = await supabase
         .from('post_replies')
@@ -81,7 +110,7 @@ export default function PostScreen() {
             avatar_url
           )
         `)
-        .eq('post_id', id)
+        .eq('post_id', postId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -97,13 +126,25 @@ export default function PostScreen() {
     const replyMap = new Map();
 
     flatReplies.forEach(reply => {
-      replyMap.set(reply.id, { ...reply, children: [] });
+      // Add timestamp, user, and hasChildren properties to match ThreadedReply component expectations
+      const enrichedReply = {
+        ...reply,
+        timestamp: reply.created_at,
+        user: {
+          id: reply.user_id,
+          name: reply.profiles?.username,
+          avatar: reply.profiles?.avatar_url
+        },
+        hasChildren: false
+      };
+      replyMap.set(reply.id, { ...enrichedReply, children: [] });
     });
 
     flatReplies.forEach(reply => {
       if (reply.parent_id) {
         const parent = replyMap.get(reply.parent_id);
         if (parent) {
+          parent.hasChildren = true;
           parent.children.push(replyMap.get(reply.id));
         }
       } else {
@@ -114,14 +155,14 @@ export default function PostScreen() {
     return threadedReplies;
   };
 
-  const subscribeToReplies = () => {
+  const subscribeToReplies = (postId: string) => {
     const subscription = supabase
-      .channel('post_replies')
+      .channel(`post_replies_${postId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'post_replies',
-        filter: `post_id=eq.${id}`
+        filter: `post_id=eq.${postId}`
       }, () => {
         fetchReplies();
       })
@@ -134,14 +175,15 @@ export default function PostScreen() {
 
   const handleReply = async () => {
     if (!replyContent.trim()) return;
-        content: replyContent.trim()
+    const postId = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : '';
+    if (!postId) return;
+    
     try {
       await createReply({
-        post_id: id,
-        parent_id: replyingTo,
+        postId,
+        parentId: replyingTo || undefined,
         content: replyContent.trim()
       });
-      console.error('Error creating reply:', error);
       setReplyContent('');
       setReplyingTo(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -149,7 +191,6 @@ export default function PostScreen() {
       console.error('Error creating reply:', error);
     }
   };
-
 
   const handlePostOptions = () => {
     Alert.alert(
@@ -170,8 +211,10 @@ export default function PostScreen() {
                   style: 'destructive',
                   onPress: async () => {
                     try {
-                      await deletePost(id);
-                      router.back();
+                      if (typeof id === 'string') {
+                        await deletePost(id);
+                        router.back();
+                      }
                     } catch (error) {
                       console.error('Error deleting post:', error);
                     }
@@ -268,7 +311,7 @@ export default function PostScreen() {
               style={[styles.input, isDark && styles.inputDark]}
               multiline
             />
-            <TouchableOpacity style={styles.sendButton} onPress={handleReply(post?.id)}>
+            <TouchableOpacity style={styles.sendButton} onPress={handleReply}>
               <Ionicons name="send" size={24} color="#FF7F50" />
             </TouchableOpacity>
           </View>

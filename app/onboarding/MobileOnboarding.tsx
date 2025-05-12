@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from 'react';
-import { StyleSheet, SafeAreaView, useWindowDimensions, StatusBar, Pressable } from 'react-native';
+import { StyleSheet, SafeAreaView, useWindowDimensions, StatusBar, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -7,12 +7,12 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { onboardingSlides } from './slidesData';
-import WebScreenMockup from './components/WebScreenMockup';
+import OnboardingSlide from './components/OnboardingSlide';
 import { useOnboarding } from './OnboardingContext';
 
 const MobileOnboarding: React.FC = () => {
   const { skipOnboarding } = useOnboarding();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   
   const scrollX = useSharedValue(0);
   const flatListIndex = useSharedValue(0);
@@ -58,36 +58,28 @@ const MobileOnboarding: React.FC = () => {
     }
   }, [skipOnboarding]);
   
-  // Render each slide as a WebScreenMockup
+  // Render each slide using the OnboardingSlide component
   const renderItem = useCallback(
     ({ item, index }: { item: any; index: number }) => (
-      <Pressable 
-        style={[styles.slideContainer, { width }]} 
-      >
-        <WebScreenMockup
-          title={item.title}
-          description={item.description}
-          imageSource={item.imageSource}
-          backgroundColor={item.backgroundColor}
-          delay={0} // No delay for mobile slides
-          index={index}
-          isActive={true} // Always active in mobile view for better UX
-          onContinue={handleContinue}
-        />
-      </Pressable>
+      <OnboardingSlide 
+        item={item}
+        index={index}
+        scrollX={scrollX}
+        onContinue={handleContinue}
+      />
     ),
-    [width, handleContinue]
+    [scrollX, handleContinue]
   );
   
   // Extract item keys
   const keyExtractor = useCallback((item: any) => item.id, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar
         translucent
         backgroundColor="transparent"
-        barStyle="dark-content"
+        barStyle="light-content"
       />
       
       <Animated.FlatList
@@ -104,27 +96,18 @@ const MobileOnboarding: React.FC = () => {
         viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
         decelerationRate="fast"
         style={styles.flatList}
-        contentContainerStyle={styles.flatListContent}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#171717',
   },
   flatList: {
     flex: 1,
-  },
-  flatListContent: {
-    alignItems: 'center',
-  },
-  slideContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
 
