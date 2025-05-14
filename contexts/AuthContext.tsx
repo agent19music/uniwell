@@ -46,6 +46,14 @@ interface User {
   };
 }
 
+interface UserWithRole {
+  id: string;
+  email: string;
+  role: 'user' | 'therapist' | 'admin';
+  created_at: string;
+  updated_at: string;
+}
+
 interface AuthContextType {
   session: Session | null;
   loading: boolean;
@@ -59,6 +67,9 @@ interface AuthContextType {
   clearStoredUsers: () => Promise<void>;
   currentUser: User | null;
   fetchProfile: () => Promise<void>;
+  userRole: 'user' | 'therapist' | 'admin' | null;
+  userWithRole: UserWithRole | null;
+  checkUserRole: () => Promise<'user' | 'therapist' | 'admin' | null>;
 }
 
 const STORED_USERS_KEY = 'uniwell_stored_users';
@@ -80,6 +91,9 @@ export const AuthContext = createContext<AuthContextType>({
   clearStoredUsers: async () => {},
   currentUser: null,
   fetchProfile: async () => {},
+  userRole: null,
+  userWithRole: null,
+  checkUserRole: async () => null,
 });
 
 // This hook can be used to access the user info.
@@ -153,6 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     full_name: '',
     avatar_url: null,
   });
+  const [userRole, setUserRole] = useState<'user' | 'therapist' | 'admin' | null>(null);
+  const [userWithRole, setUserWithRole] = useState<UserWithRole | null>(null);
   const router = useRouter();
 
   useProtectedRoute(session);
@@ -216,13 +232,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      // Fetch both profile and user role
+      const [profileResult, userResult] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('users').select('*').eq('id', user.id).single()
+      ]);
 
-      if (error) throw error;
+      if (profileResult.error) throw profileResult.error;
+      if (userResult.error) throw userResult.error;
+
+      const data = profileResult.data;
+      const userData = userResult.data;
+
+      // Set user role and full user data
+      setUserRole(userData.role);
+      setUserWithRole(userData);
 
       // Update current user
       setCurrentUser({
@@ -293,14 +317,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (newSession) {
         // Register for push notifications
         await registerForPushNotificationsAsync();
+        // Check user role on sign in
+        await checkUserRole();
       } else {
-        // Reset profile when logged out
+        // Reset everything when logged out
         setProfile({
           username: '',
           full_name: '',
           avatar_url: null,
         });
         setCurrentUser(null);
+        setUserRole(null);
+        setUserWithRole(null);
       }
       
       setLoading(false);
@@ -341,6 +369,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const checkUserRole = async (): Promise<'user' | 'therapist' | 'admin' | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user role:', error);
+        return null;
+      }
+
+      setUserRole(data.role);
+      return data.role;
+    } catch (error) {
+      console.error('Error checking user role:', error);
+      return null;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -356,6 +408,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearStoredUsers,
         currentUser,
         fetchProfile,
+        userRole,
+        userWithRole,
+        checkUserRole,
       }}>
       {children}
     </AuthContext.Provider>
