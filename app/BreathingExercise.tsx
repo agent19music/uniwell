@@ -735,6 +735,7 @@ const styles = StyleSheet.create({
   },
   selectedPattern: {
     borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderWidth: 1,
   },
   patternName: {
     fontSize: 16,
@@ -766,18 +767,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 200,
     height: 48,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
   timerContent: {
     flex: 1,
@@ -791,7 +782,6 @@ const styles = StyleSheet.create({
   },
   darkTimerWidget: {
     backgroundColor: 'rgba(30, 30, 30, 0.7)',
-    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   timerText: {
     fontSize: 16,
@@ -819,11 +809,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   startButton: {
     height: 44,
