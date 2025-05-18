@@ -40,6 +40,7 @@ export default function InterestSelectionModal({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const toggleInterest = useCallback((interestId: string) => {
     setSelectedInterests(prev => {
@@ -119,22 +120,38 @@ export default function InterestSelectionModal({
   useEffect(() => {
     if (visible) {
       setMounted(true);
+      // Fade in background
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+      // Slide up modal
       Animated.spring(slideAnim, {
         toValue: 1,
         useNativeDriver: true,
-        tension: 50,
-        friction: 7,
+        tension: 65,
+        friction: 8,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
       }).start();
     } else {
-      Animated.timing(slideAnim, {
+      // Fade out background
+      Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 200,
+        useNativeDriver: true,
+      }).start();
+      // Slide down modal
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 250,
         useNativeDriver: true,
       }).start(() => {
         setMounted(false);
       });
     }
-  }, [visible, slideAnim]);
+  }, [visible, slideAnim, fadeAnim]);
 
   if (!mounted && !visible) return null;
 
@@ -204,10 +221,11 @@ export default function InterestSelectionModal({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <BlurView
-        intensity={isDark ? 40 : 60}
-        tint={isDark ? 'dark' : 'light'}
-        style={styles.modalContainer}
+      <Animated.View 
+        style={[
+          styles.modalContainer,
+          { opacity: fadeAnim }
+        ]}
       >
         <TouchableOpacity
           style={styles.modalOverlay}
@@ -230,118 +248,133 @@ export default function InterestSelectionModal({
               },
             ]}
           >
-            <TouchableOpacity activeOpacity={1}>
-              <LinearGradient
-                colors={isDark ? ['#1a1a1a', '#2a2a2a'] : ['#ffffff', '#f8f8f8']}
-                style={styles.gradient}
-              >
-                <View style={styles.header}>
-                  <Text style={[styles.title, isDark && styles.darkText]}>
-                    Select Your Interests
-                  </Text>
-                  <Text style={[styles.subtitle, isDark && styles.darkSubText]}>
-                    Choose up to 10 topics that interest you
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={onClose}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
+            <LinearGradient
+              colors={
+                isDark 
+                  ? ['#1c1c1e', '#2c2c2e'] 
+                  : ['#ffffff', '#f8f8f8']
+              }
+              style={styles.gradient}
+            >
+              <View style={styles.dragIndicator} />
+              
+              <View style={styles.header}>
+                <Text style={[styles.title, isDark && styles.darkText]}>
+                  Select Your Interests
+                </Text>
+                <Text style={[styles.subtitle, isDark && styles.darkSubText]}>
+                  Choose up to 10 topics that interest you
+                </Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={onClose}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <View style={[styles.iconBackground, isDark && styles.darkIconBackground]}>
                     <Ionicons
-                      name="close-circle"
-                      size={28}
+                      name="close"
+                      size={20}
                       color={isDark ? '#ffffff' : '#000000'}
                     />
-                  </TouchableOpacity>
-                </View>
+                  </View>
+                </TouchableOpacity>
+              </View>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.categoryTabs}
-                  contentContainerStyle={styles.categoryTabsContent}
-                >
-                  {Object.keys(groupedInterests).map(category => (
-                    <TouchableOpacity
-                      key={category}
-                      style={[
-                        styles.categoryTab,
-                        selectedCategory === category && styles.selectedCategoryTab,
-                        isDark && styles.darkCategoryTab
-                      ]}
-                      onPress={() => setSelectedCategory(category)}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryTabText,
-                          selectedCategory === category && styles.selectedCategoryTabText,
-                          isDark && styles.darkText
-                        ]}
-                      >
-                        {category.charAt(0).toUpperCase() + category.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                <ScrollView
-                  style={styles.interestsList}
-                  contentContainerStyle={styles.interestsListContent}
-                >
-                  {selectedCategory && groupedInterests[selectedCategory]?.map(interest => (
-                    <TouchableOpacity
-                      key={interest.id}
-                      style={[
-                        styles.interestItem,
-                        selectedInterests.includes(interest.id) && styles.selectedInterestItem,
-                        isDark && styles.darkInterestItem
-                      ]}
-                      onPress={() => toggleInterest(interest.id)}
-                    >
-                      <Text
-                        style={[
-                          styles.interestText,
-                          selectedInterests.includes(interest.id) && styles.selectedInterestText,
-                          isDark && styles.darkText
-                        ]}
-                      >
-                        {interest.label}
-                      </Text>
-                      {selectedInterests.includes(interest.id) && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={24}
-                          color="#FF7F50"
-                        />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                <View style={styles.footer}>
-                  <Text style={[styles.selectedCount, isDark && styles.darkText]}>
-                    {selectedInterests.length} of 10 selected
-                  </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.categoryTabs}
+                contentContainerStyle={styles.categoryTabsContent}
+              >
+                {Object.keys(groupedInterests).map(category => (
                   <TouchableOpacity
+                    key={category}
                     style={[
-                      styles.saveButton,
-                      selectedInterests.length === 0 && styles.saveButtonDisabled
+                      styles.categoryTab,
+                      selectedCategory === category && styles.selectedCategoryTab,
+                      isDark && styles.darkCategoryTab,
+                      isDark && selectedCategory === category && styles.darkSelectedCategoryTab
                     ]}
-                    onPress={handleSave}
-                    disabled={loading || selectedInterests.length === 0}
+                    onPress={() => setSelectedCategory(category)}
                   >
-                    {loading ? (
-                      <ActivityIndicator color="#ffffff" />
-                    ) : (
-                      <Text style={styles.saveButtonText}>Save Interests</Text>
+                    <Text
+                      style={[
+                        styles.categoryTabText,
+                        selectedCategory === category && styles.selectedCategoryTabText,
+                        isDark && styles.darkText,
+                        isDark && selectedCategory === category && styles.darkSelectedCategoryTabText
+                      ]}
+                    >
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <ScrollView
+                style={styles.interestsList}
+                contentContainerStyle={styles.interestsListContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {selectedCategory && groupedInterests[selectedCategory]?.map(interest => (
+                  <TouchableOpacity
+                    key={interest.id}
+                    style={[
+                      styles.interestItem,
+                      selectedInterests.includes(interest.id) && styles.selectedInterestItem,
+                      isDark && styles.darkInterestItem,
+                      isDark && selectedInterests.includes(interest.id) && styles.darkSelectedInterestItem
+                    ]}
+                    onPress={() => toggleInterest(interest.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.interestText,
+                        selectedInterests.includes(interest.id) && styles.selectedInterestText,
+                        isDark && styles.darkText,
+                        isDark && selectedInterests.includes(interest.id) && styles.darkSelectedInterestText
+                      ]}
+                    >
+                      {interest.label}
+                    </Text>
+                    {selectedInterests.includes(interest.id) && (
+                      <Ionicons
+                        name="checkmark"
+                        size={22}
+                        color="#FF7F50"
+                      />
                     )}
                   </TouchableOpacity>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <View style={[styles.footer, isDark && styles.darkFooter]}>
+                <Text style={[styles.selectedCount, isDark && styles.darkText]}>
+                  {selectedInterests.length} of 10 selected
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.saveButton,
+                    selectedInterests.length === 0 && styles.saveButtonDisabled,
+                    isDark && styles.darkSaveButton,
+                    isDark && selectedInterests.length === 0 && styles.darkSaveButtonDisabled
+                  ]}
+                  onPress={handleSave}
+                  disabled={loading || selectedInterests.length === 0}
+                  activeOpacity={0.8}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text style={styles.saveButtonText}>Save Interests</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
           </Animated.View>
         </TouchableOpacity>
-      </BlurView>
+      </Animated.View>
     </Modal>
   );
 }
@@ -350,6 +383,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   modalOverlay: {
     flex: 1,
@@ -357,77 +391,114 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '90%',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    height: '80%',
     overflow: 'hidden',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 8,
+        elevation: 24,
       },
     }),
   },
   darkModalContent: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#1c1c1e',
   },
   gradient: {
     flex: 1,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  },
+  dragIndicator: {
+    width: 40,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
   },
   header: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 16,
     paddingBottom: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
     color: '#000000',
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#666666',
     marginBottom: 8,
+    fontWeight: '400',
+    letterSpacing: -0.2,
   },
   closeButton: {
     position: 'absolute',
-    top: 24,
+    top: 20,
     right: 24,
-    padding: 4,
+    zIndex: 10,
+  },
+  iconBackground: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  darkIconBackground: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   categoryTabs: {
-    maxHeight: 50,
-    marginBottom: 16,
+    maxHeight: 52,
+    marginBottom: 20,
   },
   categoryTabsContent: {
     paddingHorizontal: 20,
+    paddingBottom: 8,
   },
   categoryTab: {
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 12,
     marginRight: 12,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   selectedCategoryTab: {
     backgroundColor: '#FF7F50',
   },
   darkCategoryTab: {
-    backgroundColor: '#333333',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  darkSelectedCategoryTab: {
+    backgroundColor: '#FF7F50',
   },
   categoryTabText: {
     fontWeight: '600',
     fontSize: 15,
+    color: '#444444',
+    letterSpacing: -0.2,
   },
   selectedCategoryTabText: {
     color: '#ffffff',
     fontWeight: '700',
+  },
+  darkSelectedCategoryTabText: {
+    color: '#ffffff',
   },
   interestsList: {
     flex: 1,
@@ -440,45 +511,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 16,
-    marginBottom: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    padding: 18,
+    borderRadius: 20,
+    marginBottom: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
   },
   selectedInterestItem: {
-    backgroundColor: 'rgba(255, 127, 80, 0.1)',
-    borderWidth: 1,
-    borderColor: '#FF7F50',
+    backgroundColor: 'rgba(255, 127, 80, 0.15)',
   },
   darkInterestItem: {
-    backgroundColor: '#333333',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  darkSelectedInterestItem: {
+    backgroundColor: 'rgba(255, 127, 80, 0.25)',
   },
   interestText: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#333333',
     fontWeight: '500',
+    letterSpacing: -0.2,
+    flex: 1,
+    marginRight: 12,
   },
   selectedInterestText: {
     color: '#FF7F50',
     fontWeight: '600',
+  },
+  darkSelectedInterestText: {
+    color: '#FF7F50',
   },
   footer: {
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: Platform.OS === 'ios' ? 40 : 32,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  darkFooter: {
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   selectedCount: {
     fontSize: 15,
@@ -488,8 +558,8 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: '#FF7F50',
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: 18,
+    borderRadius: 20,
     alignItems: 'center',
     ...Platform.select({
       ios: {
@@ -503,13 +573,20 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  darkSaveButton: {
+    backgroundColor: '#FF7F50',
+  },
   saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  darkSaveButtonDisabled: {
     opacity: 0.5,
   },
   saveButtonText: {
     color: '#ffffff',
     fontSize: 17,
     fontWeight: '600',
+    letterSpacing: -0.2,
   },
   darkText: {
     color: '#ffffff',
