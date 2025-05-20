@@ -12,7 +12,8 @@ import {
   Dimensions,
   ActivityIndicator,
   RefreshControl,
-  Modal
+  Modal,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -87,6 +88,7 @@ export default function LibraryScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [showInterestModal, setShowInterestModal] = useState(false);
   const [hasInterests, setHasInterests] = useState(false);
+  const [firstVisit, setFirstVisit] = useState(true);
   
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = scrollY.interpolate({
@@ -122,16 +124,20 @@ export default function LibraryScreen() {
         // Get user preferences
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('interests, saved_resources')
+          .select('interests, saved_resources, onboarding_completed')
           .eq('id', user.id)
           .single();
-
-          console.log(profileData);
           
         if (profileData) {
           setUserPreferences(profileData.interests || []);
           setSavedResources(profileData.saved_resources || []);
           setHasInterests(profileData.interests?.length > 0);
+          setFirstVisit(!profileData.onboarding_completed);
+          
+          // Show interest modal if it's first visit
+          if (!profileData.onboarding_completed) {
+            setShowInterestModal(true);
+          }
         }
       }
     } catch (error) {
@@ -207,10 +213,47 @@ export default function LibraryScreen() {
     }
   };
 
-  const handleInterestsUpdated = useCallback((newInterests: string[]) => {
-    setUserPreferences(newInterests);
-    setHasInterests(newInterests.length > 0);
-    fetchResources(); // Refetch resources with new interests
+  const handleInterestsUpdated = useCallback(async (newInterests: string[]) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Update profile with new interests
+      await supabase
+        .from('profiles')
+        .update({ 
+          interests: newInterests,
+          onboarding_completed: true 
+        })
+        .eq('id', user.id);
+
+      // Update user interests table
+      await supabase
+        .from('user_interests')
+        .delete()
+        .eq('user_id', user.id);
+
+      const interestRecords = newInterests.map(interest => ({
+        user_id: user.id,
+        interest: interest
+      }));
+
+      await supabase
+        .from('user_interests')
+        .insert(interestRecords);
+
+      // Generate new recommendations
+      await supabase.rpc('generate_user_recommendations', {
+        user_uuid: user.id
+      });
+
+      setUserPreferences(newInterests);
+      setHasInterests(newInterests.length > 0);
+      setFirstVisit(false);
+      fetchResources(); // Refetch resources with new interests
+    } catch (error) {
+      console.error('Error updating interests:', error);
+    }
   }, []);
 
   const personalizeResources = (allResources: Resource[]) => {
@@ -296,11 +339,13 @@ export default function LibraryScreen() {
   }, []);
 
   const scheduleNewContentNotification = async () => {
-    // Schedule a notification for new content
-    await scheduleLocalNotification(
-      "New in Your Library",
-      "Fresh content based on your interests has been added to your library!"
-    );
+    if (Platform.OS !== 'web') {
+      // Schedule a notification for new content
+      await scheduleLocalNotification(
+        "New in Your Library",
+        "Fresh content based on your interests has been added to your library!"
+      );
+    }
   };
 
   const handleCategorySelect = useCallback((categoryId: string) => {
@@ -365,16 +410,32 @@ export default function LibraryScreen() {
   }, [resources, selectedCategory, streaks, savedResources]);
 
   const EmptyListComponent = useCallback(() => (
-    <View style={styles.emptyState}>
-      <Ionicons name="library-outline" size={64} color="#CCCCCC" />
+    <View style={[styles.emptyState, isDark && styles.darkEmptyState]}>
+      <View style={styles.emptyStateIconContainer}>
+        <Ionicons 
+          name="library-outline" 
+          size={80} 
+          color={isDark ? '#444444' : '#CCCCCC'} 
+        />
+      </View>
       <Text style={[styles.emptyStateText, isDark && styles.darkText]}>
-        No resources found
+        {selectedCategory === 'saved' 
+          ? "Your Saved Collection is Empty" 
+          : "No Resources Found"}
       </Text>
       <Text style={[styles.emptyStateSubText, isDark && styles.darkSubText]}>
         {selectedCategory === 'saved' 
-          ? "You haven't saved any resources yet." 
-          : "Try selecting a different category."}
+          ? "Save interesting resources to build your personal collection" 
+          : "Try selecting a different category or update your interests"}
       </Text>
+      {selectedCategory === 'saved' && (
+        <TouchableOpacity
+          style={[styles.primaryButton, styles.emptyStateButton]}
+          onPress={() => setSelectedCategory('featured')}
+        >
+          <Text style={styles.primaryButtonText}>Browse Resources</Text>
+        </TouchableOpacity>
+      )}
     </View>
   ), [selectedCategory, isDark]);
 
@@ -457,7 +518,7 @@ export default function LibraryScreen() {
                     Personalized recommendations based on your interests
                   </Text>
                   {!hasInterests ? (
-                    <View style={styles.emptyState}>
+                    <View style={[styles.emptyState, isDark && styles.darkEmptyState]}>
                       <Ionicons name="library-outline" size={80} color={isDark ? '#444444' : '#CCCCCC'} />
                       <Text style={[styles.emptyStateText, isDark && styles.darkText]}>
                         Personalize Your Library
@@ -644,32 +705,56 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   emptyState: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+    backgroundColor: '#ffffff',
     borderRadius: 24,
-    marginTop: 16,
+    marginHorizontal: 16,
+    marginTop: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  darkEmptyState: {
+    backgroundColor: '#1E1E1E',
+  },
+  emptyStateIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F8F8F8',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
   emptyStateText: {
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
-    marginTop: 24,
+    marginBottom: 12,
     color: '#000000',
   },
   emptyStateSubText: {
     fontSize: 16,
     textAlign: 'center',
-    marginTop: 8,
     color: '#666666',
     fontWeight: '500',
+    lineHeight: 24,
+  },
+  emptyStateButton: {
+    marginTop: 24,
+    minWidth: 200,
   },
   primaryButton: {
     backgroundColor: '#FF7F50',
