@@ -11,6 +11,7 @@ export interface TherapistProfile {
   experience_years?: number;
   languages?: string[];
   profile_picture?: string;
+  profile_completed?: boolean;
   created_at: string;
   updated_at: string;
 }

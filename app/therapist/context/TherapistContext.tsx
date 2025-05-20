@@ -46,6 +46,8 @@ interface TherapistContextType {
   signUp: (email: string, password: string, profileData: Partial<TherapistProfile>) => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<TherapistProfile>) => Promise<{ error?: any }>;
+  completeProfile: (profileData: Partial<TherapistProfile>) => Promise<{ error?: any }>;
+  isProfileComplete: () => boolean;
   
   // Availability functions
   updateAvailability: (availability: WeeklyAvailability) => Promise<{ error?: any }>;
@@ -149,7 +151,6 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
       options: {
         data: {
           role: 'therapist', // Set role in user metadata
-          full_name: profileData.bio, // Add any other metadata you need
         },
       },
     });
@@ -157,14 +158,13 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
     if (error) return { error };
 
     if (data.user) {
-      // The triggers will automatically create the user in public.users with role 'therapist'
-      
-      // Create therapist profile
+      // Create therapist profile with minimal data
       const { error: profileError } = await supabase
         .from('therapist_profiles')
         .insert({
           id: data.user.id,
           ...profileData,
+          profile_completed: false, // Mark as incomplete
         });
 
       if (profileError) return { error: profileError };
@@ -187,6 +187,52 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
 
     if (!error) {
       setProfile(prev => prev ? { ...prev, ...updates } : null);
+    }
+
+    return { error };
+  };
+
+  const isProfileComplete = () => {
+    if (!profile) return false;
+    
+    const requiredFields = [
+      'bio', 
+      'specialization',
+      'qualifications',
+      'consultation_rates',
+      'availability'
+    ];
+    
+    // Check if required fields have values
+    const hasRequiredFields = requiredFields.every(field => {
+      const value = profile[field as keyof TherapistProfile];
+      if (Array.isArray(value)) {
+        return value.length > 0;
+      } else if (typeof value === 'object') {
+        return Object.keys(value).length > 0;
+      } else {
+        return !!value;
+      }
+    });
+    
+    // Also check if profile is explicitly marked as completed
+    return hasRequiredFields && !!profile.profile_completed;
+  };
+  
+  const completeProfile = async (updates: Partial<TherapistProfile>) => {
+    if (!user) return { error: 'Not authenticated' };
+
+    const { error } = await supabase
+      .from('therapist_profiles')
+      .update({ 
+        ...updates, 
+        profile_completed: true,
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', user.id);
+
+    if (!error) {
+      setProfile(prev => prev ? { ...prev, ...updates, profile_completed: true } : null);
     }
 
     return { error };
@@ -346,24 +392,48 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
   // Appointment functions
   const bookAppointment = async (bookingData: BookingData) => {
     try {
-      // Use Supabase RPC function to ensure atomic booking
-      const { data, error } = await supabase.rpc('book_appointment', {
-        p_therapist_id: bookingData.therapistId,
-        p_client_id: user?.id,
-        p_start_time: bookingData.startTime.toISOString(),
-        p_end_time: bookingData.endTime.toISOString(),
-        p_notes: bookingData.notes,
-      });
+      if (!user) {
+        return { error: 'You must be logged in to book an appointment' };
+      }
+
+      const googleMeetLink = `https://meet.google.com/${Math.random().toString(36).substring(2, 10)}`;
+      
+      const { data, error } = await supabase
+        .from('appointments')
+        .insert({
+          client_id: user.id,
+          therapist_id: bookingData.therapistId,
+          start_time: bookingData.startTime.toISOString(),
+          end_time: bookingData.endTime.toISOString(),
+          status: 'pending',
+          notes: bookingData.notes,
+          meeting_link: googleMeetLink, // Add Google Meet link
+          payment_status: 'pending'
+        })
+        .select();
 
       if (error) {
-        if (error.message.includes('conflict')) {
-          return { error: 'This time slot is no longer available. Please select another time.' };
-        }
+        console.error('Error booking appointment:', error);
         return { error };
       }
 
-      return { data, error: null };
+      // Send notification to therapist (could be done via a trigger function)
+      try {
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: bookingData.therapistId,
+            title: 'New Appointment Request',
+            description: `You have a new appointment request for ${new Date(bookingData.startTime).toLocaleString()}`,
+            category: 'appointment'
+          });
+      } catch (notificationError) {
+        console.error('Error sending notification:', notificationError);
+      }
+
+      return { data: data?.[0] as Appointment, error: null };
     } catch (error) {
+      console.error('Error:', error);
       return { error };
     }
   };
@@ -730,6 +800,8 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
       signUp,
       signOut,
       updateProfile,
+      completeProfile,
+      isProfileComplete,
       updateAvailability,
       getAvailableTimeSlots,
       addAvailabilityException,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,21 @@ export default function TherapistLoginScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { signIn, loading } = useTherapist();
+
+  useEffect(() => {
+    const isWeb = Platform.OS === 'web';
+    if (!isWeb) {
+      router.replace('/therapist/mobile-notice');
+    }
+  }, []);
+  
+  // Update app/therapist/signupscreen.tsx (add at the top)
+  useEffect(() => {
+    const isWeb = Platform.OS === 'web';
+    if (!isWeb) {
+      router.replace('/therapist/mobile-notice');
+    }
+  }, []);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

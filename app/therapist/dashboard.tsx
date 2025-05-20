@@ -1,27 +1,83 @@
-import React from 'react';
-import { View, StyleSheet, useColorScheme, ScrollView, Text } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  useColorScheme, 
+  ScrollView, 
+  Dimensions, 
+  TouchableOpacity,
+  Platform,
+  ActivityIndicator
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTherapist } from './context/TherapistContext';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import ProfileCompletion from './components/ProfileCompletion';
+import { Appointment } from './types';
 
-// Import dashboard components
-import DashboardHeader from './components/DashboardHeader';
-import StatsOverview from './components/StatsOverview';
-import UpcomingAppointments from './components/UpcomingAppointments';
-import QuickActions from './components/QuickActions';
-import RecentReviews from './components/RecentReviews';
+// Only render the dashboard on web - mobile will redirect
+const isWeb = Platform.OS === 'web';
 
 export default function TherapistDashboard() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { user, profile, loading } = useTherapist();
+  const { profile, isProfileComplete, signOut, user, loading, getStats, getAppointments } = useTherapist();
+  const [stats, setStats] = useState({
+    todayAppointments: 0,
+    weekRevenue: 0,
+    monthRevenue: 0,
+    totalPatients: 0,
+    averageRating: 0
+  });
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Redirect non-web users to the login screen
+  useEffect(() => {
+    if (!isWeb) {
+      router.replace('/therapist/mobile-notice');
+    }
+  }, [isWeb]);
 
-  if (loading) {
-      return (
+  // Load dashboard data
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (!user) return;
+      
+      try {
+        // Load stats
+        const dashboardStats = await getStats();
+        setStats(dashboardStats);
+        
+        // Load upcoming appointments
+        const appointments = await getAppointments({ 
+          status: ['pending', 'confirmed'],
+          date: new Date()
+        });
+        setUpcomingAppointments(appointments);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, [user]);
+
+  if (!isWeb) {
+    return null; // Will be redirected by useEffect
+  }
+
+  if (loading || isLoading) {
+    return (
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
         <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading...</Text>
-                    </View>
+          <ActivityIndicator size="large" color="#FF7F50" />
+          <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading dashboard...</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -30,16 +86,150 @@ export default function TherapistDashboard() {
     router.replace('/therapist/loginscreen');
     return null;
   }
-
+  
+  // Show profile completion if profile is not complete
+  if (!isProfileComplete()) {
+    return (
+      <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, isDark && styles.darkText]}>Uniwell Therapist Portal</Text>
+          <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
+            <Text style={styles.signOutText}>Sign Out</Text>
+            <Ionicons name="log-out-outline" size={20} color="#FF7F50" />
+          </TouchableOpacity>
+        </View>
+        
+        <ProfileCompletion 
+          onComplete={() => {
+            router.replace('/therapist/dashboard');
+          }} 
+        />
+      </SafeAreaView>
+    );
+  }
+  
+  // This main dashboard is shown when profile is complete
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-      <DashboardHeader />
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <StatsOverview />
-        <UpcomingAppointments />
-        <QuickActions />
-        <RecentReviews />
-          </ScrollView>
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, isDark && styles.darkText]}>Therapist Dashboard</Text>
+        <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+          <Ionicons name="log-out-outline" size={20} color="#FF7F50" />
+        </TouchableOpacity>
+      </View>
+      
+      <ScrollView style={styles.content}>
+        <View style={[styles.welcomeCard, isDark && styles.darkCard]}>
+          <Text style={[styles.welcomeText, isDark && styles.darkText]}>
+            Welcome back, {profile.bio?.split(' ')[0] || 'Therapist'}
+          </Text>
+          <Text style={[styles.welcomeSubtext, isDark && styles.darkSubText]}>
+            You have {stats.todayAppointments} {stats.todayAppointments === 1 ? 'appointment' : 'appointments'} today
+          </Text>
+        </View>
+        
+        <View style={styles.gridContainer}>
+          <TouchableOpacity style={[styles.dashboardCard, isDark && styles.darkCard]}>
+            <Ionicons name="calendar-outline" size={24} color="#FF7F50" />
+            <Text style={[styles.cardTitle, isDark && styles.darkText]}>Appointments</Text>
+            <Text style={[styles.cardValue, isDark && styles.darkText]}>{stats.todayAppointments}</Text>
+            <Text style={[styles.cardSubtext, isDark && styles.darkSubText]}>Today</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={[styles.dashboardCard, isDark && styles.darkCard]}>
+            <Ionicons name="cash-outline" size={24} color="#FF7F50" />
+            <Text style={[styles.cardTitle, isDark && styles.darkText]}>Revenue</Text>
+            <Text style={[styles.cardValue, isDark && styles.darkText]}>KES {stats.monthRevenue.toLocaleString()}</Text>
+            <Text style={[styles.cardSubtext, isDark && styles.darkSubText]}>This month</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={[styles.dashboardCard, isDark && styles.darkCard]}>
+            <Ionicons name="people-outline" size={24} color="#FF7F50" />
+            <Text style={[styles.cardTitle, isDark && styles.darkText]}>Clients</Text>
+            <Text style={[styles.cardValue, isDark && styles.darkText]}>{stats.totalPatients}</Text>
+            <Text style={[styles.cardSubtext, isDark && styles.darkSubText]}>Total</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={[styles.dashboardCard, isDark && styles.darkCard]}>
+            <Ionicons name="star-outline" size={24} color="#FF7F50" />
+            <Text style={[styles.cardTitle, isDark && styles.darkText]}>Rating</Text>
+            <Text style={[styles.cardValue, isDark && styles.darkText]}>{stats.averageRating}</Text>
+            <Text style={[styles.cardSubtext, isDark && styles.darkSubText]}>Average</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Upcoming Appointments</Text>
+          <TouchableOpacity>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {upcomingAppointments.length === 0 ? (
+          <View style={[styles.emptyState, isDark && styles.darkCard]}>
+            <Text style={[styles.emptyStateText, isDark && styles.darkText]}>No upcoming appointments</Text>
+          </View>
+        ) : (
+          upcomingAppointments.map((appointment) => {
+            const client = appointment.client as any;
+            const clientName = client?.full_name || client?.email?.split('@')[0] || 'Patient';
+            const initials = clientName.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+            const startTime = new Date(appointment.start_time);
+            const endTime = new Date(appointment.end_time);
+            const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+            
+            // Format time in East African format (12-hour with AM/PM)
+            const timeString = startTime.toLocaleTimeString('en-US', { 
+              hour: 'numeric', 
+              minute: '2-digit', 
+              hour12: true,
+              timeZone: 'Africa/Nairobi'
+            });
+            
+            return (
+              <View key={appointment.id} style={[styles.appointmentCard, isDark && styles.darkCard]}>
+                <View style={styles.appointmentHeader}>
+                  <Text style={[styles.appointmentDate, isDark && styles.darkText]}>
+                    {timeString}
+                  </Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>
+                      {appointment.status === 'confirmed' ? 'Confirmed' : 
+                       appointment.status === 'pending' ? 'Pending' : 
+                       appointment.status}
+                    </Text>
+                  </View>
+                </View>
+                
+                <View style={styles.clientInfo}>
+                  <View style={styles.clientInitials}>
+                    <Text style={styles.initialsText}>{initials}</Text>
+                  </View>
+                  <View style={styles.clientDetails}>
+                    <Text style={[styles.clientName, isDark && styles.darkText]}>{clientName}</Text>
+                    <Text style={[styles.sessionType, isDark && styles.darkSubText]}>
+                      {appointment.status === 'pending' ? 'New Session' : 'Follow Up'} • {duration} min
+                    </Text>
+                  </View>
+                </View>
+                
+                <View style={styles.appointmentActions}>
+                  <TouchableOpacity style={styles.actionButton}>
+                    <Ionicons name="videocam-outline" size={16} color="white" />
+                    <Text style={styles.actionButtonText}>Start Session</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]}>
+                    <Ionicons name="chatbubble-outline" size={16} color="#FF7F50" />
+                    <Text style={styles.secondaryButtonText}>Message</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -51,9 +241,6 @@ const styles = StyleSheet.create({
   },
   darkContainer: {
     backgroundColor: '#121212',
-  },
-  content: {
-    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -67,5 +254,249 @@ const styles = StyleSheet.create({
   },
   darkText: {
     color: '#ffffff',
+  },
+  darkSubText: {
+    color: '#aaaaaa',
+  },
+  mobileNotice: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  mobileNoticeTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    fontFamily: 'Vercetti-Regular',
+  },
+  mobileNoticeText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontFamily: 'Vercetti-Regular',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#ffffff',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  signOutText: {
+    color: '#FF7F50',
+    marginRight: 8,
+    fontFamily: 'Vercetti-Regular',
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+  welcomeCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  darkCard: {
+    backgroundColor: '#1e1e1e',
+  },
+  welcomeText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+    fontFamily: 'Vercetti-Regular',
+  },
+  welcomeSubtext: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'Vercetti-Regular',
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -8,
+    marginBottom: 20,
+  },
+  dashboardCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 8,
+    marginBottom: 16,
+    width: Dimensions.get('window').width > 768 
+      ? (Dimensions.get('window').width - 80) / 4 - 16 
+      : (Dimensions.get('window').width - 56) / 2 - 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 12,
+    fontFamily: 'Vercetti-Regular',
+  },
+  cardValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 8,
+    fontFamily: 'Vercetti-Regular',
+  },
+  cardSubtext: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+    fontFamily: 'Vercetti-Regular',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#FF7F50',
+    fontFamily: 'Vercetti-Regular',
+  },
+  appointmentCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  appointmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  appointmentDate: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+  },
+  statusBadge: {
+    backgroundColor: '#E6F7ED',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+  },
+  statusText: {
+    color: '#0E9F6E',
+    fontSize: 12,
+    fontWeight: '500',
+    fontFamily: 'Vercetti-Regular',
+  },
+  clientInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  clientInitials: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FF7F50',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  initialsText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: 'Vercetti-Regular',
+  },
+  clientDetails: {
+    flex: 1,
+  },
+  clientName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+    fontFamily: 'Vercetti-Regular',
+  },
+  sessionType: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Vercetti-Regular',
+  },
+  appointmentActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#FF7F50',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Vercetti-Regular',
+  },
+  secondaryButton: {
+    backgroundColor: 'rgba(255, 127, 80, 0.1)',
+  },
+  secondaryButtonText: {
+    color: '#FF7F50',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Vercetti-Regular',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'Vercetti-Regular',
   },
 });

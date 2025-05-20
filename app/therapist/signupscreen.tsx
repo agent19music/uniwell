@@ -10,11 +10,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTherapist } from './context/TherapistContext';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import CustomDialog from '../../components/CustomDialog';
 
 export default function TherapistSignUpScreen() {
   const colorScheme = useColorScheme();
@@ -22,29 +27,27 @@ export default function TherapistSignUpScreen() {
   const { signUp, loading } = useTherapist();
 
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    bio: '',
-    specialization: '',
-    qualifications: '',
-    consultationRates: '',
-    experienceYears: '',
     licenseNumber: '',
-    languages: '',
+    gender: '',
+    languages: [] as string[],
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showVerificationDialog, setShowVerificationDialog] = useState(false);
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSignUp = async () => {
-    const { email, password, confirmPassword, bio, specialization, qualifications, consultationRates } = formData;
+    const { name, email, password, confirmPassword, licenseNumber, gender, languages } = formData;
 
-    if (!email || !password || !bio || !specialization || !qualifications || !consultationRates) {
+    if (!name || !email || !password || !licenseNumber || !gender || languages.length === 0) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -61,15 +64,17 @@ export default function TherapistSignUpScreen() {
 
     setIsLoading(true);
 
+    // Only include essential information for initial signup
     const profileData = {
-      bio,
-      specialization: specialization.split(',').map(s => s.trim()),
-      qualifications: qualifications.split(',').map(q => q.trim()),
-      consultation_rates: parseInt(consultationRates),
-      experience_years: formData.experienceYears ? parseInt(formData.experienceYears) : 0,
-      license_number: formData.licenseNumber || undefined,
-      languages: formData.languages ? formData.languages.split(',').map(l => l.trim()) : [],
-      availability: {},
+      bio: name, // We'll use name as initial bio until profile is completed
+      license_number: licenseNumber,
+      // Set minimal defaults for required fields
+      specialization: ['General Therapy'],
+      qualifications: ['Licensed Therapist'],
+      consultation_rates: 0, // Will be updated during profile completion
+      availability: {}, // Empty availability until set during profile completion
+      gender,
+      languages,
     };
 
     const { error } = await signUp(email, password, profileData);
@@ -90,195 +95,207 @@ export default function TherapistSignUpScreen() {
     router.push('/therapist/loginscreen');
   };
 
+  const availableLanguages = [
+    { id: 'en', name: 'English' },
+    { id: 'sw', name: 'Swahili' },
+    { id: 'fr', name: 'French' },
+    { id: 'ar', name: 'Arabic' },
+    { id: 'hi', name: 'Hindi' },
+  ];
+
+  const toggleLanguage = (langId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      languages: prev.languages.includes(langId)
+        ? prev.languages.filter(id => id !== langId)
+        : [...prev.languages, langId]
+    }));
+  };
+
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardContainer}
+    <ImageBackground
+      source={isDark ? require('../../assets/mesh-99dark.png') : require('../../assets/mesh-99.png')}
+      style={styles.container}
+    >
+      <LinearGradient
+        colors={['rgba(255, 127, 80, 0.2)', 'rgba(255, 127, 80, 0.05)']}
+        style={styles.gradient}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.header}>
-            <Text style={[styles.title, isDark && styles.darkText]}>Join as a Therapist</Text>
-            <Text style={[styles.subtitle, isDark && styles.darkSubText]}>
-              Create your professional account
-            </Text>
-          </View>
+        <SafeAreaView style={styles.content}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardView}
+          >
+            <BlurView intensity={20} style={styles.glassCard}>
+              <View style={styles.header}>
+                <Text style={[styles.title, isDark && styles.darkText]}>Join as a Therapist</Text>
+                <Text style={[styles.subtitle, isDark && styles.darkSubText]}>
+                  Create your professional account
+                </Text>
+              </View>
 
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isDark && styles.darkText]}>Email *</Text>
-              <TextInput
-                style={[styles.input, isDark && styles.darkInput]}
-                value={formData.email}
-                onChangeText={(value) => updateField('email', value)}
-                placeholder="Enter your email"
-                placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isDark && styles.darkText]}>Password *</Text>
-              <View style={[styles.passwordContainer, isDark && styles.darkInput]}>
-                <TextInput
-                  style={styles.passwordInput}
-                  value={formData.password}
-                  onChangeText={(value) => updateField('password', value)}
-                  placeholder="Enter your password"
-                  placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.passwordToggle}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={20}
-                    color={isDark ? '#aaaaaa' : '#666666'}
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isDark && styles.darkText]}>Full Name *</Text>
+                  <TextInput
+                    style={[styles.input, isDark && styles.darkInput]}
+                    value={formData.name}
+                    onChangeText={(value) => updateField('name', value)}
+                    placeholder="Enter your full name"
+                    placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
                   />
-                </TouchableOpacity>
-              </View>
-            </View>
+                </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isDark && styles.darkText]}>Confirm Password *</Text>
-              <View style={[styles.passwordContainer, isDark && styles.darkInput]}>
-                <TextInput
-                  style={styles.passwordInput}
-                  value={formData.confirmPassword}
-                  onChangeText={(value) => updateField('confirmPassword', value)}
-                  placeholder="Confirm your password"
-                  placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
-                  secureTextEntry={!showConfirmPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={styles.passwordToggle}
-                >
-                  <Ionicons
-                    name={showConfirmPassword ? 'eye-off' : 'eye'}
-                    size={20}
-                    color={isDark ? '#aaaaaa' : '#666666'}
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isDark && styles.darkText]}>Email *</Text>
+                  <TextInput
+                    style={[styles.input, isDark && styles.darkInput]}
+                    value={formData.email}
+                    onChangeText={(value) => updateField('email', value)}
+                    placeholder="Enter your email"
+                    placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
                   />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isDark && styles.darkText]}>License Number *</Text>
+                  <TextInput
+                    style={[styles.input, isDark && styles.darkInput]}
+                    value={formData.licenseNumber}
+                    onChangeText={(value) => updateField('licenseNumber', value)}
+                    placeholder="Your professional license number"
+                    placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
+                  />
+                  <Text style={[styles.helperText, isDark && styles.darkSubText]}>
+                    Your license will be verified before you can accept appointments
+                  </Text>
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isDark && styles.darkText]}>Gender *</Text>
+                  <TextInput
+                    style={[styles.input, isDark && styles.darkInput]}
+                    value={formData.gender}
+                    onChangeText={(value) => updateField('gender', value)}
+                    placeholder="Enter your gender"
+                    placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isDark && styles.darkText]}>Password *</Text>
+                  <View style={[styles.passwordContainer, isDark && styles.darkInput]}>
+                    <TextInput
+                      style={styles.passwordInput}
+                      value={formData.password}
+                      onChangeText={(value) => updateField('password', value)}
+                      placeholder="Enter your password"
+                      placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
+                      secureTextEntry={!showPassword}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={styles.passwordToggle}
+                    >
+                      <Ionicons
+                        name={showPassword ? 'eye-off' : 'eye'}
+                        size={20}
+                        color={isDark ? '#aaaaaa' : '#666666'}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isDark && styles.darkText]}>Confirm Password *</Text>
+                  <View style={[styles.passwordContainer, isDark && styles.darkInput]}>
+                    <TextInput
+                      style={styles.passwordInput}
+                      value={formData.confirmPassword}
+                      onChangeText={(value) => updateField('confirmPassword', value)}
+                      placeholder="Confirm your password"
+                      placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
+                      secureTextEntry={!showConfirmPassword}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={styles.passwordToggle}
+                    >
+                      <Ionicons
+                        name={showConfirmPassword ? 'eye-off' : 'eye'}
+                        size={20}
+                        color={isDark ? '#aaaaaa' : '#666666'}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.languageContainer}>
+                  <Text style={styles.languageLabel}>Select Languages</Text>
+                  <View style={styles.languageOptions}>
+                    {availableLanguages.map((lang) => (
+                      <TouchableOpacity 
+                        key={lang.id}
+                        style={[
+                          styles.languageOption, 
+                          formData.languages.includes(lang.id) && styles.selectedLanguage
+                        ]}
+                        onPress={() => toggleLanguage(lang.id)}
+                      >
+                        <Text style={[
+                          styles.languageText,
+                          formData.languages.includes(lang.id) && styles.selectedLanguageText
+                        ]}>{lang.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.disclaimer}>
+                  <Text style={[styles.disclaimerText, isDark && styles.darkSubText]}>
+                    By signing up, you can complete your profile and set your availability after registration. 
+                    Students will be able to book sessions with you once your profile is complete and verified.
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.signUpButton, isLoading && styles.disabledButton]}
+                  onPress={handleSignUp}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.signUpButtonText}>Sign Up</Text>
+                  )}
                 </TouchableOpacity>
+
+                <View style={styles.loginPrompt}>
+                  <Text style={[styles.loginPromptText, isDark && styles.darkSubText]}>
+                    Already have an account?
+                  </Text>
+                  <TouchableOpacity onPress={navigateToLogin}>
+                    <Text style={styles.loginLink}>Log In</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isDark && styles.darkText]}>Bio *</Text>
-              <TextInput
-                style={[styles.input, styles.textArea, isDark && styles.darkInput]}
-                value={formData.bio}
-                onChangeText={(value) => updateField('bio', value)}
-                placeholder="Tell us about yourself and your practice"
-                placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isDark && styles.darkText]}>Specializations *</Text>
-              <TextInput
-                style={[styles.input, isDark && styles.darkInput]}
-                value={formData.specialization}
-                onChangeText={(value) => updateField('specialization', value)}
-                placeholder="e.g., Anxiety, Depression, Couples Therapy"
-                placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
-              />
-              <Text style={[styles.helperText, isDark && styles.darkSubText]}>
-                Separate multiple specializations with commas
-              </Text>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isDark && styles.darkText]}>Qualifications *</Text>
-              <TextInput
-                style={[styles.input, isDark && styles.darkInput]}
-                value={formData.qualifications}
-                onChangeText={(value) => updateField('qualifications', value)}
-                placeholder="e.g., PhD in Psychology, Licensed Clinical Social Worker"
-                placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
-              />
-              <Text style={[styles.helperText, isDark && styles.darkSubText]}>
-                Separate multiple qualifications with commas
-              </Text>
-            </View>
-
-            <View style={styles.row}>
-              <View style={[styles.inputContainer, styles.flex1]}>
-                <Text style={[styles.label, isDark && styles.darkText]}>Consultation Rate *</Text>
-                <TextInput
-                  style={[styles.input, isDark && styles.darkInput]}
-                  value={formData.consultationRates}
-                  onChangeText={(value) => updateField('consultationRates', value)}
-                  placeholder="Per session in ₹"
-                  placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={[styles.inputContainer, styles.flex1]}>
-                <Text style={[styles.label, isDark && styles.darkText]}>Experience (Years)</Text>
-                <TextInput
-                  style={[styles.input, isDark && styles.darkInput]}
-                  value={formData.experienceYears}
-                  onChangeText={(value) => updateField('experienceYears', value)}
-                  placeholder="Years of experience"
-                  placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isDark && styles.darkText]}>License Number</Text>
-              <TextInput
-                style={[styles.input, isDark && styles.darkInput]}
-                value={formData.licenseNumber}
-                onChangeText={(value) => updateField('licenseNumber', value)}
-                placeholder="Professional license number"
-                placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isDark && styles.darkText]}>Languages</Text>
-              <TextInput
-                style={[styles.input, isDark && styles.darkInput]}
-                value={formData.languages}
-                onChangeText={(value) => updateField('languages', value)}
-                placeholder="e.g., English, Hindi, Tamil"
-                placeholderTextColor={isDark ? '#aaaaaa' : '#666666'}
-              />
-              <Text style={[styles.helperText, isDark && styles.darkSubText]}>
-                Separate multiple languages with commas
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.signUpButton, isLoading && styles.disabledButton]}
-              onPress={handleSignUp}
-              disabled={isLoading || loading}
-            >
-              <Text style={styles.signUpButtonText}>
-                {isLoading ? 'Creating Account...' : 'Create Account'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={navigateToLogin} style={styles.loginLink}>
-              <Text style={[styles.loginText, isDark && styles.darkSubText]}>
-                Already have an account?{' '}
-                <Text style={styles.loginTextBold}>Sign In</Text>
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            </BlurView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </LinearGradient>
+      <CustomDialog
+        visible={showVerificationDialog}
+        title="Verify Your Email"
+        message="We've sent a verification link to your email. Please check your inbox and click the link to activate your account. You'll be able to log in after verification."
+        confirmText="Go to Login"
+        onConfirm={() => {
+          setShowVerificationDialog(false);
+          router.push('/therapist/loginscreen');
+        }}
+      />
+    </ImageBackground>
   );
 }
 
@@ -405,6 +422,64 @@ const styles = StyleSheet.create({
     fontFamily: 'Vercetti-Regular',
   },
   loginTextBold: {
+    color: '#FF7F50',
+    fontWeight: '600',
+  },
+  disclaimer: {
+    marginVertical: 16,
+    padding: 12,
+    backgroundColor: 'rgba(255, 127, 80, 0.1)',
+    borderRadius: 8,
+  },
+  disclaimerText: {
+    fontSize: 14,
+    color: '#666666',
+    lineHeight: 20,
+    fontFamily: 'Vercetti-Regular',
+  },
+  loginPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  loginPromptText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Vercetti-Regular',
+  },
+  languageContainer: {
+    marginBottom: 16,
+  },
+  languageLabel: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 8,
+    fontFamily: 'SF-Regular',
+  },
+  languageOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  languageOption: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  selectedLanguage: {
+    borderColor: '#FF7F50',
+    backgroundColor: 'rgba(255, 127, 80, 0.2)',
+  },
+  languageText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: 'SF-Regular',
+  },
+  selectedLanguageText: {
     color: '#FF7F50',
     fontWeight: '600',
   },
