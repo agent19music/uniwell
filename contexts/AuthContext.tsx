@@ -125,8 +125,9 @@ function useProtectedRoute(session: Session | null) {
 
   useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)';
-    const isAuthScreen = ['loginscreen', 'signupscreen', 'index', 'login-callback', 'reset-password'].includes(segments[0] || '');
+    const isAuthScreen = ['loginscreen', 'signupscreen', 'index', 'login-callback', 'reset-password', 'therapist/loginscreen'].includes(segments[0] || '');
     const isOnboardingScreen = segments[0] === 'onboarding';
+    const isTherapistScreen = segments[0] === 'therapist';
 
     if (
       // If the user is not signed in and the initial segment is not anything in the auth group.
@@ -135,7 +136,8 @@ function useProtectedRoute(session: Session | null) {
       !isAuthScreen &&
       !isOnboardingScreen &&
       segments[0] !== 'profile-completion' &&
-      segments[0] !== 'user-selection'
+      segments[0] !== 'user-selection' &&
+      !isTherapistScreen
     ) {
       // If we have stored users, redirect to user selection instead of login
       if (storedUsers.length > 0) {
