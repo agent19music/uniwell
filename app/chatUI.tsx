@@ -207,6 +207,7 @@ const ChatUI = () => {
           text: "New Chat", 
           onPress: async () => {
             try {
+              setIsLoading(true);
               const { data: { user } } = await supabase.auth.getUser();
               if (!user) return;
 
@@ -222,10 +223,16 @@ const ChatUI = () => {
               const sessions = await ChatSessionManager.getUserSessions(user.id);
               setUserSessions(sessions);
 
+              // Scroll to bottom and focus input
+              scrollToBottom();
+              inputRef.current?.focus();
+
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (error) {
               console.error('New chat error:', error);
               Alert.alert('Error', 'Failed to start new chat');
+            } finally {
+              setIsLoading(false);
             }
           }
         }
@@ -355,6 +362,15 @@ const ChatUI = () => {
               returnKeyType="send"
               blurOnSubmit={false}
               onSubmitEditing={handleSendMessage}
+              onKeyPress={({ nativeEvent }) => {
+                if (Platform.OS === 'web') {
+                  const webEvent = nativeEvent as unknown as KeyboardEvent;
+                  if (webEvent.key === 'Enter' && !webEvent.shiftKey) {
+                    webEvent.preventDefault();
+                    handleSendMessage();
+                  }
+                }
+              }}
             />
             {inputText.length > 0 && (
               <TouchableOpacity
