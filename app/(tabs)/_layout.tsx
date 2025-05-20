@@ -67,7 +67,7 @@ export default function TabLayout() {
           ),
         }}
       />
-        <Tabs.Screen
+      <Tabs.Screen
         name="games"
         options={{
           title: 'Games',
@@ -76,6 +76,7 @@ export default function TabLayout() {
           ),
         }}
       />
+     
     </Tabs>
   );
 }

@@ -115,7 +115,7 @@ export default function HomeScreen() {
   };
 
   const handleTherapistDashboardPress = () => {
-    router.push('/therapistdashboard');
+    router.push('/therapist/loginscreen');
   };
 
   useEffect(() => {
