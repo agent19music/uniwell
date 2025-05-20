@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform, useColorScheme } from 'react-native';
 import { OnboardingProvider, useOnboarding } from './OnboardingContext';
 import MobileOnboarding from './MobileOnboarding';
 import WebOnboarding from './WebOnboarding';
@@ -8,11 +8,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const OnboardingScreen: React.FC = () => {
   const { isFirstTime, isLoading } = useOnboarding();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#304FFE" />
+      <View style={[styles.loadingContainer, {backgroundColor: isDark ? '#121212' : '#f5f5f5'}]}>
+        <ActivityIndicator size="large" color={isDark ? '#888888' : '#999999'} />
       </View>
     );
   }
@@ -62,11 +64,13 @@ const OnboardingRoot: React.FC<{ children?: React.ReactNode }> = ({ children }) 
 // A wrapper that conditionally renders children based on onboarding state
 const OnboardingScreenWithChildren: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { isFirstTime, isLoading } = useOnboarding();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#304FFE" />
+      <View style={[styles.loadingContainer, {backgroundColor: isDark ? '#121212' : '#f5f5f5'}]}>
+        <ActivityIndicator size="large" color={isDark ? '#888888' : '#999999'} />
       </View>
     );
   }
@@ -89,7 +93,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'white',
   },
 });
 

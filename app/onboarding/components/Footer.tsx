@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useOnboarding } from '../OnboardingContext';
 
 interface FooterLinkProps {
   title: string;
@@ -34,6 +36,13 @@ const FooterSection: React.FC<FooterSectionProps> = ({ title, links }) => {
 };
 
 const Footer: React.FC = () => {
+  const router = useRouter();
+  const { skipOnboarding } = useOnboarding();
+
+  const handleTherapistLogin = async () => {
+    skipOnboarding('/therapist/loginscreen');
+  };
+
   const aboutLinks = [
     { title: 'Principles', onPress: () => console.log('Principles pressed') },
     { title: 'The Team', onPress: () => console.log('The Team pressed') },
@@ -47,6 +56,8 @@ const Footer: React.FC = () => {
     { title: 'Use cases', onPress: () => console.log('Use cases pressed') },
     { title: 'Creators', onPress: () => console.log('Creators pressed') },
     { title: 'The future', onPress: () => console.log('The future pressed') },
+    { title: 'Pricing', onPress: () => console.log('Pricing pressed') },
+    { title: 'Therapist Login', onPress: handleTherapistLogin },
   ];
 
   const legalLinks = [

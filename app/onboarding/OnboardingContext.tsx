@@ -33,26 +33,34 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const shouldSkipOnboarding = onboardingCompleted === 'true' || hasStoredUsers;
         
         setIsFirstTime(!shouldSkipOnboarding);
-        setIsLoading(false);
         
         // If we're skipping onboarding due to stored users, make sure to mark it as completed
         if (hasStoredUsers && onboardingCompleted !== 'true') {
           await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
         }
+        
+        // Set loading to false only after all checks are complete
+        setIsLoading(false);
       } catch (error) {
         console.error('Error checking onboarding status:', error);
+        // Even on error, we need to set loading to false
         setIsLoading(false);
       }
     };
 
+    // Run the check
     checkOnboardingStatus();
   }, []);
 
-  const skipOnboarding = async () => {
+  const skipOnboarding = async (redirectPath?: string) => {
     try {
       await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
       setIsFirstTime(false);
-      router.replace('/');
+      if (redirectPath) {
+        router.replace(redirectPath);
+      } else {
+        router.replace('/');
+      }
     } catch (error) {
       console.error('Error saving onboarding status:', error);
     }

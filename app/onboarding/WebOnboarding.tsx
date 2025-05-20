@@ -545,7 +545,6 @@ const styles = StyleSheet.create({
     color: '#212121',
     letterSpacing: -1,
     fontFamily: 'SF-Regular',
-    paddingTop: 8,
   },
   subtitle: {
     fontSize: 20,

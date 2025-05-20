@@ -12,7 +12,7 @@ export interface OnboardingSlide {
 export interface OnboardingContextType {
   isFirstTime: boolean;
   setIsFirstTime: (value: boolean) => void;
-  skipOnboarding: () => void;
+  skipOnboarding: (redirectPath?: string) => void;
   isLoading: boolean;
 }
 
