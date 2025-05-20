@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme, Text, TextInput, Platform } from 'react-native';
@@ -26,7 +26,7 @@ declare global {
 }
 
 // Container component that handles the auth/onboarding flow
-const AppContainer = ({ children }: { children: React.ReactNode }) => {
+const AppContainer = ({ children, onInitializationComplete }: { children: React.ReactNode, onInitializationComplete: () => void }) => {
   const { session, storedUsers } = useAuth();
   const [hasShownOnboarding, setHasShownOnboarding] = useState<boolean | null>(null);
 
@@ -35,22 +35,19 @@ const AppContainer = ({ children }: { children: React.ReactNode }) => {
     const checkOnboardingStatus = async () => {
       const onboardingCompleted = await AsyncStorage.getItem('onboarding_completed');
       setHasShownOnboarding(onboardingCompleted === 'true');
-    };
-    
-    checkOnboardingStatus();
-  }, []);
-
-  // Skip onboarding if we have stored users or an active session
-  useEffect(() => {
-    const markOnboardingCompleted = async () => {
+      
+      // Mark onboarding as completed if we have stored users or an active session
       if ((storedUsers && storedUsers.length > 0) || session) {
         await AsyncStorage.setItem('onboarding_completed', 'true');
         setHasShownOnboarding(true);
       }
+      
+      // Notify parent that initialization is complete
+      onInitializationComplete();
     };
     
-    markOnboardingCompleted();
-  }, [storedUsers, session]);
+    checkOnboardingStatus();
+  }, [storedUsers, session, onInitializationComplete]);
 
   // Don't render anything until we've checked if onboarding should be shown
   if (hasShownOnboarding === null) {
@@ -68,14 +65,31 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [showSplash, setShowSplash] = useState(true);
+  const [isAppReady, setIsAppReady] = useState(false);
+  const [isFontsLoaded, setIsFontsLoaded] = useState(false);
+  const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
 
-  const [fontsLoaded] = Font.useFonts({
-    'Vercetti-Regular': require('../assets/fonts/SFUIText-Regular.ttf'),
-    'SF-Regular': require('../assets/fonts/SFUIText-Regular.ttf'),
-  });
+  // Load fonts
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          'Vercetti-Regular': require('../assets/fonts/SFUIText-Regular.ttf'),
+          'SF-Regular': require('../assets/fonts/SFUIText-Regular.ttf'),
+        });
+        setIsFontsLoaded(true);
+      } catch (e) {
+        console.warn('Error loading fonts:', e);
+        // Continue anyway
+        setIsFontsLoaded(true);
+      }
+    }
+    
+    loadFonts();
+  }, []);
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (isFontsLoaded) {
       Text.defaultProps = Text.defaultProps || {};
       Text.defaultProps.style = { 
         ...(Text.defaultProps?.style || {}),
@@ -88,7 +102,7 @@ export default function RootLayout() {
         fontFamily: 'Vercetti-Regular'
       };
     }
-  }, [fontsLoaded]);
+  }, [isFontsLoaded]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -96,48 +110,69 @@ export default function RootLayout() {
     }
   }, []);
 
+  // Handle initialization complete callback
+  const handleInitializationComplete = useCallback(() => {
+    setIsAuthCheckComplete(true);
+  }, []);
+
+  // Determine if we're ready to show the app
+  useEffect(() => {
+    if (isFontsLoaded && isAuthCheckComplete) {
+      setIsAppReady(true);
+    }
+  }, [isFontsLoaded, isAuthCheckComplete]);
+
   const handleSplashFinish = async () => {
-    setShowSplash(false);
-    await SplashScreen.hideAsync();
+    // Only hide splash screen when everything is ready
+    if (isAppReady) {
+      setShowSplash(false);
+      await SplashScreen.hideAsync();
+    }
   };
 
-  if (!fontsLoaded) {
+  // If assets not loaded, show nothing (native splash screen remains visible)
+  if (!isFontsLoaded) {
     return null;
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {showSplash ? (
-        <MaskedSplashScreen onAnimationFinish={handleSplashFinish} />
-      ) : (
-        <AuthProvider>  
-          <CommunityProvider>
-            <PostNavigationProvider>
-              <MoodProvider>
-                <RoutineProvider>
-                  <SemesterProvider>
-                    <AppContainer>
-                      <Stack screenOptions={{
-                        headerShown: false,
-                        contentStyle: {
-                          backgroundColor: isDark ? '#121212' : '#f5f5f5',
-                        },
-                      }}>
-                        <Stack.Screen name="index" />
-                        <Stack.Screen name="loginscreen" />
-                        <Stack.Screen name="signupscreen" />
-                        <Stack.Screen name="onboarding" />
-                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                      </Stack>
-                      <StatusBar style={isDark ? 'light' : 'dark'} />
-                    </AppContainer>
-                  </SemesterProvider>
-                </RoutineProvider>
-              </MoodProvider>
-            </PostNavigationProvider>
-          </CommunityProvider>
-        </AuthProvider>
-      )}
+      <AuthProvider>  
+        <CommunityProvider>
+          <PostNavigationProvider>
+            <MoodProvider>
+              <RoutineProvider>
+                <SemesterProvider>
+                  <AppContainer onInitializationComplete={handleInitializationComplete}>
+                    {showSplash && (
+                      <MaskedSplashScreen onAnimationFinish={handleSplashFinish} />
+                    )}
+                    {(!showSplash || isAppReady) && (
+                      <>
+                        <Stack screenOptions={{
+                          headerShown: false,
+                          contentStyle: {
+                            backgroundColor: isDark ? '#121212' : '#f5f5f5',
+                          },
+                        }}>
+                          <Stack.Screen name="index" />
+                          <Stack.Screen name="loginscreen" />
+                          <Stack.Screen name="signupscreen" />
+                          <Stack.Screen name="onboarding" />
+                          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                          <Stack.Screen name="therapistdashboard" />
+                          <Stack.Screen name="booktherapist" />
+                        </Stack>
+                        <StatusBar style={isDark ? 'light' : 'dark'} />
+                      </>
+                    )}
+                  </AppContainer>
+                </SemesterProvider>
+              </RoutineProvider>
+            </MoodProvider>
+          </PostNavigationProvider>
+        </CommunityProvider>
+      </AuthProvider>
     </GestureHandlerRootView>
   );
 }
