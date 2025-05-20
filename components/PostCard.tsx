@@ -59,7 +59,7 @@ export default function PostCard({ post, isOwner }: { post: Post, isOwner: boole
     >
       <View style={styles.postHeader}>
         <View style={styles.userInfo}>
-          <Image source={{ uri: post.profiles.avatar_url }} style={styles.userImage} />
+          <Image source={{ uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }} style={styles.userImage} />
           <View>
             <Text style={[styles.userName, isDark && styles.darkText]}>
               {post.is_anonymous ? 'Anonymous' : post.profiles.username}

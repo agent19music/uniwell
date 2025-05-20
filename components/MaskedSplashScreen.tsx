@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, useColorScheme, Image } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import Animated, {
   useAnimatedStyle,
@@ -7,8 +7,8 @@ import Animated, {
   withSpring,
   withTiming,
   runOnJS,
+  Easing,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,6 +24,8 @@ export const MaskedSplashScreen: React.FC<MaskedSplashScreenProps> = ({
 }) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
     const animate = async () => {
@@ -35,8 +37,13 @@ export const MaskedSplashScreen: React.FC<MaskedSplashScreenProps> = ({
         damping: 15,
         stiffness: 100,
       });
-      opacity.value = withTiming(0, { duration: 1000 }, () => {
-        runOnJS(onAnimationFinish)();
+      opacity.value = withTiming(0, { 
+        duration: 800, 
+        easing: Easing.out(Easing.ease) 
+      }, () => {
+        if (onAnimationFinish) {
+          runOnJS(onAnimationFinish)();
+        }
       });
     };
 
@@ -51,11 +58,12 @@ export const MaskedSplashScreen: React.FC<MaskedSplashScreenProps> = ({
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
       <Animated.View style={[styles.mask, animatedStyle]}>
-        <LinearGradient
-          colors={['#4c669f', '#3b5998', '#192f6a']}
-          style={styles.gradient}
+        <Image 
+          source={require('../assets/splash-removebg.png')} 
+          style={styles.logo}
+          resizeMode="contain"
         />
       </Animated.View>
     </View>
@@ -65,7 +73,8 @@ export const MaskedSplashScreen: React.FC<MaskedSplashScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   mask: {
     width,
@@ -73,8 +82,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  gradient: {
-    width: '100%',
-    height: '100%',
+  logo: {
+    width: width * 0.6,
+    height: height * 0.2,
   },
 }); 
