@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniWell Data Visualization</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Preload the Mermaid library -->
+    <link rel="preload" href="https://unpkg.com/mermaid@9.4.0/dist/mermaid.min.js" as="script">
+</head>
+<body>
+    <header>
+        <h1>UniWell App Architecture</h1>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="er-diagram">Entity Relationship</button>
+            <button class="tab-btn" data-tab="chen-er">Chen ER Diagram</button>
+            <button class="tab-btn" data-tab="data-flow">Data Flow</button>
+            <button class="tab-btn" data-tab="context-flow">Context Flow</button>
+            <button class="tab-btn" data-tab="use-cases">Use Cases</button>
+        </div>
+    </header>
+    
+    <main>
+        <div class="tab-content active" id="er-diagram">
+            <h2>Entity Relationship Diagram</h2>
+            <div class="diagram-container">
+                <div id="er-diagram-container"></div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="chen-er">
+            <h2>Chen Entity Relationship Diagram</h2>
+            <div class="diagram-container">
+                <div id="chen-er-container"></div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="data-flow">
+            <h2>Data Flow Diagram</h2>
+            <div class="diagram-container">
+                <div id="data-flow-container"></div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="context-flow">
+            <h2>Context Flow Diagram</h2>
+            <div class="diagram-container">
+                <div id="context-flow-container"></div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="use-cases">
+            <h2>UML Use Case Diagrams</h2>
+            <div class="diagram-selector">
+                <select id="use-case-selector">
+                    <option value="auth">Authentication</option>
+                    <option value="wellness">Wellness Tracking</option>
+                    <option value="academic">Academic Management</option>
+                    <option value="community">Community Interaction</option>
+                    <option value="therapy">Therapy Management</option>
+                </select>
+            </div>
+            <div class="diagram-container">
+                <div id="use-case-container"></div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Load stable version of Mermaid -->
+    <script src="https://unpkg.com/mermaid@9.4.0/dist/mermaid.min.js"></script>
+    
+    <!-- Add render check script -->
+    <script>
+        // Check if diagrams render properly
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                const allMermaidDivs = document.querySelectorAll('.mermaid');
+                allMermaidDivs.forEach(div => {
+                    if (!div.querySelector('svg')) {
+                        console.log('Re-initializing unrendered diagram');
+                        if (div.hasAttribute('data-processed')) {
+                            div.removeAttribute('data-processed');
+                        }
+                        mermaid.init(undefined, div);
+                    }
+                });
+            }, 1000);
+        });
+    </script>
+    
+    <script src="script.js"></script>
+    <script src="chen-style.js"></script>
+</body>
+</html> 

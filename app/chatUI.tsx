@@ -31,8 +31,8 @@ interface ChatMessage {
 const AI_PERSONA = {
   name: "Aria",
   role: "AI Wellness Assistant",
-  avatar: "https://example.com/avatar.png",
-  defaultAvatar: "https://example.com/default-avatar.png"
+  avatar: "https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/friendly%20minimal%20AI%20chatbot%20avatar.png",
+  defaultAvatar: "https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/friendly%20minimal%20AI%20chatbot%20avatar.png"
 };
 
 const ChatUI = () => {
@@ -115,7 +115,7 @@ const ChatUI = () => {
 
   const addMessage = (content: string, isAI: boolean, thinking = false) => {
     const newMessage = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       content,
       isAI,
       timestamp: new Date(),
@@ -327,93 +327,94 @@ const ChatUI = () => {
           <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading...</Text>
         </View>
       ) : (
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.messagesContainer}
-          onContentSizeChange={scrollToBottom}
-          onLayout={scrollToBottom}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        >
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.messagesContainer}
+            onContentSizeChange={scrollToBottom}
+            onLayout={scrollToBottom}
+            showsVerticalScrollIndicator={false}
+          />
 
-      {/* Input Area */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <BlurView intensity={90} tint={isDark ? 'dark' : 'light'} style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              ref={inputRef}
-              style={[
-                styles.input,
-                isDark && styles.darkInput,
-                inputText.length > 0 && styles.inputActive
-              ]}
-              placeholder="Message Aria..."
-              placeholderTextColor={isDark ? '#888' : '#999'}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={500}
-              returnKeyType="send"
-              blurOnSubmit={false}
-              onSubmitEditing={handleSendMessage}
-              onKeyPress={({ nativeEvent }) => {
-                if (Platform.OS === 'web') {
-                  const webEvent = nativeEvent as unknown as KeyboardEvent;
-                  if (webEvent.key === 'Enter' && !webEvent.shiftKey) {
-                    webEvent.preventDefault();
-                    handleSendMessage();
+          {/* Input Area */}
+          <BlurView intensity={90} tint={isDark ? 'dark' : 'light'} style={[styles.inputContainer, isDark && styles.darkInputContainer]}>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                ref={inputRef}
+                style={[
+                  styles.input,
+                  isDark && styles.darkInput,
+                  inputText.length > 0 && styles.inputActive
+                ]}
+                placeholder="Message Aria..."
+                placeholderTextColor={isDark ? '#888' : '#999'}
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                maxLength={500}
+                returnKeyType="send"
+                blurOnSubmit={false}
+                onSubmitEditing={handleSendMessage}
+                onKeyPress={({ nativeEvent }) => {
+                  if (Platform.OS === 'web') {
+                    const webEvent = nativeEvent as unknown as KeyboardEvent;
+                    if (webEvent.key === 'Enter' && !webEvent.shiftKey) {
+                      webEvent.preventDefault();
+                      handleSendMessage();
+                    }
                   }
-                }
-              }}
-            />
-            {inputText.length > 0 && (
+                }}
+              />
+              {inputText.length > 0 && (
+                <TouchableOpacity
+                  style={styles.clearButton}
+                  onPress={() => setInputText('')}
+                >
+                  <Ionicons 
+                    name="close-circle" 
+                    size={20} 
+                    color={isDark ? '#888' : '#999'} 
+                  />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
-                style={styles.clearButton}
-                onPress={() => setInputText('')}
+                style={[
+                  styles.sendButton,
+                  !inputText && styles.disabledButton
+                ]}
+                onPress={handleSendMessage}
+                disabled={!inputText}
               >
-                <Ionicons 
-                  name="close-circle" 
-                  size={20} 
-                  color={isDark ? '#888' : '#999'} 
-                />
+                <LinearGradient
+                  colors={!inputText ? ['#ccc', '#ccc'] : ['#FF7F50', '#FF6347']}
+                  style={styles.sendButtonGradient}
+                >
+                  <Ionicons 
+                    name="send" 
+                    size={20} 
+                    color="#fff"
+                  />
+                </LinearGradient>
               </TouchableOpacity>
+            </View>
+            {inputText.length > 0 && (
+              <Text style={[styles.charCount, isDark && styles.darkCharCount]}>
+                {inputText.length}/500
+              </Text>
             )}
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                !inputText && styles.disabledButton
-              ]}
-              onPress={handleSendMessage}
-              disabled={!inputText}
-            >
-              <LinearGradient
-                colors={!inputText ? ['#ccc', '#ccc'] : ['#FF7F50', '#FF6347']}
-                style={styles.sendButtonGradient}
-              >
-                <Ionicons 
-                  name="send" 
-                  size={20} 
-                  color="#fff"
-                />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-          {inputText.length > 0 && (
-            <Text style={[styles.charCount, isDark && styles.darkCharCount]}>
-              {inputText.length}/500
-            </Text>
-          )}
-        </BlurView>
-        <Text style={[styles.disclaimer, isDark && styles.darkSubText]}>
-          Not a replacement for professional help
-        </Text>
-      </KeyboardAvoidingView>
+          </BlurView>
+          <Text style={[styles.disclaimer, isDark && styles.darkSubText]}>
+            Not a replacement for professional help
+          </Text>
+        </KeyboardAvoidingView>
+      )}
 
       {/* Sessions Modal */}
       <Modal
@@ -604,22 +605,26 @@ const styles = StyleSheet.create({
   inputContainer: {
     borderTopWidth: 1,
     borderTopColor: 'rgba(0, 0, 0, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  darkInputContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     position: 'relative',
+    paddingRight: 8,
   },
   input: {
     flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    paddingRight: 48,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingRight: 56,
     fontSize: 16,
     maxHeight: 120,
     minHeight: 40,
@@ -649,8 +654,8 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     position: 'absolute',
-    right: 8,
-    bottom: 2,
+    right: 16,
+    bottom: 4,
     width: 36,
     height: 36,
     borderRadius: 18,

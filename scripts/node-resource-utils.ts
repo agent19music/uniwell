@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { google } from 'googleapis';
 import SpotifyWebApi from 'spotify-web-api-node';
-
 // Initialize APIs with environment variables
 const youtube = google.youtube('v3');
 const spotifyApi = new SpotifyWebApi({

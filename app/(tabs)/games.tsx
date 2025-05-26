@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from 'react';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import BreathingExercise from '@/app/BreathingExercise';
 import { useRouter } from 'expo-router';
+import ColoringCanvas from '@/components/ColoringCanvas';
 
 const COLORING_PALETTE = [
   { id: '1', color: '#FF69B4', name: 'Pink' },
@@ -31,18 +32,16 @@ const NATURE_SOUNDS: SoundItem[] = [
 export default function GamesScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const [selectedColor, setSelectedColor] = useState(COLORING_PALETTE[0].color);
   const [selectedSound, setSelectedSound] = useState<string | null>(null);
   const [sound, setSound] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBreathingFullscreen, setIsBreathingFullscreen] = useState(false);
-  const router = useRouter(); 
+  const router = useRouter();
 
   const handleBreathingExercisePress = () => {
     setIsBreathingFullscreen(false);
     router.push('/BreathingExercise');
   };
-
 
   useEffect(() => {
     return () => {
@@ -168,36 +167,19 @@ export default function GamesScreen() {
         </View>
 
         {/* Coloring Section */}
-        <View style={[styles.section, isDark && styles.darkCard]}>
+        {/* <View style={[styles.section, isDark && styles.darkCard]}>
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Peaceful Coloring</Text>
-          
-          {/* Color Palette */}
-          <View style={styles.palette}>
-            {COLORING_PALETTE.map((color) => (
-              <TouchableOpacity
-                key={color.id}
-                style={[
-                  styles.colorOption,
-                  { backgroundColor: color.color },
-                  selectedColor === color.color && styles.selectedColor,
-                ]}
-                onPress={() => setSelectedColor(color.color)}
-              />
-            ))}
-          </View>
+          <Text style={[styles.sectionDescription, isDark && styles.darkSubText]}>
+            Express your creativity with these beautiful illustrations
+          </Text>
+          <ColoringCanvas />
+        </View> */}
 
-          {/* Coloring Canvas */}
-          <View style={styles.canvas}>
-            {/* This would be replaced with actual SVG or canvas for coloring */}
-            <Text style={styles.canvasText}>Coloring Canvas Here</Text>
-          </View>
-
-          {/* Nature Sounds */}
-          <View style={styles.soundControls}>
-          
-          </View>
-          <Text style={[styles.sectionSubtitle, isDark && styles.darkSubText]}>
-            Nature Sounds
+        {/* Nature Sounds */}
+        {/* <View style={[styles.section, isDark && styles.darkCard]}>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Nature Sounds</Text>
+          <Text style={[styles.sectionDescription, isDark && styles.darkSubText]}>
+            Relax with soothing ambient sounds
           </Text>
           {renderSoundControls()}
           
@@ -217,7 +199,7 @@ export default function GamesScreen() {
               <Ionicons name="volume-high" size={20} color="#666" />
             </View>
           )}
-        </View>
+        </View> */}
 
         {/* Breathing Exercises */}
         <View style={[styles.section, isDark && styles.darkCard, styles.breathingSection]}>
@@ -237,8 +219,6 @@ export default function GamesScreen() {
           </View>
         </View>
       </ScrollView>
-
-     
     </SafeAreaView>
   );
 }
@@ -305,34 +285,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontFamily: 'Vercetti-Regular',
   },
-  palette: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
-  },
-  colorOption: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  selectedColor: {
-    borderColor: '#FF7F50',
-    transform: [{ scale: 1.1 }],
-  },
-  canvas: {
-    height: 200,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  canvasText: {
-    color: '#666',
-    fontFamily: 'Vercetti-Regular',
-  },
   soundControls: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -397,32 +349,5 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     color: '#333',
     fontFamily: 'Vercetti-Regular',
-  },
-  fullscreenModal: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#000',
-    zIndex: 1000,
-  },
-  fullscreenHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    zIndex: 1001,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });

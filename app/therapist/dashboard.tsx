@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import ProfileCompletion from './components/ProfileCompletion';
 import { Appointment } from './types';
+import QuickActions from './components/QuickActions';
 
 // Only render the dashboard on web - mobile will redirect
 const isWeb = Platform.OS === 'web';
@@ -23,7 +24,7 @@ const isWeb = Platform.OS === 'web';
 export default function TherapistDashboard() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { profile, isProfileComplete, signOut, user, loading, getStats, getAppointments } = useTherapist();
+  const { profile, isProfileComplete, signOut, user, loading, getStats, getAppointments, therapistName } = useTherapist();
   const [stats, setStats] = useState({
     todayAppointments: 0,
     weekRevenue: 0,
@@ -33,6 +34,9 @@ export default function TherapistDashboard() {
   });
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Get the display name for the therapist
+  const displayName = therapistName || (profile?.bio?.split(' ')[0] || 'Therapist');
   
   // Redirect non-web users to the login screen
   useEffect(() => {
@@ -113,16 +117,24 @@ export default function TherapistDashboard() {
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
       <View style={styles.header}>
         <Text style={[styles.headerTitle, isDark && styles.darkText]}>Therapist Dashboard</Text>
-        <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-          <Ionicons name="log-out-outline" size={20} color="#FF7F50" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.settingsButton} 
+            onPress={() => router.push('/therapist/settings')}
+          >
+            <Ionicons name="settings-outline" size={24} color={isDark ? "#fff" : "#333"} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
+            <Text style={styles.signOutText}>Sign Out</Text>
+            <Ionicons name="log-out-outline" size={20} color="#FF7F50" />
+          </TouchableOpacity>
+        </View>
       </View>
       
       <ScrollView style={styles.content}>
         <View style={[styles.welcomeCard, isDark && styles.darkCard]}>
           <Text style={[styles.welcomeText, isDark && styles.darkText]}>
-            Welcome back, {profile.bio?.split(' ')[0] || 'Therapist'}
+            Welcome back, {displayName.split(' ')[0]}
           </Text>
           <Text style={[styles.welcomeSubtext, isDark && styles.darkSubText]}>
             You have {stats.todayAppointments} {stats.todayAppointments === 1 ? 'appointment' : 'appointments'} today
@@ -159,6 +171,11 @@ export default function TherapistDashboard() {
           </TouchableOpacity>
         </View>
         
+        {/* Quick Actions Section */}
+        <View style={styles.section}>
+          <QuickActions />
+        </View>
+        
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Upcoming Appointments</Text>
           <TouchableOpacity>
@@ -172,8 +189,9 @@ export default function TherapistDashboard() {
           </View>
         ) : (
           upcomingAppointments.map((appointment) => {
-            const client = appointment.client as any;
-            const clientName = client?.full_name || client?.email?.split('@')[0] || 'Patient';
+            // Handle the client data format change
+            const client = appointment.client || {};
+            const clientName = (client as any).full_name || (client as any).email?.split('@')[0] || 'Patient';
             const initials = clientName.split(' ').map((n: string) => n[0]).join('').toUpperCase();
             const startTime = new Date(appointment.start_time);
             const endTime = new Date(appointment.end_time);
@@ -187,17 +205,27 @@ export default function TherapistDashboard() {
               timeZone: 'Africa/Nairobi'
             });
             
+            // Status badge colors
+            const statusColors = {
+              pending: { bg: '#FFF3CD', text: '#856404' },
+              confirmed: { bg: '#E6F7ED', text: '#0E9F6E' },
+              cancelled: { bg: '#FEE2E2', text: '#DC2626' },
+              completed: { bg: '#E0E7FF', text: '#4F46E5' }
+            };
+            
+            const status = appointment.status || 'pending';
+            const statusColor = statusColors[status as keyof typeof statusColors] || 
+                              statusColors.pending;
+            
             return (
               <View key={appointment.id} style={[styles.appointmentCard, isDark && styles.darkCard]}>
                 <View style={styles.appointmentHeader}>
                   <Text style={[styles.appointmentDate, isDark && styles.darkText]}>
                     {timeString}
                   </Text>
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>
-                      {appointment.status === 'confirmed' ? 'Confirmed' : 
-                       appointment.status === 'pending' ? 'Pending' : 
-                       appointment.status}
+                  <View style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}>
+                    <Text style={[styles.statusText, { color: statusColor.text }]}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
                     </Text>
                   </View>
                 </View>
@@ -209,7 +237,7 @@ export default function TherapistDashboard() {
                   <View style={styles.clientDetails}>
                     <Text style={[styles.clientName, isDark && styles.darkText]}>{clientName}</Text>
                     <Text style={[styles.sessionType, isDark && styles.darkSubText]}>
-                      {appointment.status === 'pending' ? 'New Session' : 'Follow Up'} • {duration} min
+                      {status === 'pending' ? 'New Session' : 'Follow Up'} • {duration} min
                     </Text>
                   </View>
                 </View>
@@ -225,6 +253,13 @@ export default function TherapistDashboard() {
                     <Text style={styles.secondaryButtonText}>Message</Text>
                   </TouchableOpacity>
                 </View>
+                
+                {appointment.notes && (
+                  <View style={styles.notesContainer}>
+                    <Text style={[styles.notesLabel, isDark && styles.darkText]}>Notes:</Text>
+                    <Text style={[styles.notesText, isDark && styles.darkSubText]}>{appointment.notes}</Text>
+                  </View>
+                )}
               </View>
             );
           })
@@ -292,6 +327,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     fontFamily: 'Vercetti-Regular',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingsButton: {
+    marginRight: 16,
   },
   signOutButton: {
     flexDirection: 'row',
@@ -493,10 +535,34 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 40,
   },
   emptyStateText: {
     fontSize: 16,
     color: '#666',
+    fontFamily: 'Vercetti-Regular',
+  },
+  section: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  notesContainer: {
+    backgroundColor: '#F8F9FA',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  notesLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+    fontFamily: 'Vercetti-Regular',
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
     fontFamily: 'Vercetti-Regular',
   },
 });

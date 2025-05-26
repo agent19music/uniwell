@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniWell Diagram Export</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .diagram-section {
+            background-color: white;
+            margin-bottom: 40px;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #4a6fa5;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .export-instructions {
+            background-color: #f0f7ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .mermaid {
+            width: 100%;
+            margin: 20px 0;
+            min-height: 450px;
+        }
+        
+        .use-case-mermaid {
+            min-height: 600px;
+        }
+        
+        .button-row {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 8px 15px;
+            background-color: #4a6fa5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        button:hover {
+            background-color: #3a5a80;
+        }
+        
+        .export-controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #use-case-selector {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-bottom: 15px;
+            width: 250px;
+        }
+    </style>
+</head>
+<body>
+    <h1>UniWell Diagrams for Documentation</h1>
+    
+    <div class="export-instructions">
+        <p><strong>Instructions:</strong> These diagrams are optimized for capturing screenshots for documentation. Use browser screenshot tools or a screen capture program to save each diagram as an image.</p>
+    </div>
+    
+    <div class="button-row">
+        <button onclick="showSection('er-diagram')">ER Diagram</button>
+        <button onclick="showSection('chen-er')">Chen ER Diagram</button>
+        <button onclick="showSection('data-flow')">Data Flow</button>
+        <button onclick="showSection('context-flow')">Context Flow</button>
+        <button onclick="showSection('use-cases')">Use Cases</button>
+    </div>
+    
+    <div class="diagram-section" id="er-diagram">
+        <h2>Entity Relationship Diagram</h2>
+        <div id="er-diagram-container"></div>
+    </div>
+    
+    <div class="diagram-section" id="chen-er" style="display: none;">
+        <h2>Chen Entity Relationship Diagram</h2>
+        <div id="chen-er-container"></div>
+    </div>
+    
+    <div class="diagram-section" id="data-flow" style="display: none;">
+        <h2>Data Flow Diagram</h2>
+        <div id="data-flow-container"></div>
+    </div>
+    
+    <div class="diagram-section" id="context-flow" style="display: none;">
+        <h2>Context Flow Diagram</h2>
+        <div id="context-flow-container"></div>
+    </div>
+    
+    <div class="diagram-section" id="use-cases" style="display: none;">
+        <h2>UML Use Case Diagram</h2>
+        <div class="export-controls">
+            <select id="use-case-selector" onchange="updateUseCaseDiagram()">
+                <option value="auth">Authentication</option>
+                <option value="wellness">Wellness Tracking</option>
+                <option value="academic">Academic Management</option>
+                <option value="community">Community Interaction</option>
+                <option value="therapy">Therapy Management</option>
+            </select>
+        </div>
+        <div id="use-case-container"></div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/9.4.3/mermaid.min.js"></script>
+    <script src="script.js"></script>
+    <script src="chen-style.js"></script>
+    <script>
+        // Show only the selected section
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.diagram-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Show the selected section
+            document.getElementById(sectionId).style.display = 'block';
+            
+            // Re-render diagrams in the visible section
+            renderVisibleDiagrams(sectionId);
+        }
+        
+        // Render diagrams for the visible section
+        function renderVisibleDiagrams(sectionId) {
+            switch(sectionId) {
+                case 'er-diagram':
+                    renderERDiagram();
+                    break;
+                case 'chen-er':
+                    renderChenERDiagramTab();
+                    break;
+                case 'data-flow':
+                    renderDataFlowDiagram();
+                    break;
+                case 'context-flow':
+                    renderContextFlowDiagram();
+                    break;
+                case 'use-cases':
+                    updateUseCaseDiagram();
+                    break;
+            }
+            
+            // Initialize mermaid for visible diagrams
+            setTimeout(() => {
+                mermaid.init(undefined, '.mermaid');
+            }, 100);
+        }
+        
+        // Update the use case diagram based on selection
+        function updateUseCaseDiagram() {
+            const selectedValue = document.getElementById('use-case-selector').value;
+            renderUseCaseDiagram(selectedValue);
+            
+            // Initialize mermaid for the diagram
+            setTimeout(() => {
+                mermaid.init(undefined, '#use-case-container .mermaid');
+            }, 100);
+        }
+        
+        // Initial render of the ER diagram when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            renderERDiagram();
+            setTimeout(() => {
+                mermaid.init(undefined, '.mermaid');
+            }, 100);
+        });
+    </script>
+</body>
+</html> 

@@ -279,7 +279,7 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {/* Therapist Dashboard Card */}
-      <TouchableOpacity 
+      {/* <TouchableOpacity 
         style={[styles.card, isDark && styles.darkCard]} 
         onPress={handleTherapistDashboardPress}
       >
@@ -290,7 +290,7 @@ export default function HomeScreen() {
         <Text style={[styles.cardSubtitle, isDark && styles.darkSubText]}>
           Open therapist dashboard
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       {/* Streaks Card */}
       <TouchableOpacity 

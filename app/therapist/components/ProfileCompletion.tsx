@@ -16,6 +16,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useTherapist } from '../context/TherapistContext';
 import { TherapistProfile } from '../types';
 import { router } from 'expo-router';
+import { supabase } from '../../../lib/supabase';
 
 interface DayAvailability {
   active: boolean;
@@ -159,6 +160,20 @@ export default function ProfileCompletion({ onComplete }: ProfileCompletionProps
       if (error) {
         Alert.alert('Error', error.message || 'Failed to update profile');
       } else {
+        // Also update the user's name in the users table
+        try {
+          const { error: userUpdateError } = await supabase
+            .from('users')
+            .update({ full_name: bio })
+            .eq('id', profile.id);
+            
+          if (userUpdateError) {
+            console.error('Error updating user name:', userUpdateError);
+          }
+        } catch (userUpdateError) {
+          console.error('Error updating user name:', userUpdateError);
+        }
+        
         Alert.alert(
           'Profile Completed', 
           'Your profile has been updated successfully. You can now receive appointments.', 

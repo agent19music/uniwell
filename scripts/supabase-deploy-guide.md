@@ -1,182 +1,171 @@
-# Supabase Edge Function Deployment Guide
+# Deploying Automated Resource Updates to Supabase
 
-This guide explains how to deploy and schedule the content refresh edge function to automate mental health content collection for your app.
+This guide will help you set up automated resource updates using Supabase Edge Functions and Database Triggers.
 
-## Prerequisites
+## 1. Set Up Environment Variables
 
-1. [Supabase CLI](https://supabase.com/docs/guides/cli) installed
-2. Supabase project created
-3. API keys for YouTube, Spotify, and News API
-
-## Setup Steps
-
-### 1. Setup Supabase Project
-
-Ensure your Supabase project is properly configured with the necessary tables:
-
-- `resources` - Main content table
-- `resource_content` - Content details table
-- `resource_categories` - Category connections
-- `resource_tags` - Tag connections
-- `categories` - Categories reference
-- `tags` - Tags reference
-
-### 2. Initialize Supabase Functions
+First, add these environment variables to your Supabase project:
 
 ```bash
-# Login to Supabase
+# In Supabase Dashboard -> Settings -> API -> Environment Variables
+YOUTUBE_API_KEY=your_youtube_api_key
+SPOTIFY_CLIENT_ID=your_spotify_client_id
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+NEWS_API_KEY=your_news_api_key
+```
+
+## 2. Deploy the Edge Function
+
+1. Install Supabase CLI if you haven't already:
+```bash
+npm install -g supabase
+```
+
+2. Login to Supabase:
+```bash
 supabase login
-
-# Initialize in your project
-cd your-project-directory
-supabase init
 ```
 
-### 3. Create the Edge Function
-
+3. Link your project:
 ```bash
-# Create a new edge function
-supabase functions new refresh-library
+supabase link --project-ref your-project-ref
 ```
 
-### 4. Copy Edge Function Code
-
-Copy the code from `scripts/supabase-edge-function.ts` to the newly created function file at:
-
-```
-supabase/functions/refresh-library/index.ts
-```
-
-### 5. Configure Secrets
-
-Add your API keys as secrets:
-
+4. Deploy the edge function:
 ```bash
-supabase secrets set EXPO_PUBLIC_YOUTUBE_API_KEY=your-youtube-api-key
-supabase secrets set EXPO_PUBLIC_NEWS_API_KEY=your-news-api-key
-supabase secrets set EXPO_PUBLIC_SPOTIFY_CLIENT_ID=your-spotify-client-id
-supabase secrets set EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
+supabase functions deploy update-resources
 ```
 
-### 6. Deploy the Function
+## 3. Set Up Scheduled Execution
 
-```bash
-supabase functions deploy refresh-library --no-verify-jwt
-```
-
-### 7. Test the Function
-
-Test the function using the Supabase dashboard or cURL:
-
-```bash
-curl -X POST https://<your-project-ref>.functions.supabase.co/refresh-library
-```
-
-### 8. Schedule Automated Runs
-
-#### Option 1: Using Supabase Scheduler (Recommended)
-
-1. Go to your Supabase project's SQL Editor
-2. Create a scheduled job:
+1. Go to your Supabase Dashboard
+2. Navigate to Database -> Functions
+3. Create a new function:
 
 ```sql
-select cron.schedule(
-  'refresh-content-daily',
-  '0 0 * * *',  -- Run at midnight every day
-  $$ select net.http_post(
-      'https://<your-project-ref>.functions.supabase.co/refresh-library',
-      '{}',
-      jsonb_build_object(
-        'Authorization', 'Bearer your-service-role-key',
+CREATE OR REPLACE FUNCTION public.schedule_resource_updates()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Call the edge function every 24 hours
+  PERFORM
+    net.http_post(
+      url := CONCAT(current_setting('app.settings.pgrest_url'), '/functions/v1/update-resources'),
+      headers := jsonb_build_object(
+        'Authorization', CONCAT('Bearer ', current_setting('app.settings.service_role_key')),
         'Content-Type', 'application/json'
       )
-    ) $$
+    );
+END;
+$$;
+```
+
+4. Create a cron job to run this function:
+
+```sql
+SELECT cron.schedule(
+  'update-resources-daily',  -- job name
+  '0 0 * * *',             -- every day at midnight
+  $$SELECT public.schedule_resource_updates()$$
 );
 ```
 
-#### Option 2: Using External Scheduler (AWS Lambda, GitHub Actions, etc.)
+## 4. Verify Setup
 
-You can also set up an external scheduler using services like:
-
-- GitHub Actions with a scheduled workflow
-- AWS Lambda + EventBridge
-- Google Cloud Scheduler
-
-Example GitHub Actions workflow:
-
-```yaml
-name: Refresh Content Library
-
-on:
-  schedule:
-    - cron: '0 0 * * *'  # Run at midnight every day
-  workflow_dispatch:  # Allow manual runs
-
-jobs:
-  refresh:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger content refresh
-        run: |
-          curl -X POST \
-            https://<your-project-ref>.functions.supabase.co/refresh-library \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Content-Type: application/json"
+1. Check the function logs in Supabase Dashboard -> Edge Functions -> update-resources -> Logs
+2. Monitor the database for new resources being added
+3. Check the cron job status:
+```sql
+SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 5;
 ```
 
-## Monitoring and Maintenance
+## 5. Troubleshooting
 
-### Check Function Logs
+If resources aren't being added:
 
-To check logs for your function:
-
-```bash
-supabase functions logs refresh-library
+1. Check Edge Function logs for errors
+2. Verify all API keys are correctly set
+3. Ensure the cron job is running:
+```sql
+SELECT * FROM cron.job WHERE jobname = 'update-resources-daily';
 ```
 
-### Update the Function
-
-To update the function after making changes:
-
-1. Edit the function code
-2. Deploy the updated function:
-
-```bash
-supabase functions deploy refresh-library --no-verify-jwt
+4. Test the function manually:
+```sql
+SELECT public.schedule_resource_updates();
 ```
 
-## Troubleshooting
+## 6. Monitoring
 
-- **API Rate Limiting**: If you're hitting API rate limits, consider increasing the delay between requests or running the function less frequently.
-- **Function Timeouts**: Supabase Edge Functions have a default timeout of 60 seconds. If your function processes a large amount of content, consider:
-  - Reducing the amount of content fetched per run
-  - Breaking the function into smaller, more focused functions
-  - Using a background task queue pattern
-- **Missing Data**: If content isn't being saved correctly, check the function logs for errors and verify database schema/permissions.
+Set up monitoring for the automated updates:
 
-## Advanced Configuration
-
-### Customizing Content Topics
-
-Edit the `TOPICS` array in the edge function to change what mental health topics are fetched:
-
-```typescript
-const TOPICS = [
-  {
-    query: 'your custom topic',
-    categories: ['category-id'],
-    tags: ['tag-id-1', 'tag-id-2']
-  },
-  // Add more topics
-];
+1. Create a monitoring table:
+```sql
+CREATE TABLE IF NOT EXISTS resource_update_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  run_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  resources_added INTEGER,
+  status TEXT,
+  error_message TEXT
+);
 ```
 
-### Configuring Fetch Limits
+2. Modify the edge function to log results:
+```sql
+CREATE OR REPLACE FUNCTION public.schedule_resource_updates()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  result JSONB;
+BEGIN
+  -- Call the edge function
+  SELECT content::jsonb INTO result
+  FROM net.http_post(
+    url := CONCAT(current_setting('app.settings.pgrest_url'), '/functions/v1/update-resources'),
+    headers := jsonb_build_object(
+      'Authorization', CONCAT('Bearer ', current_setting('app.settings.service_role_key')),
+      'Content-Type', 'application/json'
+    )
+  );
 
-Adjust the number of items fetched per content type:
+  -- Log the result
+  INSERT INTO resource_update_logs (resources_added, status, error_message)
+  VALUES (
+    (result->>'resources_added')::integer,
+    CASE WHEN result->>'error' IS NULL THEN 'success' ELSE 'error' END,
+    result->>'error'
+  );
+END;
+$$;
+```
 
-```typescript
-const videos = await fetchYouTubeVideos(topic.query, 5); // Fetch 5 videos instead of 2
-const podcasts = await fetchSpotifyPodcasts(topic.query, 5); // Fetch 5 podcasts
-const articles = await fetchNewsArticles(topic.query, 5); // Fetch 5 articles
+## 7. Maintenance
+
+Regular maintenance tasks:
+
+1. Monitor resource quality:
+```sql
+SELECT 
+  content_type,
+  COUNT(*) as total,
+  AVG(popularity_score) as avg_popularity
+FROM resources
+GROUP BY content_type;
+```
+
+2. Clean up old resources:
+```sql
+DELETE FROM resources 
+WHERE created_at < NOW() - INTERVAL '6 months'
+AND popularity_score < 0.5;
+```
+
+3. Update API keys when needed:
+```sql
+ALTER SYSTEM SET app.settings.youtube_api_key = 'new_key';
+SELECT pg_reload_conf();
 ``` 

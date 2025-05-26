@@ -20,7 +20,27 @@ import { usePostNavigation } from '../../contexts/PostNavigationContext';
 import ThreadedReply from '../../components/ThreadedReply';
 import { format } from 'date-fns';
 import * as Haptics from 'expo-haptics';
-import { Post, Reply } from '@/types/community';
+import { Post } from '@/types/community';
+
+// Define local Reply interface that matches ThreadedReply component requirements
+interface Reply {
+  id: string;
+  post_id: string;
+  parent_id: string | null;
+  content: string;
+  created_at: string;
+  timestamp: string;
+  user: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
+  hasChildren: boolean;
+  media_url?: string;
+  isLiked?: boolean;
+  likes?: number;
+  children?: Reply[];
+}
 
 export default function PostScreen() {
   const { id } = useLocalSearchParams();
@@ -122,7 +142,7 @@ export default function PostScreen() {
 
   const organizeReplies = (flatReplies: any[]) => {
     // Convert flat array into threaded structure
-    const threadedReplies: any[] = [];
+    const threadedReplies: Reply[] = [];
     const replyMap = new Map();
 
     flatReplies.forEach(reply => {
@@ -135,9 +155,10 @@ export default function PostScreen() {
           name: reply.profiles?.username,
           avatar: reply.profiles?.avatar_url
         },
-        hasChildren: false
+        hasChildren: false,
+        children: []
       };
-      replyMap.set(reply.id, { ...enrichedReply, children: [] });
+      replyMap.set(reply.id, enrichedReply);
     });
 
     flatReplies.forEach(reply => {
@@ -146,6 +167,9 @@ export default function PostScreen() {
         if (parent) {
           parent.hasChildren = true;
           parent.children.push(replyMap.get(reply.id));
+        } else {
+          // Fallback if parent not found
+          threadedReplies.push(replyMap.get(reply.id));
         }
       } else {
         threadedReplies.push(replyMap.get(reply.id));
@@ -179,14 +203,71 @@ export default function PostScreen() {
     if (!postId) return;
     
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      
+      // Get user profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username, avatar_url')
+        .eq('id', user.id)
+        .single();
+      
       await createReply({
         postId,
         parentId: replyingTo || undefined,
         content: replyContent.trim()
       });
+      
+      // Create optimistic reply to immediately show in the UI
+      const optimisticReply: any = {
+        id: `temp-${Date.now()}`,
+        post_id: postId,
+        user_id: user.id,
+        parent_id: replyingTo,
+        content: replyContent.trim(),
+        created_at: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+        user: {
+          id: user.id,
+          name: profile?.username || 'You',
+          avatar: profile?.avatar_url
+        },
+        hasChildren: false,
+        children: []
+      };
+      
+      // Update replies state with the new reply
+      setReplies(prevReplies => {
+        if (replyingTo) {
+          // If replying to a parent, find that parent and add to its children
+          return prevReplies.map(reply => {
+            if (reply.id === replyingTo) {
+              return {
+                ...reply,
+                hasChildren: true,
+                children: [...(reply.children || []), optimisticReply]
+              };
+            }
+            return reply;
+          });
+        } else {
+          // If top-level reply, just add to the array
+          return [...prevReplies, optimisticReply];
+        }
+      });
+      
+      // Clear form
       setReplyContent('');
       setReplyingTo(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Refresh after a short delay to get the actual data
+      setTimeout(() => {
+        fetchReplies();
+      }, 1000);
+      
     } catch (error) {
       console.error('Error creating reply:', error);
     }
@@ -253,7 +334,7 @@ export default function PostScreen() {
           <View style={[styles.postContainer, isDark && styles.postContainerDark]}>
             <View style={styles.postHeader}>
               <Image 
-                source={{ uri: post.profiles.avatar_url }} 
+                source={{ uri: post.profiles.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }} 
                 style={styles.avatar} 
               />
               <View style={styles.postHeaderText}>
@@ -302,6 +383,16 @@ export default function PostScreen() {
         </View>
 
         <View style={styles.replySection}>
+          {replyingTo && (
+            <View style={[styles.replyingToContainer, isDark && styles.replyingToContainerDark]}>
+              <Text style={[styles.replyingToText, isDark && styles.replyingToTextDark]}>
+                Replying to a comment
+              </Text>
+              <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                <Ionicons name="close-circle" size={20} color={isDark ? '#aaa' : '#666'} />
+              </TouchableOpacity>
+            </View>
+          )}
           <View style={[styles.replyInput, isDark && styles.replyInputDark]}>
             <TextInput
               placeholder="Write a reply..."
@@ -311,8 +402,16 @@ export default function PostScreen() {
               style={[styles.input, isDark && styles.inputDark]}
               multiline
             />
-            <TouchableOpacity style={styles.sendButton} onPress={handleReply}>
-              <Ionicons name="send" size={24} color="#FF7F50" />
+            <TouchableOpacity 
+              style={[styles.sendButton, !replyContent.trim() && styles.sendButtonDisabled]} 
+              onPress={handleReply}
+              disabled={!replyContent.trim()}
+            >
+              <Ionicons 
+                name="send" 
+                size={24} 
+                color={!replyContent.trim() ? (isDark ? '#444' : '#ccc') : "#FF7F50"} 
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -440,6 +539,26 @@ const styles = StyleSheet.create({
   replySection: {
     padding: 16,
   },
+  replyingToContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    padding: 8,
+    borderRadius: 12,
+    marginBottom: 8
+  },
+  replyingToContainerDark: {
+    backgroundColor: '#2a2a2a'
+  },
+  replyingToText: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Vercetti-Regular',
+  },
+  replyingToTextDark: {
+    color: '#aaa',
+  },
   replyInput: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -463,6 +582,9 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     padding: 8,
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
   },
   textDark: {
     color: '#fff',

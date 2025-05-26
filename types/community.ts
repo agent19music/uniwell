@@ -15,6 +15,9 @@ export interface Post {
       count: number;
     };
     tags?: string[];
+    user_likes?: {
+      user_id: string;
+    }[];
   }
   
   export interface Reply {
@@ -31,6 +34,14 @@ export interface Post {
     media_url?: string;
     likes?: number;
     isLiked?: boolean;
+    timestamp?: string;
+    user?: {
+      id: string;
+      name: string;
+      avatar: string;
+    };
+    hasChildren?: boolean;
+    children?: Reply[];
   }
   
   export interface CreatePostData {

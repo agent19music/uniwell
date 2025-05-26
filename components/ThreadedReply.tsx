@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { formatDistanceToNow } from 'date-fns';
 
 interface Reply {
   id: string;
@@ -10,15 +11,16 @@ interface Reply {
   created_at: string;
   timestamp: string;
   user: {
+    id: string;
     name: string;
-    avatar_url: string;
+    avatar: string;
   };
   hasChildren: boolean;
-  media_url: string;
-  isLiked: boolean;
-  likes: number;
+  media_url?: string;
+  isLiked?: boolean;
+  likes?: number;
+  children?: Reply[];
 }
-
 
 interface ThreadedReplyProps {
   reply: Reply;
@@ -30,21 +32,43 @@ interface ThreadedReplyProps {
 export default function ThreadedReply({ reply, depth, onReply, onLike }: ThreadedReplyProps) {
   const [isCollapsed, setIsCollapsed] = useState(depth > 2);
   const [showMore, setShowMore] = useState(false);
+  const isDark = useColorScheme() === 'dark';
+  
+  // Format time ago from timestamp or created_at
+  const getTimeAgo = () => {
+    try {
+      const date = new Date(reply.timestamp || reply.created_at);
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (error) {
+      return 'recently';
+    }
+  };
 
   return (
-    <View style={[styles.container, { marginLeft: depth * 16 }]}>
+    <View style={[
+      styles.container, 
+      isDark && styles.containerDark,
+      { marginLeft: depth * 16 }
+    ]}>
       <View style={styles.replyHeader}>
-        <Image source={{ uri: reply.user.avatar_url }} style={styles.avatar} />
+        <Image 
+          source={{ uri: reply.user?.avatar || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }} 
+          style={styles.avatar} 
+        />
         <View style={styles.headerText}>
-          <Text style={styles.username}>{reply.user.name}</Text>
-          <Text style={styles.timestamp}>{reply.timestamp}</Text>
+          <Text style={[styles.username, isDark && styles.usernameDark]}>
+            {reply.user?.name || 'Anonymous'}
+          </Text>
+          <Text style={[styles.timestamp, isDark && styles.timestampDark]}>
+            {getTimeAgo()}
+          </Text>
         </View>
         {reply.hasChildren && (
           <TouchableOpacity onPress={() => setIsCollapsed(!isCollapsed)}>
             <Ionicons 
               name={isCollapsed ? 'chevron-down' : 'chevron-up'} 
               size={20} 
-              color="#666" 
+              color={isDark ? "#aaa" : "#666"} 
             />
           </TouchableOpacity>
         )}
@@ -54,16 +78,27 @@ export default function ThreadedReply({ reply, depth, onReply, onLike }: Threade
         <>
           <Text 
             numberOfLines={showMore ? undefined : 3} 
-            style={styles.content}
+            style={[styles.content, isDark && styles.contentDark]}
           >
             {reply.content}
           </Text>
+          
+          {reply.content.length > 150 && !showMore && (
+            <TouchableOpacity 
+              style={styles.showMoreButton} 
+              onPress={() => setShowMore(true)}
+            >
+              <Text style={styles.showMoreText}>Read more</Text>
+            </TouchableOpacity>
+          )}
+          
           {reply.media_url && (
             <Image 
               source={{ uri: reply.media_url }} 
               style={styles.media} 
             />
           )}
+          
           <View style={styles.actions}>
             <TouchableOpacity 
               style={styles.actionButton}
@@ -72,18 +107,37 @@ export default function ThreadedReply({ reply, depth, onReply, onLike }: Threade
               <Ionicons 
                 name={reply.isLiked ? "heart" : "heart-outline"} 
                 size={20} 
-                color={reply.isLiked ? "#FF4D4D" : "#666"} 
+                color={reply.isLiked ? "#FF4D4D" : isDark ? "#aaa" : "#666"} 
               />
-              <Text style={styles.actionText}>{reply.likes}</Text>
+              <Text style={[styles.actionText, isDark && styles.actionTextDark]}>
+                {reply.likes || 0}
+              </Text>
             </TouchableOpacity>
+            
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => onReply(reply.id)}
             >
-              <Ionicons name="chatbubble-outline" size={20} color="#666" />
-              <Text style={styles.actionText}>Reply</Text>
+              <Ionicons 
+                name="chatbubble-outline" 
+                size={20} 
+                color={isDark ? "#aaa" : "#666"} 
+              />
+              <Text style={[styles.actionText, isDark && styles.actionTextDark]}>
+                Reply
+              </Text>
             </TouchableOpacity>
           </View>
+          
+          {reply.children?.map(childReply => (
+            <ThreadedReply
+              key={childReply.id}
+              reply={childReply}
+              depth={depth + 1}
+              onReply={onReply}
+              onLike={onLike}
+            />
+          ))}
         </>
       )}
     </View>
@@ -106,7 +160,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   containerDark: {
-    backgroundColor: '#1e1e1e',
+    backgroundColor: '#1a1a1a',
+    shadowColor: '#000',
   },
   replyHeader: {
     flexDirection: 'row',
@@ -192,6 +247,8 @@ const styles = StyleSheet.create({
   },
   showMoreButton: {
     paddingVertical: 4,
+    marginTop: -4,
+    marginBottom: 8,
   },
   showMoreText: {
     color: '#FF7F50',

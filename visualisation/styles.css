@@ -1,0 +1,185 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f5f7fa;
+    color: #333;
+    line-height: 1.6;
+}
+
+header {
+    background-color: #4a6fa5;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.tabs {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.tab-btn {
+    background-color: transparent;
+    border: none;
+    color: white;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.tab-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.tab-btn.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    font-weight: 500;
+}
+
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+h2 {
+    margin-bottom: 1.5rem;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.5s;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.diagram-container {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.05);
+    min-height: 550px; /* Increase minimum height for containers */
+    max-height: 85vh;
+    overflow: auto;
+    margin-bottom: 2rem;
+}
+
+/* Ensure diagrams take up sufficient space */
+.diagram-container .mermaid {
+    min-height: 500px;
+    width: 100% !important;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Make SVG elements fill their containers */
+.diagram-container .mermaid svg {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 500px !important;
+    max-width: 100% !important;
+    display: block !important;
+    margin: 0 auto !important;
+}
+
+/* Specific styling for data flow diagram */
+#data-flow-container {
+    min-height: 700px;
+}
+
+#data-flow-container .mermaid {
+    min-height: 650px !important;
+}
+
+#data-flow-container .mermaid svg {
+    min-height: 650px !important;
+}
+
+/* Ensure use case diagrams have extra vertical space */
+#use-case-container .mermaid svg {
+    min-height: 600px !important;
+}
+
+.diagram-selector {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+#use-case-selector {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background-color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    width: 250px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+#use-case-selector:focus {
+    outline: none;
+    border-color: #4a6fa5;
+    box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Mermaid diagram customization */
+.mermaid {
+    font-size: 16px;
+}
+
+/* Ensure diagrams render at correct size in printed documentation */
+@media print {
+    .diagram-container {
+        min-height: auto;
+        max-height: none;
+        overflow: visible;
+        page-break-inside: avoid;
+    }
+    
+    .diagram-container .mermaid svg {
+        width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .tabs {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    main {
+        padding: 1rem;
+    }
+    
+    .diagram-container {
+        padding: 1rem;
+    }
+} 

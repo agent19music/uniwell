@@ -40,6 +40,7 @@ interface TherapistContextType {
   user: User | null;
   profile: TherapistProfile | null;
   loading: boolean;
+  therapistName: string;
   
   // Auth functions
   signIn: (email: string, password: string) => Promise<{ error?: any }>;
@@ -91,6 +92,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<TherapistProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [appointmentSubscription, setAppointmentSubscription] = useState<RealtimeChannel | null>(null);
+  const [therapistName, setTherapistName] = useState<string>('');
 
   useEffect(() => {
     // Get initial session
@@ -98,6 +100,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadProfile(session.user.id);
+        fetchTherapistName(session.user.id);
       }
       setLoading(false);
     });
@@ -108,8 +111,10 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         if (session?.user) {
           await loadProfile(session.user.id);
+          await fetchTherapistName(session.user.id);
         } else {
           setProfile(null);
+          setTherapistName('');
           // Cleanup subscriptions
           if (appointmentSubscription) {
             appointmentSubscription.unsubscribe();
@@ -132,6 +137,19 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
 
     if (data) {
       setProfile(data);
+    }
+  };
+  
+  // Fetch therapist name from users table
+  const fetchTherapistName = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('full_name')
+      .eq('id', userId)
+      .single();
+
+    if (data && data.full_name) {
+      setTherapistName(data.full_name);
     }
   };
 
@@ -168,6 +186,19 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
         });
 
       if (profileError) return { error: profileError };
+      
+      // Extract name from bio for the users table
+      if (profileData.bio) {
+        // Update the user's name in the users table
+        const { error: userUpdateError } = await supabase
+          .from('users')
+          .update({ full_name: profileData.bio })
+          .eq('id', data.user.id);
+          
+        if (userUpdateError) {
+          console.error('Error updating user name:', userUpdateError);
+        }
+      }
     }
 
     return { error: null };
@@ -494,7 +525,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
         .from('appointments')
         .select(`
           *,
-          client:client_id (
+          users!client_id (
             id,
             email,
             full_name
@@ -531,7 +562,15 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
         return [];
       }
 
-      return data || [];
+      // Map the response to expected format
+      const appointments = data?.map(appointment => {
+        return {
+          ...appointment,
+          client: appointment.users
+        };
+      }) || [];
+
+      return appointments;
     } catch (error) {
       console.error('Error:', error);
       return [];
@@ -560,22 +599,29 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
     maxRate?: number 
   }): Promise<TherapistProfile[]> => {
     try {
+      // Base query to get all therapists (including unverified)
       let query = supabase
         .from('therapist_profiles')
         .select(`
           *,
+          users!id (
+            full_name
+          ),
           therapist_reviews (
             rating
           )
-        `)
-        .eq('verified', true);
+        `);
+      // Removed .eq('verified', true) to include all therapists
 
-      if (filters?.specialization) {
-        query = query.contains('specialization', [filters.specialization]);
-      }
+      // Only apply filters if they are explicitly provided
+      if (filters) {
+        if (filters.specialization) {
+          query = query.contains('specialization', [filters.specialization]);
+        }
 
-      if (filters?.maxRate) {
-        query = query.lte('consultation_rates', filters.maxRate);
+        if (filters.maxRate) {
+          query = query.lte('consultation_rates', filters.maxRate);
+        }
       }
 
       const { data, error } = await query;
@@ -585,8 +631,17 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
         return [];
       }
 
+      // Process data to include user names
+      const processedData = data?.map(therapist => {
+        const user = therapist.users as any;
+        return {
+          ...therapist,
+          display_name: user?.full_name || therapist.bio?.split(' ').slice(0, 2).join(' ') || 'Therapist'
+        };
+      }) || [];
+
       // Filter by rating if needed
-      let filteredData = data || [];
+      let filteredData = processedData;
       if (filters?.minRating) {
         filteredData = filteredData.filter(therapist => {
           const reviews = therapist.therapist_reviews as any[];
@@ -796,6 +851,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
       user,
       profile,
       loading,
+      therapistName,
       signIn,
       signUp,
       signOut,

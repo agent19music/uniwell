@@ -10,10 +10,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import * as Haptics from 'expo-haptics';
 import { Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { format, differenceInDays, isToday, isYesterday, isTomorrow } from 'date-fns';
+import { format, differenceInDays, isToday, isYesterday, isTomorrow, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { Streak } from '@/contexts/RoutineContext';
 import NextActivityWidget from '@/components/NextActivityWidget';
 import EditRoutineModal from '@/modals/EditRoutineModal';
+
+type RoutineStatus = 'completed' | 'upcoming' | 'warning' | 'urgent' | 'due' | 'missed';
 
 export default function RoutinesScreen() {
   const { currentUser } = useAuth();
@@ -22,7 +24,16 @@ export default function RoutinesScreen() {
   const { width, height } = Dimensions.get('window');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const router = useRouter();
-  const { habits, completeHabit, streaks, terminateStreak, resetStreak, deleteHabit } = useRoutine();
+  const { 
+    routines, 
+    completeRoutine, 
+    streaks, 
+    terminateStreak, 
+    resetStreak, 
+    deleteRoutine,
+    isRoutineCompleted,
+    getRoutineStatus: getContextRoutineStatus
+  } = useRoutine();
   const [showAddRoutine, setShowAddRoutine] = useState(false);
   const [showAddStreak, setShowAddStreak] = useState(false);
   const [streakMenuVisible, setStreakMenuVisible] = useState(false);
@@ -43,11 +54,44 @@ export default function RoutinesScreen() {
     setShowAddStreak(true);
   };
 
-  const handleCompleteTask = async (habitId: string) => {
+  const handleCompleteTask = async (routineId: string) => {
     try {
-      await completeHabit(habitId, selectedDate);
+      const localDate = startOfDay(selectedDate);
+      console.log('Attempting to complete routine:', routineId, 'for date:', format(localDate, 'yyyy-MM-dd'));
+      
+      // Check if already completed first
+      const alreadyCompleted = isRoutineCompleted(routineId, localDate);
+      if (alreadyCompleted) {
+        console.log('This routine is already completed for today');
+        Alert.alert('Already Done', 'This routine has already been marked as completed.');
+        return;
+      }
+      
+      // Show loading indicator or disable button
+      // (Would normally do this with state, but keeping it simple for now)
+      
+      await completeRoutine(routineId, localDate);
+      console.log('Routine successfully completed:', routineId);
+      
+      // Force UI refresh with better feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Manually trigger a state update to force re-render
+      setSelectedDate(prevDate => {
+        // This is a trick to force a re-render by creating a new Date object with the same value
+        return new Date(prevDate.getTime());
+      });
     } catch (error) {
-      console.error('Error completing habit:', error);
+      console.error('Error completing routine:', error);
+      
+      // Show more helpful error messages
+      if (error instanceof Error && error.message.includes("42501")) {
+        Alert.alert('Permission Error', 'You don\'t have permission to complete this routine. Please check your account settings or contact support.');
+      } else {
+        Alert.alert('Error', 'Failed to mark routine as completed. Please try again.');
+      }
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
 
@@ -129,12 +173,109 @@ export default function RoutinesScreen() {
     );
   };
 
+  const getRoutineStatus = (routine: any): RoutineStatus => {
+    const today = new Date();
+    const localSelectedDate = startOfDay(selectedDate);
+    const routineCreatedAt = routine?.created_at ? parseISO(routine.created_at) : new Date();
+    const localRoutineCreatedAt = startOfDay(routineCreatedAt);
+    
+    // If the selected date is before the routine was created, don't show it
+    if (localSelectedDate < localRoutineCreatedAt) {
+      return 'upcoming';
+    }
+
+    // Use the context's isRoutineCompleted function directly
+    const isCompleted = isRoutineCompleted(routine.id, localSelectedDate);
+    
+    // Get the day of week (0-6, Sunday is 0)
+    const dayOfWeek = localSelectedDate.getDay();
+    
+    // Check if this routine is due on this day
+    const isDue = 
+      routine.frequency === 'daily' || 
+      (routine.frequency === 'weekly' && routine.customDays && 
+        (routine.customDays.includes(dayOfWeek) || routine.customDays.includes(dayOfWeek.toString()))) ||
+      (routine.frequency === 'custom' && routine.customDays && 
+        (routine.customDays.includes(dayOfWeek) || routine.customDays.includes(dayOfWeek.toString())));
+
+    console.log('Routine day check:', routine.title, 'Day:', dayOfWeek, 'CustomDays:', routine.customDays, 'IsDue:', isDue);
+
+    if (isCompleted) return 'completed';
+    if (!isDue) return 'upcoming';
+    
+    // For past dates, show missed status
+    if (localSelectedDate < startOfDay(today)) {
+      return 'missed';
+    }
+    
+    // For today, use time-based status
+    if (isToday(localSelectedDate)) {
+      const currentHour = today.getHours();
+      if (currentHour >= 16 && currentHour < 22) { // 4 PM to 10 PM
+        return 'warning';
+      } else if (currentHour >= 22) { // After 10 PM
+        return 'urgent';
+      }
+      return 'due';
+    }
+    
+    return 'upcoming';
+  };
+
+  // Filter routines based on creation date using local timezone
+  const filteredRoutines = routines.filter(routine => {
+    if (!routine?.created_at) return false;
+    const routineCreatedAt = parseISO(routine.created_at);
+    console.log(routineCreatedAt);
+    const localSelectedDate = startOfDay(selectedDate);
+    const localRoutineCreatedAt = startOfDay(routineCreatedAt);
+    console.log(localSelectedDate, localRoutineCreatedAt);
+    return localSelectedDate >= localRoutineCreatedAt;
+  });
+
+  const getRoutineIcon = (routine: any) => {
+    const status = getRoutineStatus(routine);
+    switch (status) {
+      case 'completed':
+        return "checkmark-circle";
+      case 'missed':
+        return "close-circle";
+      case 'warning':
+        return "alert-circle";
+      case 'urgent':
+        return "warning";
+      case 'due':
+        return "alert-circle";
+      default:
+        return "ellipse-outline";
+    }
+  };
+
+  const getRoutineIconColor = (routine: any) => {
+    const status = getRoutineStatus(routine);
+    switch (status) {
+      case 'completed':
+        return "#34C759";
+      case 'missed':
+        return "#FF3B30";
+      case 'warning':
+        return "#FF9500";
+      case 'urgent':
+        return "#FF3B30";
+      case 'due':
+        return "#FF3B30";
+      default:
+        return "#8E8E93";
+    }
+  };
+
   const getDates = () => {
     const dates = [];
+    const today = new Date();
     for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      dates.push(date);
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      dates.push(startOfDay(date));
     }
     return dates;
   };
@@ -232,42 +373,6 @@ export default function RoutinesScreen() {
     });
   };
 
-  const getRoutineStatus = (habit: any) => {
-    const today = new Date();
-    const isCompleted = habit.completed?.includes(today.toDateString());
-    const isDue = habit.frequency === 'daily' || 
-                 (habit.frequency === 'weekly' && habit.customDays?.includes(today.getDay())) ||
-                 (habit.frequency === 'custom' && habit.customDays?.includes(today.getDay()));
-
-    if (isCompleted) return 'completed';
-    if (isDue) return 'due';
-    return 'upcoming';
-  };
-
-  const getRoutineIcon = (habit: any) => {
-    const status = getRoutineStatus(habit);
-    switch (status) {
-      case 'completed':
-        return "checkmark-circle";
-      case 'due':
-        return "alert-circle";
-      default:
-        return "ellipse-outline";
-    }
-  };
-
-  const getRoutineIconColor = (habit: any) => {
-    const status = getRoutineStatus(habit);
-    switch (status) {
-      case 'completed':
-        return "#34C759";
-      case 'due':
-        return "#FF3B30";
-      default:
-        return "#8E8E93";
-    }
-  };
-
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -312,12 +417,12 @@ export default function RoutinesScreen() {
           <View style={styles.section}>
             <View style={styles.calendarSection}>
               {getDates().map((date) => {
-                const isSelected = date.toDateString() === selectedDate.toDateString();
+                const isSelected = startOfDay(date).getTime() === startOfDay(selectedDate).getTime();
                 return (
                   <TouchableOpacity
                     key={date.toISOString()}
                     style={[styles.dateButton, isSelected && styles.selectedDate]}
-                    onPress={() => setSelectedDate(date)}
+                    onPress={() => setSelectedDate(startOfDay(date))}
                   >
                     <Text style={[styles.dayText, isSelected && styles.selectedDateText]}>
                       {date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3)}
@@ -339,38 +444,48 @@ export default function RoutinesScreen() {
               </TouchableOpacity>
             </View>
             
-            {habits.length > 0 ? (
-              habits.map((habit) => (
-                <TouchableOpacity
-                  key={habit.id}
-                  style={[styles.routineCard, isDark && styles.darkCard]}
-                  onLongPress={(e) => handleRoutineLongPress(habit.id, e)}
-                  delayLongPress={300}
-                >
-                  <View style={styles.routineInfo}>
-                    <Text style={[styles.routineTitle, isDark && styles.darkText]}>{habit.title}</Text>
-                    <Text style={[styles.routineFrequency, isDark && styles.darkSubText]}>
-                      {habit.frequency === 'weekly' ? `Every ${habit.customDays?.[0]}` : 
-                       habit.frequency === 'custom' ? habit.customDays?.join(', ') : 
-                       'Daily'}
-                    </Text>
-                  </View>
+            {filteredRoutines.length > 0 ? (
+              filteredRoutines.map((routine) => {
+                const status = getRoutineStatus(routine);
+                const completed = isRoutineCompleted(routine.id, selectedDate);
+                console.log('Rendering routine:', routine.id, routine.title, 'Status:', status, 'Completed:', completed);
+                
+                return (
                   <TouchableOpacity
-                    style={[styles.checkButton, habit.completed?.includes(selectedDate.toDateString()) && styles.checkedButton]}
-                    onPress={() => handleCompleteTask(habit.id)}
+                    key={routine.id}
+                    style={[styles.routineCard, isDark && styles.darkCard]}
+                    onLongPress={(e) => handleRoutineLongPress(routine.id, e)}
+                    delayLongPress={300}
                   >
-                    <Ionicons
-                      name={getRoutineIcon(habit)}
-                      size={24}
-                      color={getRoutineIconColor(habit)}
-                    />
+                    <View style={styles.routineInfo}>
+                      <Text style={[styles.routineTitle, isDark && styles.darkText]}>{routine.title}</Text>
+                      <Text style={[styles.routineFrequency, isDark && styles.darkSubText]}>
+                        {routine.frequency === 'weekly' ? `Every ${routine.customDays?.[0]}` : 
+                         routine.frequency === 'custom' ? routine.customDays?.join(', ') : 
+                         'Daily'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.checkButton, completed && styles.checkedButton]}
+                      onPress={() => handleCompleteTask(routine.id)}
+                    >
+                      <Ionicons
+                        name={getRoutineIcon(routine)}
+                        size={24}
+                        color={getRoutineIconColor(routine)}
+                      />
+                    </TouchableOpacity>
                   </TouchableOpacity>
-                </TouchableOpacity>
-              ))
+                );
+              })
             ) : (
               <View style={[styles.emptyRoutineCard, isDark && styles.darkEmptyRoutineCard]}>
                 <Text style={[styles.emptyRoutineText, isDark && styles.darkSubText]}>
-                  No routines yet
+                  {routines.length === 0 
+                    ? 'No routines yet' 
+                    : startOfDay(selectedDate) < startOfDay(new Date())
+                      ? 'No routines were set for this day'
+                      : 'No routines for this date'}
                 </Text>
                 <TouchableOpacity 
                   style={styles.addRoutineButton}
@@ -505,7 +620,7 @@ export default function RoutinesScreen() {
               onPress={() => {
                 handleRoutineMenuClose();
                 if (selectedRoutineId) {
-                  deleteHabit(selectedRoutineId);
+                  deleteRoutine(selectedRoutineId);
                 }
               }}
             >

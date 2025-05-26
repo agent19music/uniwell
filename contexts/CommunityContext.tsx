@@ -170,15 +170,20 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    // Sanitize IDs to ensure they're valid for ltree path
+    // ltree requires only alphanumeric and underscore characters
+    const sanitizedPostId = postId.replace(/[^a-zA-Z0-9_]/g, '_');
+    const sanitizedParentId = parentId ? parentId.replace(/[^a-zA-Z0-9_]/g, '_') : null;
+    
     const { error } = await supabase.from('post_replies').insert({
       post_id: postId,
       user_id: user.id,
       content,
       parent_id: parentId,
-      thread_path: parentId ? `${postId}.${parentId}` : `${postId}`
+      thread_path: sanitizedParentId ? `${sanitizedPostId}.${sanitizedParentId}` : `${sanitizedPostId}`
     });
 
-    if (error) throw new Error('Failed to create reply');
+    if (error) throw new Error(error.message || 'Failed to create reply');
   };
 
   const likePost = async (postId: string) => {
@@ -189,12 +194,14 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     setPosts(currentPosts => 
       currentPosts.map(post => {
         if (post.id === postId) {
-          const currentLikes = post.post_likes?.[0]?.count || 0;
-          const isLiked = post.user_likes?.length > 0;
+          const currentLikes = post.post_likes?.count || 0;
+          const isLiked = post.user_likes?.some(like => like.user_id === user.id);
           return {
             ...post,
-            post_likes: [{ count: isLiked ? currentLikes - 1 : currentLikes + 1 }],
-            user_likes: isLiked ? [] : [{ user_id: user.id }]
+            post_likes: { count: isLiked ? currentLikes - 1 : currentLikes + 1 },
+            user_likes: isLiked 
+              ? post.user_likes?.filter(like => like.user_id !== user.id) || []
+              : [...(post.user_likes || []), { user_id: user.id }]
           };
         }
         return post;

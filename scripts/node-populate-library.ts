@@ -1,9 +1,11 @@
+// Import all dependencies at the top using ESM syntax
 import { createClient } from '@supabase/supabase-js';
-import { fetchYouTubeVideos, fetchSpotifyPodcasts, fetchNewsArticles } from './node-resource-utils';
+import { fetchYouTubeVideos, fetchSpotifyPodcasts, fetchNewsArticles } from './node-resource-utils.js';
 import cron from 'node-cron';
+import * as dotenv from 'dotenv';
 
 // Load environment variables
-require('dotenv').config();
+dotenv.config();
 
 // Create Supabase client
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';

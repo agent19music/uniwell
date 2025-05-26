@@ -1,0 +1,183 @@
+# UniWell Database Schema
+
+## Users and Authentication
+
+### User
+- id (PK): string - Primary identifier for the user
+- email: string - User's email address
+- role: string ('user' | 'therapist' | 'admin') - Role of the user
+- created_at: timestamp - When the user account was created
+- updated_at: timestamp - When the user account was last updated
+
+### Profile
+- id (PK): string - References User.id
+- username: string - User's username
+- full_name: string - User's full name
+- avatar_url: string (nullable) - URL to user's profile image
+- gender: string (nullable) - User's gender
+- interests: string[] - Array of user interests
+- primary_goal: string (nullable) - User's primary wellness goal
+- bio: string (nullable) - User's biography
+- occupation: string (nullable) - User's occupation
+- university: string (nullable) - User's university
+- profile_completion_percentage: integer - Percentage of profile completion
+
+### SocialLogin
+- id (PK): string - Primary identifier for the social login
+- user_id (FK): string - References User.id
+- provider: string - Social provider (e.g., Google, Facebook)
+- provider_id: string - ID from the provider
+- created_at: timestamp - When the social login was created
+
+## Academic Management
+
+### Semester
+- id (PK): string - Primary identifier for the semester
+- user_id (FK): string - References User.id
+- name: string - Name of the semester (e.g., "Fall 2024")
+- type: string - Type of semester (SemesterType enum)
+- start_date: date - When the semester starts
+- end_date: date - When the semester ends
+- status: string ('active' | 'inactive') - Current status of the semester
+- created_at: timestamp - When the semester was created
+
+### ClassSchedule
+- id (PK): string - Primary identifier for the class schedule
+- user_id (FK): string - References User.id
+- semester_id (FK): string - References Semester.id
+- course_name: string - Name of the course
+- course_code: string - Course code/identifier
+- room: string - Room where the class is held
+- instructor: string - Name of the instructor
+- type: string - Type of class (lecture, lab, etc.)
+- start_time: string - When the class starts
+- end_time: string - When the class ends
+- days_of_week: string[] - Days when the class is held
+- notification_preference: JSON - Settings for notifications
+- frequency: string - How often the class occurs
+
+## Wellness Tracking
+
+### MoodEntry
+- id (PK): string - Primary identifier for the mood entry
+- user_id (FK): string - References User.id
+- mood_type: string ('happy' | 'calm' | 'stressed' | 'angry' | 'sad') - Type of mood
+- intensity: integer (1-10) - Intensity of the mood
+- notes: string (nullable) - Additional notes about the mood
+- created_at: timestamp - When the mood was recorded
+- day_of_week: integer (0-6) - Day of the week when mood was recorded
+
+### MoodSummary
+- id (PK): string - Primary identifier for the mood summary
+- user_id (FK): string - References User.id
+- week_start_date: date - Start date of the summary week
+- week_end_date: date - End date of the summary week
+- dominant_mood: string - Most common mood for the week
+- mood_fluctuation: number - Measure of mood variability
+- insights: string[] - Array of insights about the mood patterns
+- recommendations: string[] - Array of recommendations based on mood
+
+### Routine
+- id (PK): string - Primary identifier for the routine
+- user_id (FK): string - References User.id
+- title: string - Name of the routine
+- frequency: string ('daily' | 'weekly' | 'custom') - How often routine occurs
+- custom_days: string[] - For custom frequency, which days to perform
+- color: string - Color for UI display
+- icon: string - Icon for UI display
+- is_active: boolean - Whether routine is currently active
+- notification_time: string (nullable) - When to send notification
+- notification_enabled: boolean - Whether notifications are enabled
+- created_at: timestamp - When the routine was created
+- updated_at: timestamp - When the routine was last updated
+
+### RoutineCompletion
+- id (PK): string - Primary identifier for the completion record
+- routine_id (FK): string - References Routine.id
+- user_id (FK): string - References User.id
+- completion_date: date - Date the routine was completed
+- completed_at: timestamp - Exact time routine was completed
+- status: string ('completed' | 'missed' | 'pending') - Status of completion
+- notes: string (nullable) - Additional notes about completion
+
+### Streak
+- id (PK): string - Primary identifier for the streak
+- user_id (FK): string - References User.id
+- title: string - Name of the streak
+- type: string ('build' | 'break') - Type of streak
+- status: string ('active' | 'broken') - Current status of streak
+- start_date: date - When the streak started
+- start_time: time - Time the streak started
+- current_streak: integer - Current number of consecutive days
+- longest_streak: integer - Longest streak achieved
+- target_count: integer - Target number of days for streak
+- color: string - Color for UI display
+- icon: string - Icon for UI display
+
+### CheckIn
+- id (PK): string - Primary identifier for the check-in
+- streak_id (FK): string - References Streak.id
+- check_date: date - Date of the check-in
+- notes: string (nullable) - Additional notes about check-in
+- created_at: timestamp - When the check-in was recorded
+
+## Community Features
+
+### CommunityPost
+- id (PK): string - Primary identifier for the post
+- user_id (FK): string - References User.id
+- title: string (nullable) - Title of the post
+- content: string - Content of the post
+- media_url: string[] (nullable) - Array of URLs to media files
+- is_anonymous: boolean - Whether post is anonymous
+- created_at: timestamp - When the post was created
+- edited_at: timestamp (nullable) - When the post was last edited
+
+### PostReply
+- id (PK): string - Primary identifier for the reply
+- post_id (FK): string - References CommunityPost.id
+- user_id (FK): string - References User.id
+- content: string - Content of the reply
+- parent_id: string (nullable) - For nested replies, references PostReply.id
+- thread_path: string - Path representation of thread structure
+- created_at: timestamp - When the reply was created
+
+## Therapy Management
+
+### TherapistProfile
+- id (PK): string - References User.id where role = 'therapist'
+- bio: string - Therapist's biography
+- specializations: string[] - Areas of specialization
+- hourly_rate: number - Hourly rate for sessions
+- education: string[] - Educational background
+- certifications: string[] - Professional certifications
+- experience_years: string - Years of experience
+- weekly_availability: JSON - Schedule of availability
+
+### Appointment
+- id (PK): string - Primary identifier for the appointment
+- user_id (FK): string - References User.id (client)
+- therapist_id (FK): string - References TherapistProfile.id (therapist)
+- start_time: timestamp - When the appointment starts
+- end_time: timestamp - When the appointment ends
+- status: string ('pending' | 'confirmed' | 'completed' | 'cancelled') - Status
+- notes: string (nullable) - Additional notes about appointment
+- meeting_link: string (nullable) - Link for virtual meeting
+
+## Relationships
+
+- User -> Profile: One-to-One
+- User -> SocialLogin: One-to-Many
+- User -> Semester: One-to-Many
+- User -> ClassSchedule: One-to-Many
+- User -> MoodEntry: One-to-Many
+- User -> Routine: One-to-Many
+- User -> Streak: One-to-Many
+- User -> CommunityPost: One-to-Many
+- User -> PostReply: One-to-Many
+- User -> Appointment: One-to-Many (as client)
+- Routine -> RoutineCompletion: One-to-Many
+- Streak -> CheckIn: One-to-Many
+- CommunityPost -> PostReply: One-to-Many
+- TherapistProfile -> Appointment: One-to-Many (as therapist)
+- Semester -> ClassSchedule: One-to-Many 
