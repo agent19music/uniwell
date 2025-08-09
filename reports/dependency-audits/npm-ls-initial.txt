@@ -1,0 +1,159 @@
+uniwell@1.0.0 /home/uzski/Development/uniwell
+├── UNMET DEPENDENCY @babel/core@^7.23.7
+├── UNMET DEPENDENCY @expo/vector-icons@^14.1.0
+├── UNMET DEPENDENCY @google/generative-ai@^0.24.0
+├── UNMET DEPENDENCY @hugeicons/core-free-icons@^1.0.14
+├── UNMET DEPENDENCY @hugeicons/react-native@^1.0.7
+├── UNMET DEPENDENCY @modelcontextprotocol/sdk@^1.11.4
+├── UNMET DEPENDENCY @react-native-async-storage/async-storage@2.1.2
+├── UNMET DEPENDENCY @react-native-community/datetimepicker@8.3.0
+├── UNMET DEPENDENCY @react-native-community/slider@4.5.6
+├── UNMET DEPENDENCY @react-native-picker/picker@2.11.0
+├── UNMET DEPENDENCY @react-navigation/bottom-tabs@^7.3.10
+├── UNMET DEPENDENCY @react-navigation/native-stack@^7.2.0
+├── UNMET DEPENDENCY @react-navigation/native@^7.0.14
+├── UNMET DEPENDENCY @rneui/themed@^4.0.0-rc.8
+├── UNMET DEPENDENCY @supabase/supabase-js@^2.48.1
+├── UNMET DEPENDENCY @tanstack/react-query@^5.76.0
+├── UNMET DEPENDENCY @types/date-fns@^2.5.3
+├── UNMET DEPENDENCY @types/jest@^29.5.14
+├── UNMET DEPENDENCY @types/node-cron@^3.0.11
+├── UNMET DEPENDENCY @types/node@^22.15.18
+├── UNMET DEPENDENCY @types/react@~19.0.10
+├── UNMET DEPENDENCY @types/spotify-web-api-node@^5.0.11
+├── UNMET DEPENDENCY axios@^1.7.9
+├── UNMET DEPENDENCY base64-arraybuffer@^1.0.2
+├── UNMET DEPENDENCY burnt@^0.12.2
+├── UNMET DEPENDENCY date-fns@^4.1.0
+├── UNMET DEPENDENCY dotenv@^16.4.7
+├── UNMET DEPENDENCY expo-audio@~0.4.5
+├── UNMET DEPENDENCY expo-blur@~14.1.4
+├── UNMET DEPENDENCY expo-build-properties@~0.14.6
+├── UNMET DEPENDENCY expo-camera@~16.1.6
+├── UNMET DEPENDENCY expo-constants@~17.1.5
+├── UNMET DEPENDENCY expo-dev-client@~5.1.8
+├── UNMET DEPENDENCY expo-device@^7.1.4
+├── UNMET DEPENDENCY expo-font@~13.3.1
+├── UNMET DEPENDENCY expo-haptics@~14.1.4
+├── UNMET DEPENDENCY expo-image-manipulator@~13.1.7
+├── UNMET DEPENDENCY expo-image-picker@~16.1.4
+├── UNMET DEPENDENCY expo-linear-gradient@~14.1.4
+├── UNMET DEPENDENCY expo-linking@~7.1.5
+├── UNMET DEPENDENCY expo-notifications@~0.31.2
+├── UNMET DEPENDENCY expo-router@~5.0.7
+├── UNMET DEPENDENCY expo-sharing@~13.1.5
+├── UNMET DEPENDENCY expo-splash-screen@~0.30.8
+├── UNMET DEPENDENCY expo-status-bar@~2.2.3
+├── UNMET DEPENDENCY expo-system-ui@~5.0.7
+├── UNMET DEPENDENCY expo-video@~2.1.9
+├── UNMET DEPENDENCY expo@53.0.9
+├── UNMET DEPENDENCY googleapis@^126.0.1
+├── UNMET DEPENDENCY jest@^29.7.0
+├── UNMET DEPENDENCY lottie-react-native@^7.2.2
+├── UNMET DEPENDENCY node-cron@^3.0.3
+├── UNMET DEPENDENCY react-dom@19.0.0
+├── UNMET DEPENDENCY react-hot-toast@^2.5.2
+├── UNMET DEPENDENCY react-native-calendars@^1.1312.0
+├── UNMET DEPENDENCY react-native-chart-kit@^6.12.0
+├── UNMET DEPENDENCY react-native-confetti@^0.1.0
+├── UNMET DEPENDENCY react-native-error-boundary@^2.0.0
+├── UNMET DEPENDENCY react-native-gesture-handler@~2.24.0
+├── UNMET DEPENDENCY react-native-reanimated@~3.17.4
+├── UNMET DEPENDENCY react-native-render-html@^6.3.4
+├── UNMET DEPENDENCY react-native-safe-area-context@5.4.0
+├── UNMET DEPENDENCY react-native-screens@~4.10.0
+├── UNMET DEPENDENCY react-native-svg@^15.11.2
+├── UNMET DEPENDENCY react-native-url-polyfill@^2.0.0
+├── UNMET DEPENDENCY react-native-video-processing@^1.7.2
+├── UNMET DEPENDENCY react-native-view-shot@^4.0.3
+├── UNMET DEPENDENCY react-native-web@^0.20.0
+├── UNMET DEPENDENCY react-native-webview@^13.13.5
+├── UNMET DEPENDENCY react-native@0.79.2
+├── UNMET DEPENDENCY react@19.0.0
+├── UNMET DEPENDENCY spotify-web-api-node@^5.0.2
+├── UNMET DEPENDENCY ts-jest@^29.2.6
+├── UNMET DEPENDENCY ts-node@^10.9.2
+├── UNMET DEPENDENCY typescript@^5.8.3
+├── UNMET DEPENDENCY uuid@^11.1.0
+└── UNMET DEPENDENCY zod@^3.24.4
+
+npm error code ELSPROBLEMS
+npm error missing: @babel/core@^7.23.7, required by uniwell@1.0.0
+npm error missing: @expo/vector-icons@^14.1.0, required by uniwell@1.0.0
+npm error missing: @google/generative-ai@^0.24.0, required by uniwell@1.0.0
+npm error missing: @hugeicons/core-free-icons@^1.0.14, required by uniwell@1.0.0
+npm error missing: @hugeicons/react-native@^1.0.7, required by uniwell@1.0.0
+npm error missing: @modelcontextprotocol/sdk@^1.11.4, required by uniwell@1.0.0
+npm error missing: @react-native-async-storage/async-storage@2.1.2, required by uniwell@1.0.0
+npm error missing: @react-native-community/datetimepicker@8.3.0, required by uniwell@1.0.0
+npm error missing: @react-native-community/slider@4.5.6, required by uniwell@1.0.0
+npm error missing: @react-native-picker/picker@2.11.0, required by uniwell@1.0.0
+npm error missing: @react-navigation/bottom-tabs@^7.3.10, required by uniwell@1.0.0
+npm error missing: @react-navigation/native-stack@^7.2.0, required by uniwell@1.0.0
+npm error missing: @react-navigation/native@^7.0.14, required by uniwell@1.0.0
+npm error missing: @rneui/themed@^4.0.0-rc.8, required by uniwell@1.0.0
+npm error missing: @supabase/supabase-js@^2.48.1, required by uniwell@1.0.0
+npm error missing: @tanstack/react-query@^5.76.0, required by uniwell@1.0.0
+npm error missing: @types/date-fns@^2.5.3, required by uniwell@1.0.0
+npm error missing: @types/jest@^29.5.14, required by uniwell@1.0.0
+npm error missing: @types/node-cron@^3.0.11, required by uniwell@1.0.0
+npm error missing: @types/node@^22.15.18, required by uniwell@1.0.0
+npm error missing: @types/react@~19.0.10, required by uniwell@1.0.0
+npm error missing: @types/spotify-web-api-node@^5.0.11, required by uniwell@1.0.0
+npm error missing: axios@^1.7.9, required by uniwell@1.0.0
+npm error missing: base64-arraybuffer@^1.0.2, required by uniwell@1.0.0
+npm error missing: burnt@^0.12.2, required by uniwell@1.0.0
+npm error missing: date-fns@^4.1.0, required by uniwell@1.0.0
+npm error missing: dotenv@^16.4.7, required by uniwell@1.0.0
+npm error missing: expo-audio@~0.4.5, required by uniwell@1.0.0
+npm error missing: expo-blur@~14.1.4, required by uniwell@1.0.0
+npm error missing: expo-build-properties@~0.14.6, required by uniwell@1.0.0
+npm error missing: expo-camera@~16.1.6, required by uniwell@1.0.0
+npm error missing: expo-constants@~17.1.5, required by uniwell@1.0.0
+npm error missing: expo-dev-client@~5.1.8, required by uniwell@1.0.0
+npm error missing: expo-device@^7.1.4, required by uniwell@1.0.0
+npm error missing: expo-font@~13.3.1, required by uniwell@1.0.0
+npm error missing: expo-haptics@~14.1.4, required by uniwell@1.0.0
+npm error missing: expo-image-manipulator@~13.1.7, required by uniwell@1.0.0
+npm error missing: expo-image-picker@~16.1.4, required by uniwell@1.0.0
+npm error missing: expo-linear-gradient@~14.1.4, required by uniwell@1.0.0
+npm error missing: expo-linking@~7.1.5, required by uniwell@1.0.0
+npm error missing: expo-notifications@~0.31.2, required by uniwell@1.0.0
+npm error missing: expo-router@~5.0.7, required by uniwell@1.0.0
+npm error missing: expo-sharing@~13.1.5, required by uniwell@1.0.0
+npm error missing: expo-splash-screen@~0.30.8, required by uniwell@1.0.0
+npm error missing: expo-status-bar@~2.2.3, required by uniwell@1.0.0
+npm error missing: expo-system-ui@~5.0.7, required by uniwell@1.0.0
+npm error missing: expo-video@~2.1.9, required by uniwell@1.0.0
+npm error missing: expo@53.0.9, required by uniwell@1.0.0
+npm error missing: googleapis@^126.0.1, required by uniwell@1.0.0
+npm error missing: jest@^29.7.0, required by uniwell@1.0.0
+npm error missing: lottie-react-native@^7.2.2, required by uniwell@1.0.0
+npm error missing: node-cron@^3.0.3, required by uniwell@1.0.0
+npm error missing: react-dom@19.0.0, required by uniwell@1.0.0
+npm error missing: react-hot-toast@^2.5.2, required by uniwell@1.0.0
+npm error missing: react-native-calendars@^1.1312.0, required by uniwell@1.0.0
+npm error missing: react-native-chart-kit@^6.12.0, required by uniwell@1.0.0
+npm error missing: react-native-confetti@^0.1.0, required by uniwell@1.0.0
+npm error missing: react-native-error-boundary@^2.0.0, required by uniwell@1.0.0
+npm error missing: react-native-gesture-handler@~2.24.0, required by uniwell@1.0.0
+npm error missing: react-native-reanimated@~3.17.4, required by uniwell@1.0.0
+npm error missing: react-native-render-html@^6.3.4, required by uniwell@1.0.0
+npm error missing: react-native-safe-area-context@5.4.0, required by uniwell@1.0.0
+npm error missing: react-native-screens@~4.10.0, required by uniwell@1.0.0
+npm error missing: react-native-svg@^15.11.2, required by uniwell@1.0.0
+npm error missing: react-native-url-polyfill@^2.0.0, required by uniwell@1.0.0
+npm error missing: react-native-video-processing@^1.7.2, required by uniwell@1.0.0
+npm error missing: react-native-view-shot@^4.0.3, required by uniwell@1.0.0
+npm error missing: react-native-web@^0.20.0, required by uniwell@1.0.0
+npm error missing: react-native-webview@^13.13.5, required by uniwell@1.0.0
+npm error missing: react-native@0.79.2, required by uniwell@1.0.0
+npm error missing: react@19.0.0, required by uniwell@1.0.0
+npm error missing: spotify-web-api-node@^5.0.2, required by uniwell@1.0.0
+npm error missing: ts-jest@^29.2.6, required by uniwell@1.0.0
+npm error missing: ts-node@^10.9.2, required by uniwell@1.0.0
+npm error missing: typescript@^5.8.3, required by uniwell@1.0.0
+npm error missing: uuid@^11.1.0, required by uniwell@1.0.0
+npm error missing: zod@^3.24.4, required by uniwell@1.0.0
+npm error A complete log of this run can be found in: /home/uzski/.npm/_logs/2025-08-09T08_02_00_259Z-debug-0.log
+
