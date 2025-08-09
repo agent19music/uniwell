@@ -8,6 +8,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "test": "jest",
+    "test:unit": "jest --config jest.config.js",
+    "test:e2e": "echo 'Build an APK/IPA and configure Detox, then run: detox test --configuration android.emu.release --config e2e/config.json'",
     "update-resources": "ts-node scripts/update-resources.ts",
     "start-scheduler": "ts-node-esm scripts/schedule-updates.ts"
   },
@@ -81,13 +84,18 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^12.6.1",
     "@types/date-fns": "^2.5.3",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.15.18",
     "@types/react": "~19.0.10",
     "@types/spotify-web-api-node": "^5.0.11",
+    "babel-jest": "^29.7.0",
+    "babel-preset-expo": "^11.0.13",
     "dotenv": "^16.4.7",
     "jest": "~29.7.0",
+    "jest-expo": "^51.0.3",
     "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
     "typescript": "~5.8.3"

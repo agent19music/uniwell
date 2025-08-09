@@ -34,7 +34,16 @@ yarn-error.*
 .env*.local
 .env
 
+# cursor    
 .cursor/
+
+# supabase
+supabase/
+
+# bolt
+.bolt/
+mcp.json
+.cursor/mcp.json
 
 # typescript
 *.tsbuildinfo

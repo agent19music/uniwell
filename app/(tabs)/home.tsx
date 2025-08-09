@@ -5,7 +5,7 @@ import { Ionicons, Entypo, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useMood, MoodType } from '../../contexts/MoodContext';
-import * as burnt from 'burnt';
+import { toast } from '../../lib/toast';
 
 const MOOD_OPTIONS = [
   { id: 'happy', icon: '😊', label: 'Happy', color: '#FF69B4' },
@@ -51,21 +51,21 @@ export default function HomeScreen() {
         await recordMood(mood.id as MoodType);
         
         // Show success toast
-        burnt.toast({
+        toast({
           title: 'Mood Recorded',
           message: `You're feeling ${mood.label.toLowerCase()} today`,
           preset: 'done',
-          duration: 2,
+          duration: 2000,
         });
         
         // Navigate to mood visualization
         router.push(`/mood-detail?mood=${mood.id}`);
       } catch (error) {
-        burnt.toast({
+        toast({
           title: 'Error',
           message: 'Failed to record your mood',
           preset: 'error',
-          duration: 2,
+          duration: 2000,
         });
       }
     });

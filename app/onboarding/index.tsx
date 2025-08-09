@@ -37,23 +37,6 @@ const OnboardingScreen: React.FC = () => {
 };
 
 const OnboardingRoot: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  // Check for an active auth session
-  useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        // If there's a stored auth session, mark onboarding as completed
-        const storedSession = await AsyncStorage.getItem('supabase.auth.token');
-        if (storedSession) {
-          await AsyncStorage.setItem('onboarding_completed', 'true');
-        }
-      } catch (error) {
-        console.error('Error checking auth status:', error);
-      }
-    };
-
-    checkAuthStatus();
-  }, []);
-
   return (
     <OnboardingProvider>
       <OnboardingScreenWithChildren>{children}</OnboardingScreenWithChildren>

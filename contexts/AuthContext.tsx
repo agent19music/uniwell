@@ -151,10 +151,6 @@ function useProtectedRoute(session: Session | null) {
       router.replace('/(tabs)/home');
     }
 
-    // If user is on onboarding screen but has a session, skip to home
-    if (session && isOnboardingScreen) {
-      router.replace('/(tabs)/home');
-    }
   }, [session, segments, storedUsers]);
 }
 
