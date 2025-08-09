@@ -68,6 +68,57 @@ uniwell/
 └── lib/                 # Utility functions and helpers
 ```
 
+## 🔔 Toast Notifications
+
+UniWell uses a unified toast notification system that works seamlessly across all platforms (iOS, Android, and Web).
+
+### Quick Usage
+
+```tsx
+// Always import from @/lib/toast - no platform-specific imports needed!
+import { toast } from '@/lib/toast';
+
+// Simple notifications
+toast('Hello World!');
+toast.success('Profile saved!');
+toast.error('Something went wrong');
+
+// With options
+toast('Operation complete', {
+  preset: 'done',
+  duration: 3000  // Web only
+});
+
+// Handle async operations
+await toast.promise(saveProfile(), {
+  loading: 'Saving...',
+  success: 'Profile saved!',
+  error: 'Failed to save'
+});
+```
+
+### Key Points
+
+- ✅ **Always import from `@/lib/toast`** - The module automatically handles platform differences
+- ✅ **No platform-specific code needed** - Write once, run everywhere
+- ✅ **Fully typed** - TypeScript support included
+- ✅ **Zero configuration** - Works out of the box
+
+### Customization
+
+Customize toast behavior with options:
+
+```tsx
+toast('Custom toast', {
+  preset: 'done',        // 'done' | 'error' | 'none' | 'custom' | 'heart'
+  duration: 5000,        // Duration in ms (Web only)
+  position: 'top-right', // Position (Web only)
+  haptic: 'success'      // Haptic feedback (Native only)
+});
+```
+
+For more details, see the [full toast documentation](./lib/toast/README.md).
+
 ## 🤝 Contributing
 
 1. Fork the repository
