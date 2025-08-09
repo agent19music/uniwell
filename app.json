@@ -3,13 +3,10 @@
     "name": "UniWell",
     "slug": "uniwell",
     "scheme": "uniwell",
-    "projectId": "577b2274-9c11-4801-af8d-a12055a11673",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "notification": {
-      "vapidPublicKey": "BD69zKRe9xUX979PDalrkmcjceNON3CAi8AHIEIeHkg50hAbGUPjfJEKw3-q9MKoeyoVMQpUYMfyfbOsd9d_rXE"
-    },
+    "notification": {},
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
@@ -22,7 +19,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yourname.uniwell",
-      "minVersion": "15.1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
