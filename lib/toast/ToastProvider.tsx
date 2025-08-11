@@ -75,7 +75,6 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
   // On web, render the Toaster component alongside children
   return (
     <>
-      {children}
       {Toaster && (
         <Toaster
           position={toasterOptions?.position || 'bottom-center'}
@@ -133,6 +132,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
           } as any}
         />
       )}
+      {children}
     </>
   );
 };

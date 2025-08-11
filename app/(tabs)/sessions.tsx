@@ -15,8 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTherapist } from '../therapist/context/TherapistContext';
-import { Appointment } from '../therapist/types';
+import { useTherapist } from '../../contexts/TherapistContext';
+import { Appointment } from '../../types/therapist';
 import { supabase } from '../../lib/supabase';
 
 export default function SessionsScreen() {

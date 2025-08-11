@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { OnboardingContextType } from './types';
+import { OnboardingContextType } from '../../onboarding/types';
 
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
 const STORED_USERS_KEY = 'uniwell_stored_users';

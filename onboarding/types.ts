@@ -19,4 +19,5 @@ export interface OnboardingContextType {
 export enum PlatformType {
   WEB = 'web',
   MOBILE = 'mobile',
-} 
+}
+

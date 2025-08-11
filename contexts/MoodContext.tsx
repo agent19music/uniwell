@@ -149,7 +149,7 @@ export function MoodProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       if (data) {
-        const formattedMoods = data.map(entry => ({
+        const formattedMoods = data.map((entry: { id: string; mood_type: MoodType; intensity: number; notes: string; created_at: string; day_of_week: number }) => ({
           id: entry.id,
           moodType: entry.mood_type,
           intensity: entry.intensity,

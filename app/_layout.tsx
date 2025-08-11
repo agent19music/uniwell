@@ -46,15 +46,23 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (isFontsLoaded) {
+    if (!isFontsLoaded) return;
+
+    // Only attempt to set defaultProps on web, where it's supported
+    if (Platform.OS === 'web') {
+      // @ts-ignore
       Text.defaultProps = Text.defaultProps || {};
+      // @ts-ignore
       Text.defaultProps.style = { 
+        // @ts-ignore
         ...(Text.defaultProps?.style || {}),
         fontFamily: 'Vercetti-Regular'
       };
-      
+      // @ts-ignore
       TextInput.defaultProps = TextInput.defaultProps || {};
+      // @ts-ignore
       TextInput.defaultProps.style = { 
+        // @ts-ignore
         ...(TextInput.defaultProps?.style || {}),
         fontFamily: 'Vercetti-Regular'
       };
@@ -64,6 +72,23 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS === 'android') {
       Camera.requestCameraPermissionsAsync();
+    }
+  }, []);
+
+  // In web dev, ensure no stale Service Workers interfere with dev server requests
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
+      if (isDev && 'serviceWorker' in navigator) {
+        navigator.serviceWorker
+          .getRegistrations()
+          .then((regs) => {
+            regs.forEach((reg) => reg.unregister());
+          })
+          .catch(() => {
+            // noop
+          });
+      }
     }
   }, []);
 
@@ -110,8 +135,12 @@ export default function RootLayout() {
                         <Stack.Screen name="signupscreen" />
                         <Stack.Screen name="onboarding" />
                         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                        <Stack.Screen name="therapistdashboard" />
-                        <Stack.Screen name="booktherapist" />
+                        <Stack.Screen name="therapist/availability" />
+                        <Stack.Screen name="therapist/appointments" />
+                        <Stack.Screen name="therapist/reviews" />
+                        <Stack.Screen name="therapist/profile-completion" />
+                        <Stack.Screen name="therapist/profile-editor" />
+                        <Stack.Screen name="therapist/quick-actions" />
                       </Stack>
                       <StatusBar style={isDark ? 'light' : 'dark'} />
                     </BootstrapProvider>

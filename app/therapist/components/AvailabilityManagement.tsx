@@ -13,7 +13,7 @@ import {
   Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTherapist, WeeklyAvailability, DayAvailability } from '../context/TherapistContext';
+import { useTherapist } from '../../../contexts/TherapistContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

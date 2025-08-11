@@ -80,7 +80,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 
             if (error) throw error;
             
-            const formattedSemesters = data.map(semester => ({
+            const formattedSemesters = data.map((semester: { id: string; name: string; type: SemesterType; start_date: string; end_date: string; created_at: string; status: string; user_id: string }) => ({
                 id: semester.id,
                 name: semester.name,
                 type: semester.type as SemesterType,
@@ -94,7 +94,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setSemesters(formattedSemesters);
             
             if (formattedSemesters.length > 0 && !activeSemester) {
-                const activeSem = formattedSemesters.find(s => s.status === 'active');
+                const activeSem = formattedSemesters.find((s: { status: string }) => s.status === 'active');
                 const semesterToUse = activeSem || formattedSemesters[0];
                 setActiveSemester(semesterToUse);
                 await loadClassSchedulesForSemester(semesterToUse.id);
@@ -132,7 +132,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     throw scheduleError;
                 }
                 
-                const formattedSchedules: ClassSchedule[] = scheduleData.map(schedule => ({
+                const formattedSchedules: ClassSchedule[] = scheduleData.map((schedule: { id: string; user_id: string; semester_id: string; course_name: string; course_code: string; room: string; instructor: string; type: string; start_time: string; end_time: string; days_of_week: string; notification_preference: string; frequency: string }) => ({
                     id: schedule.id,
                     userId: schedule.user_id,
                     semesterId: schedule.semester_id,
@@ -488,7 +488,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             if (error) throw error;
 
             // Transform the data to match ClassSchedule type
-            const formattedSchedules: ClassSchedule[] = data.map(schedule => ({
+            const formattedSchedules: ClassSchedule[] = data.map((schedule: { id: string; user_id: string; semester_id: string; course_name: string; course_code: string; room: string; instructor: string; type: string; start_time: string; end_time: string; days_of_week: string; notification_preference: string; frequency: string }) => ({
                 id: schedule.id,
                 userId: schedule.user_id,
                 semesterId: schedule.semester_id,

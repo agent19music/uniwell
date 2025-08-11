@@ -230,51 +230,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      // Fetch both profile and user role
-      const [profileResult, userResult] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('users').select('*').eq('id', user.id).single()
-      ]);
+      // Fetch profile (may or may not exist yet)
+      const { data, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
 
-      if (profileResult.error) throw profileResult.error;
-      if (userResult.error) throw userResult.error;
+      if (profileError && profileError.code !== 'PGRST116') throw profileError;
 
-      const data = profileResult.data;
-      const userData = userResult.data;
-
-      // Set user role and full user data
-      setUserRole(userData.role);
-      setUserWithRole(userData);
+      // Derive role from auth metadata when available
+      const derivedRole = (user.user_metadata as any)?.role ?? null;
+      setUserRole(derivedRole);
+      setUserWithRole(derivedRole ? { id: user.id, email: user.email || '', role: derivedRole, created_at: '', updated_at: '' } : null);
 
       // Update current user
       setCurrentUser({
         id: user.id,
         email: user.email,
         user_metadata: {
-          full_name: user.user_metadata?.full_name || data.full_name || '',
-          avatar_url: data.avatar_url || user.user_metadata?.avatar_url || '',
-          gender: data.gender || user.user_metadata?.gender || '',
-          interests: data.interests || user.user_metadata?.interests || [],
-          primary_goal: data.primary_goal || user.user_metadata?.primary_goal || '',
-          bio: data.bio || user.user_metadata?.bio || '',
-          occupation: data.occupation || user.user_metadata?.occupation || '',
-          university: data.university || user.user_metadata?.university || '',
-          profile_completion_percentage: data.profile_completion_percentage || user.user_metadata?.profile_completion_percentage || 0,
+          full_name: user.user_metadata?.full_name || data?.full_name || '',
+          avatar_url: data?.avatar_url || user.user_metadata?.avatar_url || '',
+          gender: data?.gender || user.user_metadata?.gender || '',
+          interests: data?.interests || user.user_metadata?.interests || [],
+          primary_goal: data?.primary_goal || user.user_metadata?.primary_goal || '',
+          bio: data?.bio || user.user_metadata?.bio || '',
+          occupation: data?.occupation || user.user_metadata?.occupation || '',
+          university: data?.university || user.user_metadata?.university || '',
+          profile_completion_percentage: data?.profile_completion_percentage || user.user_metadata?.profile_completion_percentage || 0,
         },
       });
 
       // Update profile
       const userProfile: ProfileType = {
-        username: data.username || user.user_metadata?.full_name || 'User',
-        full_name: user.user_metadata?.full_name || data.full_name || 'User',
-        avatar_url: data.avatar_url || user.user_metadata?.avatar_url,
-        gender: data.gender,
-        interests: data.interests,
-        primary_goal: data.primary_goal,
-        bio: data.bio,
-        occupation: data.occupation,
-        university: data.university,
-        profile_completion_percentage: data.profile_completion_percentage,
+        username: data?.username || user.user_metadata?.full_name || 'User',
+        full_name: user.user_metadata?.full_name || data?.full_name || 'User',
+        avatar_url: data?.avatar_url || user.user_metadata?.avatar_url || null,
+        gender: data?.gender,
+        interests: data?.interests,
+        primary_goal: data?.primary_goal,
+        bio: data?.bio,
+        occupation: data?.occupation,
+        university: data?.university,
+        profile_completion_percentage: data?.profile_completion_percentage,
       };
 
       setProfile(userProfile);
@@ -308,7 +306,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event: string, newSession: Session | null) => {
       console.log(`Supabase auth event: ${event}`);
       setSession(newSession);
       
@@ -333,7 +331,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Initial session check
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+    supabase.auth.getSession().then(({ data: { session: initialSession } }: { data: { session: Session | null } }) => {
       setSession(initialSession);
       setLoading(false);
     });
@@ -371,20 +369,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user role:', error);
-        return null;
-      }
-
-      setUserRole(data.role);
-      return data.role;
+      const role = (user.user_metadata as any)?.role ?? null;
+      setUserRole(role);
+      return role;
     } catch (error) {
       console.error('Error checking user role:', error);
       return null;

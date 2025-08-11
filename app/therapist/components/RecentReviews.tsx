@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, useColorScheme, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTherapist } from '../context/TherapistContext';
+import { useTherapist } from '../../../contexts/TherapistContext';
 import { TherapistReview } from '../types';
 
 export default function RecentReviews() {

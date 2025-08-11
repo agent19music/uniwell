@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTherapist } from '../context/TherapistContext';
+import { useTherapist } from '../../../contexts/TherapistContext';
 
 export default function StatsOverview() {
   const colorScheme = useColorScheme();

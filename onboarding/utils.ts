@@ -36,4 +36,5 @@ export const isMediumScreen = (): boolean => {
 export const isSmallScreen = (): boolean => {
   const { width } = getWindowDimensions();
   return width < 480;
-}; 
+};
+

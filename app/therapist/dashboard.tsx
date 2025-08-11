@@ -11,11 +11,11 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTherapist } from './context/TherapistContext';
+import { useTherapist } from '../../contexts/TherapistContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import ProfileCompletion from './components/ProfileCompletion';
-import { Appointment } from './types';
+import { Appointment } from '../../types/therapist';
 import QuickActions from './components/QuickActions';
 
 // Only render the dashboard on web - mobile will redirect

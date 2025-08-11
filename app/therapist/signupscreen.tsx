@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useTherapist } from './context/TherapistContext';
+import { useTherapist } from '../../contexts/TherapistContext';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -119,12 +119,12 @@ export default function TherapistSignUpScreen() {
     >
       <LinearGradient
         colors={['rgba(255, 127, 80, 0.2)', 'rgba(255, 127, 80, 0.05)']}
-        style={styles.gradient}
+        style={styles.gradient} 
       >
         <SafeAreaView style={styles.content}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardView}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} // @ts-ignore
+            style={styles.keyboardView} // @ts-ignore
           >
             <BlurView intensity={20} style={styles.glassCard}>
               <View style={styles.header}>
@@ -483,4 +483,17 @@ const styles = StyleSheet.create({
     color: '#FF7F50',
     fontWeight: '600',
   },
+  gradient: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+  },
+  glassCard: {
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+
 });

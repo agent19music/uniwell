@@ -9,11 +9,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import Footer from './components/Footer';
 
-import { onboardingSlides } from './slidesData';
+import { onboardingSlides } from '../../onboarding/slidesData';
 import WebScreenMockup from './components/WebScreenMockup';
 import WebCTAButton from './components/WebCTAButton';
 import { useOnboarding } from './OnboardingContext';
-import { isLargeScreen, isMediumScreen } from './utils';
+import { isLargeScreen, isMediumScreen } from '../../onboarding/utils';
 
 // Import needed icons from Expo vector icons
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -563,6 +563,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
+    // @ts-ignore – web-only style
     perspective: 1200, // Add perspective for a more 3D feel
   },
   mockupPressable: {

@@ -3,7 +3,7 @@ import { View, ActivityIndicator, StyleSheet, Platform, useColorScheme } from 'r
 import { OnboardingProvider, useOnboarding } from './OnboardingContext';
 import MobileOnboarding from './MobileOnboarding';
 import WebOnboarding from './WebOnboarding';
-import { isWeb } from './utils';
+import { isWeb } from '../../onboarding/utils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const OnboardingScreen: React.FC = () => {

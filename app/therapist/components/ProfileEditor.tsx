@@ -13,8 +13,8 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTherapist } from '../context/TherapistContext';
-import { TherapistProfile } from '../types';
+import { useTherapist } from '../../../contexts/TherapistContext';
+import { TherapistProfile } from '../../../types/therapist';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../../lib/supabase';
 
@@ -93,11 +93,11 @@ export default function ProfileEditor() {
       if (error) {
         Alert.alert('Error', error.message || 'Failed to update profile');
       } else {
-        // Also update the user's name in the users table
+        // Also update the user's name in profiles table
         if (user && bio) {
           try {
             const { error: userUpdateError } = await supabase
-              .from('users')
+              .from('profiles')
               .update({ full_name: bio })
               .eq('id', user.id);
               

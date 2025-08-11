@@ -5,7 +5,7 @@
  * when no session/users are present (default dev state).
  */
 
-describe('Cold launch', () => {
+describe('Cold launch', () => { 
   it('shows onboarding entry within 5s', async () => {
     // @ts-ignore - global detox
     await device.launchApp({ newInstance: true, delete: true })
@@ -13,7 +13,7 @@ describe('Cold launch', () => {
     // Expect to see a text from app/index.tsx landing (Get Started button)
     // within 5 seconds
     // @ts-ignore - global detox
-    await waitFor(element(by.text('Get Started')))
+    await waitFor(element(by.text('Get Started'))) 
       .toBeVisible()
       .withTimeout(5000)
   })

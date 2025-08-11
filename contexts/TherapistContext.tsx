@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../../../lib/supabase';
-import { User, RealtimeChannel } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import { User, RealtimeChannel, Session } from '@supabase/supabase-js';
 import { Alert } from 'react-native';
-import { TherapistProfile, Appointment, TherapistReview, AvailabilityException } from '../types';
+import { TherapistProfile, Appointment, TherapistReview, AvailabilityException } from '../types/therapist';
 
 // Availability structure
 interface DayAvailability {
   start: string; // HH:MM format
-  end: string;   // HH:MM format
+  end: string;   // HH:MM format    
   breaks?: { start: string; end: string }[];
 }
 
@@ -96,7 +96,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadProfile(session.user.id);
@@ -107,7 +107,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: string, session: Session | null) => {
         setUser(session?.user ?? null);
         if (session?.user) {
           await loadProfile(session.user.id);
@@ -344,7 +344,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
         let available = true;
         
         // Check against existing appointments
-        const hasConflict = appointments?.some(apt => {
+        const hasConflict = appointments?.some((apt: { start_time: string; end_time: string }) => {
           const aptStart = new Date(apt.start_time);
           const aptEnd = new Date(apt.end_time);
           return (current < aptEnd && slotEnd > aptStart);
@@ -370,7 +370,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
         }
         
         // Check against exceptions
-        const hasException = exceptions?.some(exc => {
+        const hasException = exceptions?.some((exc: { start_time: string; end_time: string; is_available: boolean }) => {
           const excStart = new Date(`${dateStr}T${exc.start_time}`);
           const excEnd = new Date(`${dateStr}T${exc.end_time}`);
           return !exc.is_available && (current < excEnd && slotEnd > excStart);
@@ -563,7 +563,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Map the response to expected format
-      const appointments = data?.map(appointment => {
+      const appointments = data?.map((appointment: { users: any; }) => {
         return {
           ...appointment,
           client: appointment.users
@@ -632,7 +632,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Process data to include user names
-      const processedData = data?.map(therapist => {
+      const processedData = data?.map((therapist: { users: any; bio: string; }) => {
         const user = therapist.users as any;
         return {
           ...therapist,
@@ -643,7 +643,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
       // Filter by rating if needed
       let filteredData = processedData;
       if (filters?.minRating) {
-        filteredData = filteredData.filter(therapist => {
+        filteredData = filteredData.filter((therapist: { therapist_reviews: any[]; }) => {
           const reviews = therapist.therapist_reviews as any[];
           if (!reviews || reviews.length === 0) return false;
           
@@ -794,15 +794,15 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
         .select('rating')
         .eq('therapist_id', user.id);
 
-      const uniquePatients = new Set(patients?.map(p => p.client_id) || []);
+      const uniquePatients = new Set(patients?.map((p: { client_id: string }) => p.client_id) || []);
       const avgRating = reviews && reviews.length > 0
-        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+        ? reviews.reduce((sum: number, review: { rating: number }) => sum + review.rating, 0) / reviews.length
         : 0;
 
       return {
         todayAppointments: todayAppts?.length || 0,
-        weekRevenue: weekAppts?.reduce((sum, apt) => sum + (apt.payment_amount || 0), 0) || 0,
-        monthRevenue: monthAppts?.reduce((sum, apt) => sum + (apt.payment_amount || 0), 0) || 0,
+        weekRevenue: weekAppts?.reduce((sum: number, apt: { payment_amount: number }) => sum + (apt.payment_amount || 0), 0) || 0,
+        monthRevenue: monthAppts?.reduce((sum: number, apt: { payment_amount: number }) => sum + (apt.payment_amount || 0), 0) || 0,
         totalPatients: uniquePatients.size,
         averageRating: Math.round(avgRating * 10) / 10,
       };
@@ -832,7 +832,7 @@ export function TherapistProvider({ children }: { children: React.ReactNode }) {
           table: 'appointments',
           filter: `therapist_id=eq.${user.id}`,
         },
-        (payload) => {
+        (payload: { new: Appointment }) => {
           callback(payload.new as Appointment);
         }
       )

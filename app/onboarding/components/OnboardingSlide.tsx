@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, useWindowDimensions, Pressable } from 'react-native';
-import { OnboardingSlide as OnboardingSlideType } from '../types';
+import { OnboardingSlide as OnboardingSlideType } from '../../../onboarding/types';
 import Animated, { 
   Extrapolate, 
   interpolate, 

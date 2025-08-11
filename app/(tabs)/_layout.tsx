@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import FluidTabBar from '../../components/FluidTabBar';
-import { TherapistProvider } from '../therapist/context/TherapistContext';
+import { TherapistProvider } from '../../contexts/TherapistContext';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();

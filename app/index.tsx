@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useAuth } from '../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Session } from '@supabase/supabase-js';
 
 export default function Index() {
   const colorScheme = useColorScheme();
@@ -23,7 +24,7 @@ export default function Index() {
     }
     
     // Check if we have an active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session } }) => {
       if (session) {
         // User is already logged in, redirect to home
         router.replace('/(tabs)/home');

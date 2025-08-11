@@ -49,7 +49,7 @@ export default function QuickActions() {
             onPress={action.action}
           >
             <View style={[styles.iconContainer, { backgroundColor: `${action.color}20` }]}>
-              <Ionicons name={action.icon} size={24} color={action.color} />
+              <Ionicons name={action.icon as any} size={24} color={action.color} />
             </View>
             <Text style={[styles.actionTitle, isDark && styles.darkText]}>{action.title}</Text>
             <Text style={[styles.actionDescription, isDark && styles.darkSubText]} numberOfLines={2}>
