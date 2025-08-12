@@ -3,7 +3,7 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import * as Notifications from 'expo-notifications';
-import * as burnt from 'burnt';
+import { toast } from 'react-hot-toast';
 
 export default function LoginCallback() {
   const router = useRouter();
@@ -73,11 +73,7 @@ export default function LoginCallback() {
         }
       } catch (error) {
         console.error('Error in OAuth callback:', error);
-        burnt.toast({
-          title: 'Login Error',
-          message: 'There was a problem with your login. Please try again.',
-          preset: 'error',
-        });
+              toast.error('There was a problem with your login. Please try again.');
         router.replace('/');
       }
     }

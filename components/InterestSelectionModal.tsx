@@ -15,7 +15,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
-import * as burnt from 'burnt';
+import { toast } from 'react-hot-toast';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
@@ -50,11 +50,7 @@ export default function InterestSelectionModal({
         if (prev.length < 10) {
           return [...prev, interestId];
         } else {
-          burnt.toast({
-            title: 'Maximum Reached',
-            message: 'You can select up to 10 interests',
-            preset: 'error',
-          });
+          toast.error('You can select up to 10 interests');
           return prev;
         }
       }
@@ -63,11 +59,7 @@ export default function InterestSelectionModal({
 
   const handleSave = useCallback(async () => {
     if (selectedInterests.length === 0) {
-      burnt.toast({
-        title: 'Select Interests',
-        message: 'Please select at least one interest',
-        preset: 'error',
-      });
+      toast.error('Please select at least one interest');
       return;
     }
 
@@ -100,18 +92,10 @@ export default function InterestSelectionModal({
       onInterestsUpdated(selectedInterests);
       onClose();
 
-      burnt.toast({
-        title: 'Interests Updated',
-        message: 'Your interests have been saved successfully',
-        preset: 'done',
-      });
+      toast.success('Your interests have been saved successfully');
     } catch (error) {
       console.error('Error saving interests:', error);
-      burnt.toast({
-        title: 'Error',
-        message: 'Failed to save interests. Please try again.',
-        preset: 'error',
-      });
+          toast.error('Failed to save interests. Please try again.');
     } finally {
       setLoading(false);
     }

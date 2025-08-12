@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { supabase } from '../lib/supabase';
-import * as burnt from 'burnt';
+import { toast } from 'react-hot-toast';
 
 interface ResourceDetailProps {
   resourceId: string;
@@ -73,11 +73,7 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       }
     } catch (error) {
       console.error('Error fetching resource details:', error);
-      burnt.toast({
-        title: 'Error',
-        message: 'Failed to load resource details',
-        preset: 'error',
-      });
+      toast.error('Failed to load resource details');
     } finally {
       setLoading(false);
     }
@@ -132,18 +128,10 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
         
       setIsSaved(!isSaved);
       
-      burnt.toast({
-        title: isSaved ? 'Removed from Saved' : 'Saved to Library',
-        message: isSaved ? 'Resource removed from your saved items' : 'Resource added to your saved items',
-        preset: 'done',
-      });
+      toast.success(isSaved ? 'Removed from Saved' : 'Saved to Library');
     } catch (error) {
       console.error('Error toggling save status:', error);
-      burnt.toast({
-        title: 'Error',
-        message: 'Failed to update saved status',
-        preset: 'error',
-      });
+      toast.error('Failed to update saved status');
     }
   };
 
@@ -156,19 +144,11 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       if (supported) {
         await Linking.openURL(resource.media_url);
       } else {
-        burnt.toast({
-          title: 'Error',
-          message: 'Cannot open this URL',
-          preset: 'error',
-        });
+        toast.error('Cannot open this URL');
       }
     } catch (error) {
       console.error('Error opening URL:', error);
-      burnt.toast({
-        title: 'Error',
-        message: 'Failed to open in browser',
-        preset: 'error',
-      });
+        toast.error('Failed to open in browser');
     }
   };
 
@@ -180,7 +160,7 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
         return (
           <View style={styles.videoContainer}>
             <WebView
-              source={{ uri: resource.media_url }}
+              source={{ uri: resource.media_url, html: '' }}
               style={styles.videoPlayer}
               allowsFullscreenVideo
               javaScriptEnabled

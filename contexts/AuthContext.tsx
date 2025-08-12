@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { Alert } from 'react-native';
 import { registerForPushNotificationsAsync } from '../lib/NotificationHandler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as burnt from 'burnt';
+import { toast } from 'react-hot-toast';
 
 // Define a type for stored users
 interface StoredUser {
@@ -288,11 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
-      burnt.toast({
-        title: 'Error',
-        message: (error as Error).message,
-        preset: 'error',
-      });
+      toast.error((error as Error).message);
     } finally {
       setProfileLoading(false);
     }
@@ -350,18 +346,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         avatar_url: null,
       });
       router.replace('/');
-      burnt.toast({
-        title: 'Success',
-        message: 'You have been logged out successfully',
-        preset: 'done',
-      });
+      toast.success('You have been logged out successfully');
     } catch (error) {
       Alert.alert('Error signing out', (error as Error).message);
-      burnt.toast({
-        title: 'Error',
-        message: (error as Error).message,
-        preset: 'error',
-      });
+      toast.error((error as Error).message);
     }
   };
 

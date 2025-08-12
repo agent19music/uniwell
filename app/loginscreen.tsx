@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import * as burnt from 'burnt';
+import {toast} from 'react-hot-toast';    
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
@@ -29,11 +29,7 @@ export default function LoginScreen() {
       router.replace('/(tabs)/home');
     } catch (error) {
       console.error('Error signing in:', (error as Error).message);
-      burnt.toast({
-        title: 'Login Failed',
-        message: (error as Error).message,
-        preset: 'error',
-      });
+      toast.error('Login Failed');
     }
   };
 
@@ -56,11 +52,7 @@ export default function LoginScreen() {
       }
     } catch (error: unknown) {
       console.error('OAuth login error:', error instanceof Error ? error.message : 'Unknown error');
-      burnt.toast({
-        title: 'Login Failed',
-        message: error instanceof Error ? error.message : 'Failed to sign in with Google',
-        preset: 'error',
-      });
+      toast.error('Login Failed');
     }
   };
 

@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as burnt from 'burnt';
+import { toast } from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import CustomDialog from '../components/CustomDialog';
 
@@ -115,11 +115,7 @@ export default function ProfileCompletionScreen() {
       if (selectedInterests.length < 5) {
         setSelectedInterests([...selectedInterests, interestId]);
       } else {
-        burnt.toast({
-          title: 'Maximum Reached',
-          message: 'You can select up to 5 interests',
-          preset: 'error',
-        });
+        toast.error('You can select up to 5 interests');
       }
     }
   };
@@ -127,20 +123,12 @@ export default function ProfileCompletionScreen() {
   // Handle next step
   const handleNextStep = () => {
     if (step === 1 && selectedInterests.length === 0) {
-      burnt.toast({
-        title: 'Select Interests',
-        message: 'Please select at least one interest',
-        preset: 'error',
-      });
+      toast.error('Please select at least one interest');
       return;
     }
     
     if (step === 2 && !primaryGoal) {
-      burnt.toast({
-        title: 'Select Goal',
-        message: 'Please select your primary goal',
-        preset: 'error',
-      });
+      toast.error('Please select your primary goal');
       return;
     }
     
@@ -161,11 +149,7 @@ export default function ProfileCompletionScreen() {
       
       // Validate final step
       if (!university || !occupation) {
-        burnt.toast({
-          title: 'Missing Information',
-          message: 'Please fill in all fields',
-          preset: 'error',
-        });
+        toast.error('Please fill in all fields');
         setLoading(false);
         return;
       }
@@ -229,22 +213,14 @@ export default function ProfileCompletionScreen() {
         });
       
       // Show success message
-      burnt.toast({
-        title: 'Profile Completed',
-        message: 'Your profile has been successfully updated!',
-        preset: 'done',
-      });
+      toast.success('Your profile has been successfully updated!');
       
       // Navigate to home
       router.replace('/(tabs)/home');
       
     } catch (error) {
       console.error('Error completing profile:', error);
-      burnt.toast({
-        title: 'Error',
-        message: (error as Error).message,
-        preset: 'error',
-      });
+      toast.error((error as Error).message);
     } finally {
       setLoading(false);
     }

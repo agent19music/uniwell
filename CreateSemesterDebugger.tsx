@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useTimetableManagement } from './lib/useTimeTableManagement';
 import { supabase } from './lib/supabase';
-import { useAuth } from './lib/AuthContext';
+import { useAuth } from './contexts/AuthContext';
 import { SemesterType } from './types/TimetableTypes';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import  ErrorBoundary  from 'react-native-error-boundary';
