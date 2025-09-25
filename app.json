@@ -62,7 +62,10 @@
           "supportsBackgroundPlayback": true,
           "supportsPictureInPicture": true
         }
-      ]
+      ],
+      "expo-audio",
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "tsconfigPaths": true

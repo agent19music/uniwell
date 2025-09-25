@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import * as burnt from 'burnt';
+import * as Burnt from 'burnt';
 
 export default function ResetPasswordScreen() {
   const colorScheme = useColorScheme();
@@ -17,10 +17,13 @@ export default function ResetPasswordScreen() {
 
   const handleResetPassword = async () => {
     if (!email) {
-      burnt.toast({
+      Burnt.toast({
         title: 'Error',
         message: 'Please enter your email address',
         preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
       return;
     }
@@ -33,19 +36,25 @@ export default function ResetPasswordScreen() {
 
       if (error) throw error;
 
-      burnt.toast({
+      Burnt.toast({
         title: 'Success',
         message: 'Password reset instructions sent to your email',
         preset: 'done',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
-      
+
       router.back();
     } catch (error) {
       console.error('Error resetting password:', (error as Error).message);
-      burnt.toast({
+      Burnt.toast({
         title: 'Error',
         message: (error as Error).message,
         preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
     } finally {
       setLoading(false);

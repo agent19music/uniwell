@@ -16,7 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { supabase } from '../lib/supabase';
-import { toast } from 'react-hot-toast';
+import * as  Burnt from 'burnt';
+import { title } from 'process';
 
 interface ResourceDetailProps {
   resourceId: string;
@@ -73,7 +74,15 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       }
     } catch (error) {
       console.error('Error fetching resource details:', error);
-      toast.error('Failed to load resource details');
+
+      Burnt.toast({
+        title: "Error",
+        message: 'Failed to load resource details.',
+        preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
     } finally {
       setLoading(false);
     }
@@ -127,11 +136,23 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
         .eq('id', user.id);
         
       setIsSaved(!isSaved);
-      
-      toast.success(isSaved ? 'Removed from Saved' : 'Saved to Library');
+
+      Burnt.toast({
+        title: isSaved ? 'Removed from Saved' : 'Saved to Library',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
     } catch (error) {
       console.error('Error toggling save status:', error);
-      toast.error('Failed to update saved status');
+      Burnt.toast({
+        title: 'Error',
+        message: 'Failed to update saved status',
+        preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
     }
   };
 
@@ -144,11 +165,25 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       if (supported) {
         await Linking.openURL(resource.media_url);
       } else {
-        toast.error('Cannot open this URL');
+        Burnt.toast({
+          title: 'Error',
+          message: 'Cannot open this URL',
+          preset: 'error',
+          duration: 2,
+          from: 'top',
+          shouldDismissByDrag: true
+        });
       }
     } catch (error) {
       console.error('Error opening URL:', error);
-        toast.error('Failed to open in browser');
+      Burnt.toast({
+        title: 'Error',
+        message: 'Failed to open in browser',
+        preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
     }
   };
 

@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'react-hot-toast';
+import * as Burnt from 'burnt'
 import { LinearGradient } from 'expo-linear-gradient';
 import Octicons from '@expo/vector-icons/Octicons';
 import ProgressArchive from '../components/ProgressArchive';
@@ -158,7 +158,14 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
-      toast.error('Failed to load profile data');
+      Burnt.toast({
+        title: 'Error',
+        message: 'Failed to load profile data',
+        preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
     } finally {
       setLoading(false);
     }
@@ -189,11 +196,25 @@ export default function ProfileScreen() {
           }
         })
         .eq('id', user.id);
-        
-      toast.success('Your notification preferences have been saved');
+
+      Burnt.toast({
+        title: 'Success',
+        message: 'Your notification preferences have been saved',
+        preset: 'done',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
     } catch (error) {
       console.error('Error updating notification preferences:', error);
-      toast.error('Failed to update preferences');
+      Burnt.toast({
+        title: 'Error',
+        message: 'Failed to update preferences',
+        preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
       // Revert the toggle if there was an error
       setNotifications({ ...notifications });
     }

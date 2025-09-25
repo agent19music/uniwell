@@ -5,21 +5,38 @@
  * using expo-notifications
  */
 
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from './supabase.native';
 import * as burnt from 'burnt';
+import Constants from 'expo-constants';
 
-// Configure notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Conditionally import expo-notifications only if not in Expo Go
+let Notifications: any = null;
+const isExpoGo = Constants.appOwnership === 'expo';
+
+if (!isExpoGo) {
+  try {
+    Notifications = require('expo-notifications');
+    // Configure notification handler only if notifications are available
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch (error) {
+    console.warn('expo-notifications not available:', error);
+  }
+}
 
 export async function registerForPushNotificationsAsync() {
+  // Skip push notifications setup in Expo Go
+  if (isExpoGo || !Notifications) {
+    console.log('Push notifications not available in Expo Go');
+    return null;
+  }
+
   let token: string | undefined;
 
   if (Platform.OS === 'android') {
@@ -80,8 +97,18 @@ export async function registerForPushNotificationsAsync() {
 export async function scheduleLocalNotification(
   title: string,
   body: string,
-  trigger: Notifications.NotificationTriggerInput | null = null
+  trigger: any = null
 ) {
+  if (isExpoGo || !Notifications) {
+    // Fallback to burnt toast for Expo Go
+    burnt.toast({
+      title,
+      message: body,
+      duration: 3,
+    });
+    return null;
+  }
+  
   return await Notifications.scheduleNotificationAsync({
     content: {
       title,
@@ -94,6 +121,10 @@ export async function scheduleLocalNotification(
 }
 
 export async function cancelAllNotifications() {
+  if (isExpoGo || !Notifications) {
+    console.log('Cancel notifications not available in Expo Go');
+    return;
+  }
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 

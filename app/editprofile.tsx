@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'react-hot-toast';
+import * as Burnt from 'burnt';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -77,7 +77,13 @@ export default function EditProfileScreen() {
           avatar_url: publicUrl,
         });
 
-        toast.success('Profile picture updated');
+        Burnt.toast({
+          title: 'Success',
+          message: 'Profile picture updated',
+          duration: 2,
+          from: 'top',
+          shouldDismissByDrag: true
+        });
       }
     } catch (error) {
       console.error('Error uploading avatar:', error);
@@ -129,8 +135,14 @@ export default function EditProfileScreen() {
         gender: formData.gender,
       });
 
-      toast.success('Profile updated successfully');
-      
+      Burnt.toast({
+        title: 'Success',
+        message: 'Profile updated successfully',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
+
       router.back();
     } catch (error) {
       console.error('Error updating profile:', error);

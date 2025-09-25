@@ -12,7 +12,17 @@ import { PostNavigationProvider } from '@/contexts/PostNavigationContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SemesterProvider } from '@/contexts/SemesterContext';
 import { BootstrapProvider } from '@/components/BootstrapProvider';
-import { ToastProvider } from '@/lib/toast/ToastProvider';
+import { Toaster as BurntToast } from 'burnt/web';
+
+// Import Toaster for web support
+let Toaster: any = null;
+if (Platform.OS === 'web') {
+  try {
+    Toaster = require('burnt/web').Toaster;
+  } catch (error) {
+    console.warn('burnt/web not available:', error);
+  }
+}
 
 declare global {
   interface Window {
@@ -99,58 +109,55 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ToastProvider
-        toasterOptions={{
-          position: 'bottom-center',
-          toastOptions: {
+      {/* Add burnt Toaster for web support */}
+      {Platform.OS === 'web' && Toaster && (
+        <Toaster 
+          position="bottom-center"
+          toastOptions={{
             duration: 4000,
             style: {
               background: isDark ? '#333' : '#fff',
               color: isDark ? '#fff' : '#333',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              fontSize: '14px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
             },
-          },
-        }}
-      >
-        <AuthProvider>
-          <CommunityProvider>
-            <PostNavigationProvider>
-              <MoodProvider>
-                <RoutineProvider>
-                  <SemesterProvider>
-                    <BootstrapProvider>
-                      <Stack
-                        screenOptions={{
-                          headerShown: false,
-                          contentStyle: {
-                            backgroundColor: isDark ? '#121212' : '#f5f5f5',
-                          },
-                        }}
-                      >
-                        <Stack.Screen name="index" />
-                        <Stack.Screen name="loginscreen" />
-                        <Stack.Screen name="signupscreen" />
-                        <Stack.Screen name="onboarding" />
-                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                        <Stack.Screen name="therapist/availability" />
-                        <Stack.Screen name="therapist/appointments" />
-                        <Stack.Screen name="therapist/reviews" />
-                        <Stack.Screen name="therapist/profile-completion" />
-                        <Stack.Screen name="therapist/profile-editor" />
-                        <Stack.Screen name="therapist/quick-actions" />
-                      </Stack>
-                      <StatusBar style={isDark ? 'light' : 'dark'} />
-                    </BootstrapProvider>
-                  </SemesterProvider>
-                </RoutineProvider>
-              </MoodProvider>
-            </PostNavigationProvider>
-          </CommunityProvider>
-        </AuthProvider>
-      </ToastProvider>
+          }}
+        />
+      )}
+      <BurntToast  position='bottom-right'/>
+      <AuthProvider>
+        <CommunityProvider>
+          <PostNavigationProvider>
+            <MoodProvider>
+              <RoutineProvider>
+                <SemesterProvider>
+                  <BootstrapProvider>
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        contentStyle: {
+                          backgroundColor: isDark ? '#121212' : '#f5f5f5',
+                        },
+                      }}
+                    >
+                      <Stack.Screen name="index" />
+                      <Stack.Screen name="loginscreen" />
+                      <Stack.Screen name="signupscreen" />
+                      <Stack.Screen name="onboarding" />
+                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                      <Stack.Screen name="therapist/availability" />
+                      <Stack.Screen name="therapist/appointments" />
+                      <Stack.Screen name="therapist/reviews" />
+                      <Stack.Screen name="therapist/profile-completion" />
+                      <Stack.Screen name="therapist/profile-editor" />
+                      <Stack.Screen name="therapist/quick-actions" />
+                    </Stack>
+                    <StatusBar style={isDark ? 'light' : 'dark'} />
+                  </BootstrapProvider>
+                </SemesterProvider>
+              </RoutineProvider>
+            </MoodProvider>
+          </PostNavigationProvider>
+        </CommunityProvider>
+      </AuthProvider>
     </GestureHandlerRootView>
   );
 }

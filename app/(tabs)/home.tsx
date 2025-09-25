@@ -5,7 +5,7 @@ import { Ionicons, Entypo, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useMood, MoodType } from '../../contexts/MoodContext';
-import { toast } from '../../lib/toast';
+import * as Burnt from 'burnt';
 
 const MOOD_OPTIONS = [
   { id: 'happy', icon: '😊', label: 'Happy', color: '#FF69B4' },
@@ -25,12 +25,28 @@ export default function HomeScreen() {
   const [colorValue] = useState(new Animated.Value(0));
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   
+  // Safely get mood context with null check
+  let moodContext;
+  try {
+    moodContext = useMood();
+  } catch (error) {
+    console.log('MoodContext not available yet:', error);
+    moodContext = {
+      currentMood: null,
+      todaysMoodRecorded: false,
+      shouldPromptForMood: false,
+      recordMood: async () => {},
+      loading: true
+    };
+  }
+  
   const { 
     currentMood, 
     todaysMoodRecorded, 
     shouldPromptForMood, 
-    recordMood 
-  } = useMood();
+    recordMood,
+    loading: moodLoading 
+  } = moodContext;
 
   const handleMoodSelection = async (mood: typeof MOOD_OPTIONS[0]) => {
     // Animated selection logic
@@ -51,17 +67,19 @@ export default function HomeScreen() {
         await recordMood(mood.id as MoodType);
         
         // Show success toast
-        toast({
-          title: 'Mood Recorded',
+        Burnt.toast({
+          title: 'Success',
           message: `You're feeling ${mood.label.toLowerCase()} today`,
           preset: 'done',
           duration: 2000,
+          from: 'top',
+          shouldDismissByDrag: true 
         });
         
         // Navigate to mood visualization
         router.push(`/mood-detail?mood=${mood.id}`);
       } catch (error) {
-        toast({
+        Burnt.toast({
           title: 'Error',
           message: 'Failed to record your mood',
           preset: 'error',

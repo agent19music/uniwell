@@ -15,9 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { toast } from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import CustomDialog from '../components/CustomDialog';
+import * as Burnt from 'burnt';
 
 // Define interest categories
 const INTEREST_CATEGORIES = [
@@ -115,7 +115,14 @@ export default function ProfileCompletionScreen() {
       if (selectedInterests.length < 5) {
         setSelectedInterests([...selectedInterests, interestId]);
       } else {
-        toast.error('You can select up to 5 interests');
+        Burnt.toast({
+          title: 'Error',
+          message: 'You can select up to 5 interests',
+          preset: 'error',
+          duration: 2,
+          from: 'top',
+          shouldDismissByDrag: true
+        });
       }
     }
   };
@@ -123,12 +130,26 @@ export default function ProfileCompletionScreen() {
   // Handle next step
   const handleNextStep = () => {
     if (step === 1 && selectedInterests.length === 0) {
-      toast.error('Please select at least one interest');
+      Burnt.toast({
+        title: 'Error',
+        message: 'Please select at least one interest',
+        preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
       return;
     }
     
     if (step === 2 && !primaryGoal) {
-      toast.error('Please select your primary goal');
+      Burnt.toast({
+        title: 'Error',
+        message: 'Please select your primary goal',
+        preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
       return;
     }
     
@@ -149,7 +170,14 @@ export default function ProfileCompletionScreen() {
       
       // Validate final step
       if (!university || !occupation) {
-        toast.error('Please fill in all fields');
+        Burnt.toast({
+          title: 'Error',
+          message: 'Please fill in all fields',
+          preset: 'error',
+          duration: 2,
+          from: 'top',
+          shouldDismissByDrag: true
+        });
         setLoading(false);
         return;
       }
@@ -213,14 +241,28 @@ export default function ProfileCompletionScreen() {
         });
       
       // Show success message
-      toast.success('Your profile has been successfully updated!');
-      
+      Burnt.toast({
+        title: 'Success',
+        message: 'Your profile has been successfully updated!',
+        preset: 'done',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
+
       // Navigate to home
       router.replace('/(tabs)/home');
       
     } catch (error) {
       console.error('Error completing profile:', error);
-      toast.error((error as Error).message);
+      Burnt.toast({
+        title: 'Error',
+        message: 'Failed to complete profile. Please try again.',
+        preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
     } finally {
       setLoading(false);
     }

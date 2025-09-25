@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import {toast} from 'react-hot-toast';    
+import * as Burnt from 'burnt';
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
@@ -29,7 +29,14 @@ export default function LoginScreen() {
       router.replace('/(tabs)/home');
     } catch (error) {
       console.error('Error signing in:', (error as Error).message);
-      toast.error('Login Failed');
+      Burnt.toast({
+        title: 'Error',
+        message: 'Login Failed',
+        preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
     }
   };
 
@@ -52,7 +59,14 @@ export default function LoginScreen() {
       }
     } catch (error: unknown) {
       console.error('OAuth login error:', error instanceof Error ? error.message : 'Unknown error');
-      toast.error('Login Failed');
+      Burnt.toast({
+        title: 'Error',
+        message: 'Login Failed',
+        preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
+      });
     }
   };
 
