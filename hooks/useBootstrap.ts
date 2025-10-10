@@ -250,9 +250,9 @@ export function useBootstrap(input: UseBootstrapInput): UseBootstrapReturn {
         })()
       } catch {}
       if (!finished) complete(decide())
-    }, 2000)
+    }, 1000) // Reduced from 2000ms to 1000ms
 
-// 5s hard failover: abort lingering tasks and decide
+// 3s hard failover: abort lingering tasks and decide
     const hardTimer = setTimeout(() => {
       try {
         hardTimedOut.current = true
@@ -269,7 +269,7 @@ export function useBootstrap(input: UseBootstrapInput): UseBootstrapReturn {
         })()
       } catch {}
       if (!finished) complete(decide())
-    }, 5000)
+    }, 3000) // Reduced from 5000ms to 3000ms
 
     // Safety: handle unexpected exceptions in the parallel tasks
     allDone.catch(fail)

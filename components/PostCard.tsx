@@ -51,7 +51,7 @@ export default function PostCard({ post, isOwner }: { post: Post, isOwner: boole
   const handlePostPress = () => {
     navigateToPost(post);
   };
-
+console.log('Rendering PostCard for post:', post.id);
   return (
     <TouchableOpacity
       style={[styles.postCard, isDark && styles.darkCard]}
@@ -59,10 +59,17 @@ export default function PostCard({ post, isOwner }: { post: Post, isOwner: boole
     >
       <View style={styles.postHeader}>
         <View style={styles.userInfo}>
-          <Image source={{ uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }} style={styles.userImage} />
+          <Image 
+            source={{ 
+              uri: post.is_anonymous
+                ? 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png'
+                : (post.profiles?.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png')
+            }} 
+            style={styles.userImage} 
+          />
           <View>
             <Text style={[styles.userName, isDark && styles.darkText]}>
-              {post.is_anonymous ? 'Anonymous' : post.profiles.username}
+              {post.is_anonymous ? 'Anonymous' : (post.profiles?.username || 'Member')}
             </Text>
             <Text style={[styles.timestamp, isDark && styles.darkSubText]}>
               {format(new Date(post.created_at), 'MMM d, yyyy')}
@@ -132,6 +139,7 @@ const styles = StyleSheet.create({
     margin: 16,
     borderRadius: 16,
   },
+  
   darkCard: {
     backgroundColor: '#1e1e1e',
   },

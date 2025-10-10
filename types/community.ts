@@ -11,9 +11,8 @@ export interface Post {
       username: string;
       avatar_url: string;
     };
-    post_likes: {
-      count: number;
-    };
+    post_likes: { count: number }[];
+    post_replies?: { count: number }[];
     tags?: string[];
     user_likes?: {
       user_id: string;

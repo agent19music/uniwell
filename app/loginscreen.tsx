@@ -34,8 +34,8 @@ export default function LoginScreen() {
         message: 'Login Failed',
         preset: 'error',
         duration: 2,
-        from: 'top',
-        shouldDismissByDrag: true
+        shouldDismissByDrag: true,
+        from: 'top'
       });
     }
   };
@@ -62,7 +62,7 @@ export default function LoginScreen() {
       Burnt.toast({
         title: 'Error',
         message: 'Login Failed',
-        preset: 'error',
+        preset: 'done',
         duration: 2,
         from: 'top',
         shouldDismissByDrag: true

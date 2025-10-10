@@ -8,6 +8,7 @@ import { useCommunity } from '@/contexts/CommunityContext';
 import { supabase } from '@/lib/supabase';
 import PostCard from '@/components/PostCard';
 import { Post } from '@/types/community';
+import { log } from 'console';
 
 
 const CATEGORIES = [
@@ -50,10 +51,14 @@ export default function CommunityScreen() {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const { getTrendingPosts } = useCommunity();
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPosts();
+    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
   }, []);
+
+console.log('Rendering CommunityScreen with posts:', posts);
 
   const fetchPosts = async () => {
     try {
@@ -95,9 +100,9 @@ export default function CommunityScreen() {
         <FlatList
           data={posts}
           renderItem={({ item }) => (
-            <PostCard 
-              post={item} 
-              isOwner={item.user_id === supabase.auth.getUser()?.id}
+            <PostCard
+              post={item}
+              isOwner={userId === item.user_id}
             />
           )}
           keyExtractor={item => item.id}

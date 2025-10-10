@@ -10,9 +10,10 @@ interface TimeGridProps {
   viewMode: 'day' | 'week';
   onDaySelect?: (date: Date) => void;
   onSwipeChangeWeek?: (direction: number) => void;
+  getClassesForDay?: (date: Date) => ClassInfo[];
 }
 
-export const TimeGrid = ({ isDark, currentDate, classes, viewMode, onDaySelect, onSwipeChangeWeek }: TimeGridProps) => {
+export const TimeGrid = ({ isDark, currentDate, classes, viewMode, onDaySelect, onSwipeChangeWeek, getClassesForDay }: TimeGridProps) => {
   const styles = useTimeGridStyles(isDark);
   // Display hours from 6 AM to 10 PM (common class hours)
   const visibleTimeSlots = Array.from({ length: 17 }, (_, i) => i + 6); // 6-22 hours
@@ -135,14 +136,12 @@ export const TimeGrid = ({ isDark, currentDate, classes, viewMode, onDaySelect, 
     return ((hour - 6) * 60) + minute;
   };
   
-  // Filter classes for a specific day
-  const getClassesForDay = (date: Date) => {
+  // Filter classes for a specific day (use provided callback when available)
+  const localGetClassesForDay = (date: Date) => {
+    if (getClassesForDay) return getClassesForDay(date);
     const dayIndex = date.getDay();
-    return classes.filter(classInfo => {
-      const classDay = new Date(currentDate);
-      classDay.setDate(currentDate.getDate() - currentDate.getDay() + dayIndex);
-      return true; // This would be replaced with actual filtering logic
-    });
+    // Fallback: show all provided classes (already filtered upstream)
+    return classes;
   };
   
   // Day view rendering
@@ -304,7 +303,7 @@ export const TimeGrid = ({ isDark, currentDate, classes, viewMode, onDaySelect, 
           
           {/* Day columns */}
           {weekDays.map((day, dayIndex) => {
-            const dayClasses = getClassesForDay(day);
+            const dayClasses = localGetClassesForDay(day);
             const isToday = day.toDateString() === new Date().toDateString();
             
             return (

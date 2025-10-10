@@ -129,7 +129,8 @@ export default function RootLayout() {
             <MoodProvider>
               <RoutineProvider>
                 <SemesterProvider>
-                  <BootstrapProvider>
+                  {/* Temporarily disabled BootstrapProvider to debug spinner issue */}
+                  {/* <BootstrapProvider> */}
                     <Stack
                       screenOptions={{
                         headerShown: false,
@@ -151,7 +152,7 @@ export default function RootLayout() {
                       <Stack.Screen name="therapist/quick-actions" />
                     </Stack>
                     <StatusBar style={isDark ? 'light' : 'dark'} />
-                  </BootstrapProvider>
+                  {/* </BootstrapProvider> */}
                 </SemesterProvider>
               </RoutineProvider>
             </MoodProvider>
