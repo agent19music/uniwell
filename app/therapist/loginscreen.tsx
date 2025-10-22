@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useTherapist } from './context/TherapistContext';
+import { useTherapist } from '../../contexts/TherapistContext';
 import { router } from 'expo-router';
 
 export default function TherapistLoginScreen() {

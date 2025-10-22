@@ -1,10 +1,21 @@
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Modal, TextInput, Animated, PanResponder, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View, Text, ScrollView, StyleSheet,
+  useColorScheme, TouchableOpacity,
+  Modal, TextInput, Animated, PanResponder, Alert
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useRef, useEffect } from 'react';
-import { Audio } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
+import {
+  useAudioRecorder,
+  useAudioRecorderState,
+  useAudioPlayer,
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+} from 'expo-audio';
 
 const JOURNAL_KEY = '@journals';
 const AUDIO_DIRECTORY = `${FileSystem.documentDirectory}audio/`;
@@ -12,21 +23,35 @@ const AUDIO_DIRECTORY = `${FileSystem.documentDirectory}audio/`;
 export default function JournalScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  // State
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [journalText, setJournalText] = useState('');
   const [journals, setJournals] = useState([]);
-  const [recording, setRecording] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
-  
-  // Animation values
+
+  // Recording
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder);
+
+  // Animations
   const slideAnimation = useRef(new Animated.Value(0)).current;
   const lockAnimation = useRef(new Animated.Value(0)).current;
-  
-  // Load journals on mount
+  const [isLocked, setIsLocked] = useState(false);
+
   useEffect(() => {
     loadJournals();
     setupAudioDirectory();
+
+    (async () => {
+      const status = await AudioModule.requestRecordingPermissionsAsync();
+      if (!status.granted) {
+        Alert.alert('Permission to access microphone was denied');
+      }
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        allowsRecording: true,
+      });
+    })();
   }, []);
 
   const setupAudioDirectory = async () => {
@@ -38,121 +63,69 @@ export default function JournalScreen() {
 
   const loadJournals = async () => {
     try {
-      const savedJournals = await AsyncStorage.getItem(JOURNAL_KEY);
-      if (savedJournals) {
-        setJournals(JSON.parse(savedJournals));
-      }
-    } catch (error) {
-      console.error('Error loading journals:', error);
+      const saved = await AsyncStorage.getItem(JOURNAL_KEY);
+      if (saved) setJournals(JSON.parse(saved));
+    } catch (err) {
+      console.error('Error loading journals:', err);
     }
   };
 
-  // Pan Responder for voice recording gestures
+  const saveJournal =  async (entry: any) => {
+    try {
+      const updated = [...journals, entry];
+      await AsyncStorage.setItem(JOURNAL_KEY, JSON.stringify(updated));
+      setJournals(updated as never[]);
+    } catch (err) {
+      console.error('Error saving journal:', err);
+    }
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
-        startRecording();
+        audioRecorder.prepareToRecordAsync();
+        audioRecorder.record();
         setIsLocked(false);
       },
-      onPanResponderMove: (_, gestureState) => {
-        // Handle vertical slide for lock
-        if (gestureState.dy < -50) {
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy < -50) {
           setIsLocked(true);
-          Animated.spring(lockAnimation, {
-            toValue: -50,
-            useNativeDriver: true,
-          }).start();
+          Animated.spring(lockAnimation, { toValue: -50, useNativeDriver: true }).start();
         }
-        // Handle horizontal slide for cancel
-        if (gestureState.dx < -50) {
-          Animated.spring(slideAnimation, {
-            toValue: -100,
-            useNativeDriver: true,
-          }).start();
+        if (gs.dx < -50) {
+          Animated.spring(slideAnimation, { toValue: -100, useNativeDriver: true }).start();
         }
       },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -50) {
-          // Cancel recording
-          stopRecording(true);
+      onPanResponderRelease: async (_, gs) => {
+        if (gs.dx < -50) {
+          await audioRecorder.stop(); // Cancel
         } else if (!isLocked) {
-          // Stop recording if not locked
-          stopRecording();
+          await audioRecorder.stop();
+          handleRecordingSave(audioRecorder.uri as string);
         }
-        // Reset animations
         Animated.parallel([
-          Animated.spring(slideAnimation, {
-            toValue: 0,
-            useNativeDriver: true,
-          }),
-          Animated.spring(lockAnimation, {
-            toValue: 0,
-            useNativeDriver: true,
-          }),
+          Animated.spring(slideAnimation, { toValue: 0, useNativeDriver: true }),
+          Animated.spring(lockAnimation, { toValue: 0, useNativeDriver: true }),
         ]).start();
       },
     })
   ).current;
 
-  const startRecording = async () => {
+  const handleRecordingSave = async (uri: string) => {
+    if (!uri) return;
+    const filename = `voice-note-${Date.now()}.m4a`;
+    const dest = `${AUDIO_DIRECTORY}${filename}`;
     try {
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await FileSystem.moveAsync({ from: uri, to: dest });
+      saveJournal({
+        id: Date.now().toString(),
+        type: 'voice',
+        content: dest,
+        timestamp: new Date().toISOString(),
       });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(recording);
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Failed to start recording:', error);
-    }
-  };
-
-  const stopRecording = async (cancel = false) => {
-    if (!isLocked || cancel) {
-      setIsRecording(false);
-      setIsLocked(false);
-      
-      if (recording) {
-        try {
-          await recording.stopAndUnloadAsync();
-          if (!cancel) {
-            const uri = recording.getURI();
-            const fileName = `voice-note-${Date.now()}.m4a`;
-            const newUri = `${AUDIO_DIRECTORY}${fileName}`;
-            
-            await FileSystem.moveAsync({
-              from: uri,
-              to: newUri,
-            });
-
-            saveJournal({
-              id: Date.now().toString(),
-              type: 'voice',
-              content: newUri,
-              timestamp: new Date().toISOString(),
-            });
-          }
-        } catch (error) {
-          console.error('Failed to stop recording:', error);
-        }
-      }
-      setRecording(null);
-    }
-  };
-
-  const saveJournal = async (newJournal) => {
-    try {
-      const updatedJournals = [...journals, newJournal];
-      await AsyncStorage.setItem(JOURNAL_KEY, JSON.stringify(updatedJournals));
-      setJournals(updatedJournals);
-    } catch (error) {
-      console.error('Error saving journal:', error);
+    } catch (err) {
+      console.error('Error saving voice note:', err);
     }
   };
 
@@ -169,48 +142,36 @@ export default function JournalScreen() {
     }
   };
 
-  const playVoiceNote = async (uri) => {
-    try {
-      const { sound } = await Audio.Sound.createAsync({ uri });
-      await sound.playAsync();
-    } catch (error) {
-      console.error('Error playing voice note:', error);
-    }
-  };
-
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
+      {/* Header & Entry List */}
       <View style={styles.header}>
         <Text style={[styles.title, isDark && styles.darkText]}>My Journal</Text>
-        <TouchableOpacity 
-          style={styles.newEntryButton}
-          onPress={() => setIsModalVisible(true)}
-        >
+        <TouchableOpacity onPress={() => setIsModalVisible(true)}>
           <Ionicons name="pencil" size={24} color="#FF7F50" />
         </TouchableOpacity>
       </View>
-
       <ScrollView style={styles.journalList}>
-        {journals.map((journal) => (
+        {journals.map((j: any) => (
           <TouchableOpacity
-            key={journal.id}
+            key={j.id}
             style={[styles.journalCard, isDark && styles.darkCard]}
-            onPress={() => journal.type === 'voice' && playVoiceNote(journal.content)}
+            onPress={() => j.type === 'voice' && useAudioPlayer({ uri: j.content }).play()}
           >
             <View style={styles.journalContent}>
               <View style={styles.journalHeader}>
                 <Text style={[styles.journalDate, isDark && styles.darkSubText]}>
-                  {new Date(journal.timestamp).toLocaleDateString()}
+                  {new Date(j.timestamp).toLocaleDateString()}
                 </Text>
-                <Ionicons 
-                  name={journal.type === 'voice' ? 'mic' : 'document-text'} 
-                  size={20} 
-                  color="#FF7F50" 
+                <Ionicons
+                  name={j.type === 'voice' ? 'mic' : 'document-text'}
+                  size={20}
+                  color="#FF7F50"
                 />
               </View>
-              {journal.type === 'text' ? (
+              {j.type === 'text' ? (
                 <Text style={[styles.journalText, isDark && styles.darkText]}>
-                  {journal.content}
+                  {j.content}
                 </Text>
               ) : (
                 <View style={styles.voiceNoteContainer}>
@@ -225,13 +186,8 @@ export default function JournalScreen() {
         ))}
       </ScrollView>
 
-      {/* New Journal Modal */}
-      <Modal
-        visible={isModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsModalVisible(false)}
-      >
+      {/* New Entry Modal */}
+      <Modal visible={isModalVisible} animationType="slide" transparent onRequestClose={() => setIsModalVisible(false)}>
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, isDark && styles.darkCard]}>
             <View style={styles.modalHeader}>
@@ -240,7 +196,6 @@ export default function JournalScreen() {
                 <Ionicons name="close" size={24} color={isDark ? '#fff' : '#333'} />
               </TouchableOpacity>
             </View>
-            
             <TextInput
               style={[styles.input, isDark && styles.darkInput]}
               multiline
@@ -249,36 +204,21 @@ export default function JournalScreen() {
               value={journalText}
               onChangeText={setJournalText}
             />
-
             <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={styles.submitButton}
-                onPress={handleTextSubmit}
-              >
+              <TouchableOpacity style={styles.submitButton} onPress={handleTextSubmit}>
                 <Text style={styles.submitButtonText}>Save</Text>
               </TouchableOpacity>
-
               <Animated.View
                 style={[
                   styles.recordButton,
-                  {
-                    transform: [
-                      { translateX: slideAnimation },
-                      { translateY: lockAnimation }
-                    ]
-                  }
+                  { transform: [{ translateX: slideAnimation }, { translateY: lockAnimation }] },
                 ]}
                 {...panResponder.panHandlers}
               >
-                <Ionicons 
-                  name="mic" 
-                  size={24} 
-                  color={isRecording ? '#FF0000' : '#FF7F50'} 
-                />
+                <Ionicons name="mic" size={24} color={recorderState.isRecording ? '#FF0000' : '#FF7F50'} />
               </Animated.View>
             </View>
-
-            {isRecording && (
+            {recorderState.isRecording && (
               <View style={styles.recordingIndicator}>
                 <Text style={styles.recordingText}>
                   {isLocked ? 'Recording Locked' : 'Slide up to lock, left to cancel'}
@@ -295,16 +235,8 @@ export default function JournalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#fff',
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 20,
-  },
-  
   darkContainer: {
     backgroundColor: '#121212',
   },
@@ -312,54 +244,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
   },
   darkText: {
-    color: '#ffffff',
-  },
-  darkSubText: {
-    color: '#aaaaaa',
-  },
-  newEntryButton: {
-    padding: 8,
+    color: '#fff',
   },
   journalList: {
     flex: 1,
+    padding: 16,
   },
   journalCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    margin: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    marginBottom: 16,
   },
   darkCard: {
-    backgroundColor: '#1e1e1e',
+    backgroundColor: '#222',
+  },
+  journalContent: {
+    flex: 1,
   },
   journalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
   },
   journalDate: {
-    color: '#666',
     fontSize: 14,
+    color: '#666',
   },
-  journalText: {
-    color: '#333',
-    fontSize: 16,
+  darkSubText: {
+    color: '#999',
   },
   voiceNoteContainer: {
     flexDirection: 'row',
@@ -367,73 +288,70 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   voiceNoteText: {
-    color: '#333',
-    fontSize: 16,
+    fontSize: 14,
+    color: '#666',
+  },
+  recordingIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 10,
+  },
+  recordingText: {
+    color: '#fff',
+    textAlign: 'center',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
-    minHeight: '50%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#333',
   },
   input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 16,
-    minHeight: 150,
     fontSize: 16,
     color: '#333',
+    marginBottom: 20,
   },
   darkInput: {
-    backgroundColor: '#2a2a2a',
-    color: '#ffffff',
+    color: '#fff',
+  },
+  submitButton: {
+    backgroundColor: '#FF7F50',
+    padding: 10,
+    borderRadius: 5,
+  },
+  submitButtonText: {
+    color: '#fff',
+    textAlign: 'center',
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  submitButton: {
-    backgroundColor: '#FF7F50',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  submitButtonText: {
-    color: 'white',
-    fontWeight: '600',
+    alignItems: 'center',
   },
   recordButton: {
-    backgroundColor: '#f5f5f5',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#FF7F50',
+    padding: 10,
   },
-  recordingIndicator: {
-    alignItems: 'center',
-    marginTop: 16,
+  journalText: {
+    fontSize: 16,
+    color: '#333',
   },
-  recordingText: {
-    color: '#FF0000',
-    fontSize: 14,
-  },
+
 });

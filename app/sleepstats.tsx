@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { LineChart, BarChart } from 'react-native-chart-kit';
@@ -19,6 +19,8 @@ import {
   getSleepInsights,
   setSleepGoal
 } from '../lib/services/sleepService';
+import { LoadingIndicator } from '@rn-nui/loading-indicator';
+import { Colors } from '@/constants/Colors';
 
 interface SleepAdvice {
   status: string;
@@ -466,7 +468,7 @@ export default function SleepStatsScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3F70F4" />
+          <LoadingIndicator containerSize={50} containerColor={Colors.primary} animating={true} color={Colors.background} />
           <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading sleep data...</Text>
         </View>
       ) : (

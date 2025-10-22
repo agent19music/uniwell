@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 export default function RoutineDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { habits, deleteHabit, updateHabitStatus } = useRoutine();
+  const { habits, deleteRoutine } = useRoutine(); 
   
   const habit = habits.find(h => h.id === id);
 
@@ -21,7 +21,7 @@ export default function RoutineDetailsScreen() {
 
   const handleDelete = async () => {
     try {
-      await deleteHabit(habit.id);
+      await deleteRoutine(habit.id);
       router.back();
     } catch (error) {
       console.error('Error deleting habit:', error);
@@ -47,7 +47,7 @@ export default function RoutineDetailsScreen() {
 
       <View style={styles.streakInfo}>
         <Text style={styles.streakTitle}>Current Streak</Text>
-        <Text style={styles.streakCount}>{habit.streak.current_streak} days</Text>
+        <Text style={styles.streakCount}>{habit.streak.currentStreak} days</Text>
       </View>
 
       <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>

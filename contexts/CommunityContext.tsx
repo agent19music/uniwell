@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode } from 'base64-arraybuffer';
 import * as FileSystem from 'expo-file-system';
-import { Post, Reply } from '../types/community';
+import { Post } from '../types/community';
 
 
 
@@ -24,24 +24,7 @@ interface CommunityContextType {
 
 const CommunityContext = createContext<CommunityContextType | undefined>(undefined);
 
-interface CreatePostData {
-  title?: string;
-  content: string;
-  media_url?: string[];
-  tags?: string[];
-  is_anonymous: boolean;
-}
-
-interface EditPostData {
-  content: string;
-  media_url?: string[];
-}
-
-interface CreateReplyData {
-  content: string;
-  postId: string;
-  parentId?: string;
-}
+import { CreatePostData, EditPostData, CreateReplyData } from '../types/community';
 
 export function CommunityProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -82,10 +65,13 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      const isVideo = type === 'video';
       const manipResult = await ImageManipulator.manipulateAsync(
         file,
-        [{ resize: { width: 1080 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+        isVideo ? [] : [{ resize: { width: 1080 } }],
+        isVideo
+          ? { compress: 0.7 } // leave original container, manipulate returns same format
+          : { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
       );
 
       const base64 = await FileSystem.readAsStringAsync(manipResult.uri, {

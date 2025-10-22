@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { TherapistProvider } from './context/TherapistContext';
+import { TherapistProvider } from '../../contexts/TherapistContext';
 
 export default function TherapistLayout() {
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function TherapistLayout() {
           },
         }}
       >
-        <Stack.Screen name="index" options={{ redirect: true }} />
+        <Stack.Screen name="index" />
         <Stack.Screen name="loginscreen" options={{ title: "Therapist Login" }} />
         <Stack.Screen name="signupscreen" options={{ title: "Therapist Signup" }} />
         <Stack.Screen name="dashboard" options={{ title: "Therapist Dashboard" }} />

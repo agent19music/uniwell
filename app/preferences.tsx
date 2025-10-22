@@ -7,19 +7,20 @@ import {
   TouchableOpacity,
   Switch,
   Image,
-  useColorScheme,
-  Alert,
-  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import * as burnt from 'burnt';
-import { LinearGradient } from 'expo-linear-gradient';
+import * as Burnt from 'burnt'
 import Octicons from '@expo/vector-icons/Octicons';
 import ProgressArchive from '../components/ProgressArchive';
+import { useDialog } from '../hooks/useDialog'; 
+import Dialog from '../components/Dialog';
+import { useTheme } from '../hooks/useTheme';
+import { Colors } from '../constants/Colors';
+import { LoadingIndicator } from '@rn-nui/loading-indicator';
 
 interface SettingItemProps {
   icon: string;
@@ -68,8 +69,7 @@ const SettingsSection = ({ title, children, isDark }: { title: string; children:
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const [loading, setLoading] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [userData, setUserData] = useState({
@@ -104,6 +104,7 @@ export default function ProfileScreen() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        console.log('user', user);
         // Format join date
         const joinDate = new Date(user.created_at).toLocaleDateString('en-US', {
           month: 'long',
@@ -114,10 +115,16 @@ export default function ProfileScreen() {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user.id)
-          .single();
+          .eq('id', user.id);
           
         if (profileError) throw profileError;
+        
+        // If no profile exists, create a default one
+        let profile = profileData?.[0];
+        if (!profile) {
+          console.log('No profile found for user:', user.id);
+         
+        }
         
         // Get habit and streak counts
         const { data: habitsData, error: habitsError } = await supabase
@@ -135,7 +142,7 @@ export default function ProfileScreen() {
         if (streaksError) throw streaksError;
         
         // Get notification preferences
-        const notificationPrefs = profileData.notification_preferences || {
+        const notificationPrefs = profile?.notification_preferences || {
           reminders: true,
           achievements: true,
           weeklyReport: true,
@@ -150,18 +157,21 @@ export default function ProfileScreen() {
           joinDate,
           streakCount: streaksData?.length || 0,
           habitCount: habitsData?.length || 0,
-          gender: profileData?.gender || '',
-          university: profileData?.university || '',
-          occupation: profileData?.occupation || '',
-          profileCompletion: profileData?.profile_completion_percentage || 40,
+          gender: profile?.gender || '',
+          university: profile?.university || '',
+          occupation: profile?.occupation || '',
+          profileCompletion: profile?.profile_completion_percentage || 40,
         });
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
-      burnt.toast({
+      Burnt.toast({
         title: 'Error',
         message: 'Failed to load profile data',
         preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
     } finally {
       setLoading(false);
@@ -193,36 +203,45 @@ export default function ProfileScreen() {
           }
         })
         .eq('id', user.id);
-        
-      burnt.toast({
-        title: 'Preferences Updated',
+
+      Burnt.toast({
+        title: 'Success',
         message: 'Your notification preferences have been saved',
         preset: 'done',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
     } catch (error) {
       console.error('Error updating notification preferences:', error);
-      burnt.toast({
+      Burnt.toast({
         title: 'Error',
         message: 'Failed to update preferences',
         preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
       // Revert the toggle if there was an error
       setNotifications({ ...notifications });
     }
   };
 
+  const { dialog, showDialog, hideDialog } = useDialog();
+
   const handleSignOut = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
+    showDialog({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      actions: [
         {
-          text: 'Cancel',
-          style: 'cancel',
+          label: 'Cancel',
+          variant: 'secondary',
+          onPress: () => hideDialog(),
         },
         {
-          text: 'Sign Out',
-          style: 'destructive',
+          label: 'Sign Out',
+          variant: 'primary',
           onPress: async () => {
             try {
               await signOut();
@@ -232,15 +251,17 @@ export default function ProfileScreen() {
             }
           },
         },
-      ]
-    );
+      ],
+    });
+
+   
   };
 
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF7F50" />
+          <LoadingIndicator containerColor={Colors.primary} animating={true} color={Colors.background} />
           <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading profile...</Text>
         </View>
       </SafeAreaView>
@@ -248,12 +269,12 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#000000'} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, isDark && styles.darkText]}>Profile</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Profile</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -261,13 +282,13 @@ export default function ProfileScreen() {
         <View style={styles.profileSection}>
           <View style={styles.profileHeader}>
             <Image
-              source={{ uri: profile.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }}
+              source={{ uri: profile?.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }}
               style={styles.profileImage}
             />
             <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, isDark && styles.darkText]}>{userData.name}</Text>
-              <Text style={[styles.profileEmail, isDark && styles.darkSubText]}>{userData.email}</Text>
-              <Text style={[styles.joinDate, isDark && styles.darkSubText]}>Joined {userData.joinDate}</Text>
+              <Text style={[styles.profileName, { color: colors.textPrimary }]}>{userData.name}</Text>
+              <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{userData.email}</Text>
+              <Text style={[styles.joinDate, { color: colors.textSecondary }]}>Joined {userData.joinDate}</Text>
             </View>
           </View>
 
@@ -291,131 +312,131 @@ export default function ProfileScreen() {
           )}
 
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, isDark && styles.darkCard]}>
-              <Octicons name="flame" size={24} color="#FF7F50" />
-              <Text style={[styles.statValue, isDark && styles.darkText]}>{userData.streakCount}</Text>
-              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Active Streaks</Text>
+            <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Octicons name="flame" size={24} color={colors.primary} />
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{userData.streakCount}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active Streaks</Text>
             </View>
-            <View style={[styles.statCard, isDark && styles.darkCard]}>
-              <Ionicons name="repeat" size={24} color="#FF7F50" />
-              <Text style={[styles.statValue, isDark && styles.darkText]}>{userData.habitCount}</Text>
-              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Habits</Text>
+            <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="repeat" size={24} color={colors.primary} />
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{userData.habitCount}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Habits</Text>
             </View>
           </View>
 
           <TouchableOpacity 
-            style={[styles.editProfileButton, isDark && styles.darkCard]} 
+            style={[styles.editProfileButton, { backgroundColor: colors.card, borderColor: colors.border }]} 
             onPress={handleEditProfile}
           >
-            <Text style={[styles.editProfileText, isDark && styles.darkText]}>Edit Profile</Text>
-            <Ionicons name="pencil" size={20} color={isDark ? '#ffffff' : '#333333'} />
+            <Text style={[styles.editProfileText, { color: colors.textPrimary }]}>Edit Profile</Text>
+            <Ionicons name="pencil" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.section, isDark && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Progress</Text>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Progress</Text>
           
           <TouchableOpacity 
-            style={[styles.menuItem, isDark && styles.darkMenuItem]} 
+            style={[styles.menuItem, { borderBottomColor: colors.divider }]} 
             onPress={() => setShowArchiveModal(true)}
           >
             <View style={styles.menuItemContent}>
-              <Ionicons name="time-outline" size={24} color={isDark ? '#ffffff' : '#333333'} />
-              <Text style={[styles.menuItemText, isDark && styles.darkText]}>View Progress Archive</Text>
+              <Ionicons name="time-outline" size={24} color={colors.textPrimary} />
+              <Text style={[styles.menuItemText, { color: colors.textPrimary }]}>View Progress Archive</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={isDark ? '#ffffff' : '#333333'} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.section, isDark && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Notification Preferences</Text>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Notification Preferences</Text>
           
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceInfo}>
-              <Ionicons name="notifications-outline" size={24} color={isDark ? '#ffffff' : '#333333'} />
-              <Text style={[styles.preferenceText, isDark && styles.darkText]}>Daily Reminders</Text>
+              <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
+              <Text style={[styles.preferenceText, { color: colors.textPrimary }]}>Daily Reminders</Text>
             </View>
             <Switch
               value={notifications.reminders}
               onValueChange={(value) => handleNotificationToggle('reminders', value)}
-              trackColor={{ false: '#767577', true: '#FF7F50' }}
+              trackColor={{ false: '#767577', true: colors.primary }}
               thumbColor="#f4f3f4"
             />
           </View>
           
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceInfo}>
-              <Ionicons name="trophy-outline" size={24} color={isDark ? '#ffffff' : '#333333'} />
-              <Text style={[styles.preferenceText, isDark && styles.darkText]}>Achievements</Text>
+              <Ionicons name="trophy-outline" size={24} color={colors.textPrimary} />
+              <Text style={[styles.preferenceText, { color: colors.textPrimary }]}>Achievements</Text>
             </View>
             <Switch
               value={notifications.achievements}
               onValueChange={(value) => handleNotificationToggle('achievements', value)}
-              trackColor={{ false: '#767577', true: '#FF7F50' }}
+              trackColor={{ false: '#767577', true: colors.primary }}
               thumbColor="#f4f3f4"
             />
           </View>
           
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceInfo}>
-              <Ionicons name="calendar-outline" size={24} color={isDark ? '#ffffff' : '#333333'} />
-              <Text style={[styles.preferenceText, isDark && styles.darkText]}>Weekly Report</Text>
+              <Ionicons name="calendar-outline" size={24} color={colors.textPrimary} />
+              <Text style={[styles.preferenceText, { color: colors.textPrimary }]}>Weekly Report</Text>
             </View>
             <Switch
               value={notifications.weeklyReport}
               onValueChange={(value) => handleNotificationToggle('weeklyReport', value)}
-              trackColor={{ false: '#767577', true: '#FF7F50' }}
+              trackColor={{ false: '#767577', true: colors.primary }}
               thumbColor="#f4f3f4"
             />
           </View>
           
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceInfo}>
-              <Ionicons name="bulb-outline" size={24} color={isDark ? '#ffffff' : '#333333'} />
-              <Text style={[styles.preferenceText, isDark && styles.darkText]}>Tips & Advice</Text>
+              <Ionicons name="bulb-outline" size={24} color={colors.textPrimary} />
+              <Text style={[styles.preferenceText, { color: colors.textPrimary }]}>Tips & Advice</Text>
             </View>
             <Switch
               value={notifications.tips}
               onValueChange={(value) => handleNotificationToggle('tips', value)}
-              trackColor={{ false: '#767577', true: '#FF7F50' }}
+              trackColor={{ false: '#767577', true: colors.primary }}
               thumbColor="#f4f3f4"
             />
           </View>
         </View>
 
-        <View style={[styles.section, isDark && styles.darkSection]}>
-          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Account</Text>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Account</Text>
           
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/change-password')}>
+          <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.divider }]} onPress={() => router.push('/change-password')}>
             <View style={styles.menuItemContent}>
-              <Ionicons name="lock-closed-outline" size={24} color={isDark ? '#ffffff' : '#333333'} />
-              <Text style={[styles.menuItemText, isDark && styles.darkText]}>Change Password</Text>
+              <Ionicons name="lock-closed-outline" size={24} color={colors.textPrimary} />
+              <Text style={[styles.menuItemText, { color: colors.textPrimary }]}>Change Password</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={isDark ? '#ffffff' : '#333333'} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/privacy-settings')}>
+          <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.divider }]} onPress={() => router.push('/privacy-settings')}>
             <View style={styles.menuItemContent}>
-              <Ionicons name="shield-outline" size={24} color={isDark ? '#ffffff' : '#333333'} />
-              <Text style={[styles.menuItemText, isDark && styles.darkText]}>Privacy Settings</Text>
+              <Ionicons name="shield-outline" size={24} color={colors.textPrimary} />
+              <Text style={[styles.menuItemText, { color: colors.textPrimary }]}>Privacy Settings</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={isDark ? '#ffffff' : '#333333'} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/help-support')}>
+          <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.divider }]} onPress={() => router.push('/help-support')}>
             <View style={styles.menuItemContent}>
-              <Ionicons name="help-circle-outline" size={24} color={isDark ? '#ffffff' : '#333333'} />
-              <Text style={[styles.menuItemText, isDark && styles.darkText]}>Help & Support</Text>
+              <Ionicons name="help-circle-outline" size={24} color={colors.textPrimary} />
+              <Text style={[styles.menuItemText, { color: colors.textPrimary }]}>Help & Support</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={isDark ? '#ffffff' : '#333333'} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/about')}>
+          <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.divider }]} onPress={() => router.push('/about')}>
             <View style={styles.menuItemContent}>
-              <Ionicons name="information-circle-outline" size={24} color={isDark ? '#ffffff' : '#333333'} />
-              <Text style={[styles.menuItemText, isDark && styles.darkText]}>About UniWell</Text>
+              <Ionicons name="information-circle-outline" size={24} color={colors.textPrimary} />
+              <Text style={[styles.menuItemText, { color: colors.textPrimary }]}>About UniWell</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={isDark ? '#ffffff' : '#333333'} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
         
@@ -424,13 +445,21 @@ export default function ProfileScreen() {
         </TouchableOpacity>
         
         <View style={styles.versionInfo}>
-          <Text style={[styles.versionText, isDark && styles.darkSubText]}>UniWell v1.0.0</Text>
+          <Text style={[styles.versionText, { color: colors.textTertiary }]}>UniWell v1.0.0</Text>
         </View>
       </ScrollView>
 
       <ProgressArchive
         visible={showArchiveModal}
         onClose={() => setShowArchiveModal(false)}
+      />
+       <Dialog
+        visible={dialog.visible}
+        onClose={hideDialog}
+        title={dialog.title}
+        message={dialog.message}
+        icon={dialog.icon}
+        actions={dialog.actions}
       />
     </SafeAreaView>
   );
@@ -540,7 +569,7 @@ const styles = StyleSheet.create({
     color: '#666666',
   },
   completionCard: {
-    backgroundColor: '#FF7F50',
+    backgroundColor: Colors.primary,
     borderRadius: 16,
     padding: 16,
     marginBottom: 24,

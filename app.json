@@ -5,11 +5,11 @@
     "scheme": "uniwell",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/uniwell-logo.png",
     "notification": {},
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/uniwell-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -26,7 +26,7 @@
     "newArchEnabled": true,
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/uniwell-logo.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.sean.uniwell",
@@ -41,6 +41,14 @@
     "plugins": [
       "expo-router",
       "expo-image-picker",
+        [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
+      ],
+
       [
         "expo-build-properties",
         {
@@ -48,21 +56,18 @@
             "deploymentTarget": "15.1"
           },
           "android": {
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34,
-            "buildToolsVersion": "34.0.0",
-            "kotlinVersion": "1.9.20",
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "buildToolsVersion": "36.0.0",
+            "kotlinVersion": "2.2.20",
             "ndkVersion": "25.1.8937393"
           }
         }
       ],
-      [
-        "expo-video",
-        {
-          "supportsBackgroundPlayback": true,
-          "supportsPictureInPicture": true
-        }
-      ]
+      "./plugins/loading-indicator-plugin.js",
+      "expo-audio",
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "tsconfigPaths": true

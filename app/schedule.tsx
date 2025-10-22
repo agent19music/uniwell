@@ -459,6 +459,10 @@ export default function ClassScheduleScreen() {
   const currentDayIndex = getCurrentDayIndex();
   const classes = getClassesForDay(currentDayIndex);
 
+  const getClassesForDate = (date: Date) => {
+    return getClassesForDay(date.getDay());
+  };
+
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
       {/* Header */}
@@ -468,6 +472,7 @@ export default function ClassScheduleScreen() {
         viewMode={viewMode}
         setViewMode={toggleViewMode}
         currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
         formatHeaderDate={formatHeaderDate}
         navigateDay={navigateDay}
         onSemesterPress={() => setIsSemesterModalVisible(true)}
@@ -508,6 +513,7 @@ export default function ClassScheduleScreen() {
               viewMode={viewMode as 'day' | 'week'}
               onDaySelect={handleDaySelect}
               onSwipeChangeWeek={navigateDay}
+              getClassesForDay={getClassesForDate}
             />
           </ScrollView>
         )}

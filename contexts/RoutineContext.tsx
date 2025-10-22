@@ -799,7 +799,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
       // Group completions by date for easier lookup
       const completionsByDate: Record<string, RoutineCompletion[]> = {};
       
-      data.forEach(item => {
+      data.forEach((item: { id: string; routine_id: string; user_id: string; completion_date: string; completed_at: string; status: string; notes: string }) => { 
         const dateStr = item.completion_date;
         if (!completionsByDate[dateStr]) {
           completionsByDate[dateStr] = [];
@@ -812,7 +812,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
           userId: item.user_id,
           completionDate: item.completion_date,
           completedAt: item.completed_at,
-          status: item.status,
+          status: item.status as any,
           notes: item.notes
         };
         

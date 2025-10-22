@@ -16,7 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { supabase } from '../lib/supabase';
-import * as burnt from 'burnt';
+import * as  Burnt from 'burnt';
+import { title } from 'process';
 
 interface ResourceDetailProps {
   resourceId: string;
@@ -73,10 +74,14 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       }
     } catch (error) {
       console.error('Error fetching resource details:', error);
-      burnt.toast({
-        title: 'Error',
-        message: 'Failed to load resource details',
+
+      Burnt.toast({
+        title: "Error",
+        message: 'Failed to load resource details.',
         preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
     } finally {
       setLoading(false);
@@ -131,18 +136,22 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
         .eq('id', user.id);
         
       setIsSaved(!isSaved);
-      
-      burnt.toast({
+
+      Burnt.toast({
         title: isSaved ? 'Removed from Saved' : 'Saved to Library',
-        message: isSaved ? 'Resource removed from your saved items' : 'Resource added to your saved items',
-        preset: 'done',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
     } catch (error) {
       console.error('Error toggling save status:', error);
-      burnt.toast({
+      Burnt.toast({
         title: 'Error',
         message: 'Failed to update saved status',
         preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
     }
   };
@@ -156,18 +165,24 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       if (supported) {
         await Linking.openURL(resource.media_url);
       } else {
-        burnt.toast({
+        Burnt.toast({
           title: 'Error',
           message: 'Cannot open this URL',
           preset: 'error',
+          duration: 2,
+          from: 'top',
+          shouldDismissByDrag: true
         });
       }
     } catch (error) {
       console.error('Error opening URL:', error);
-      burnt.toast({
+      Burnt.toast({
         title: 'Error',
         message: 'Failed to open in browser',
         preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
     }
   };
@@ -180,7 +195,7 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
         return (
           <View style={styles.videoContainer}>
             <WebView
-              source={{ uri: resource.media_url }}
+              source={{ uri: resource.media_url, html: '' }}
               style={styles.videoPlayer}
               allowsFullscreenVideo
               javaScriptEnabled

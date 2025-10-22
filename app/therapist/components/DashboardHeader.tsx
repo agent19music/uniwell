@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTherapist } from '../context/TherapistContext';
+import { useTherapist } from '../../../contexts/TherapistContext';
 
 export default function DashboardHeader() {
   const colorScheme = useColorScheme();

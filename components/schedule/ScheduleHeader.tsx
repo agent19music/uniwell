@@ -10,6 +10,7 @@ interface ScheduleHeaderProps {
     viewMode: 'day' | 'week';
     setViewMode: (mode: 'day' | 'week') => void;
     currentDate: Date;
+    setCurrentDate: (date: Date) => void;
     formatHeaderDate: () => string;
     navigateDay: (direction: number) => void;
     onSemesterPress: () => void;
@@ -22,6 +23,7 @@ interface ScheduleHeaderProps {
     viewMode,
     setViewMode,
     currentDate,
+    setCurrentDate,
     formatHeaderDate,
     navigateDay,
     onSemesterPress,

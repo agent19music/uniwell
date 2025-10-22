@@ -6,20 +6,23 @@ UniWell is a comprehensive wellness tracking and self-improvement mobile applica
 
 ## ✨ Key Features
 
-- 📅 Routine Tracking: Create, monitor, and optimize daily routines
-- 🔥 Streak Tracking: Visualize and maintain consistent progress
-- 👤 User Profiles: Personalized experience with profile customization
-- 🔐 Secure Authentication: Safe login and signup mechanisms
-- 📊 Progress Visualization: Insights into your personal development journey
+- 📅 **Smart Semester Planning**: Organize your academic life with intelligent semester tracking
+- 📚 **Study Resources**: Access curated educational content from YouTube, Spotify podcasts, and news articles  
+- 📝 **Digital Journaling**: Text and voice journaling with audio recording capabilities
+- 🧘 **Mindfulness Games**: Breathing exercises, nature sounds, and coloring activities
+- 📊 **Progress Tracking**: Visual analytics and streak monitoring for personal growth
+- 🔐 **Secure Data**: Safe authentication with Supabase backend
 
 ## 🛠 Tech Stack
 
-- React Native
-- TypeScript
-- Expo
-- Native Base (UI Components)
-- Async Storage
-- React Navigation
+- **React Native** (v0.81.4)
+- **TypeScript** (v5.9.2)
+- **Expo** (v54.0.10) with Router
+- **Expo Audio/Video** for multimedia features
+- **Supabase** for backend and authentication
+- **React Query** for data fetching and caching
+- **Reanimated** for smooth animations
+- **Async Storage** for local data persistence
 
 ## 📦 Prerequisites
 
@@ -32,7 +35,7 @@ UniWell is a comprehensive wellness tracking and self-improvement mobile applica
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/uniwell.git
+git clone https://github.com/seanmotanya/uniwell.git
 cd uniwell
 ```
 
@@ -57,16 +60,68 @@ npx expo start
 ## 🧩 Project Structure
 
 ```
-uniwell/
-├── app/
-│   ├── components/      # Reusable UI components
-│   ├── modals/          # Modal screen definitions
-│   ├── (tabs)/          # Tab navigation components
-│   └── ...
-├── assets/              # Static assets
-├── contexts/            # React contexts
-└── lib/                 # Utility functions and helpers
+uniwelll/
+├── app/                 # Expo Router screens
+│   └── (tabs)/          # Tab navigation screens
+├── components/          # Reusable UI components
+├── assets/              # Images, sounds, and static files
+├── lib/                 # Utility functions (Supabase, resources)
+├── contexts/            # React contexts for state management
+├── types/               # TypeScript type definitions
+├── scripts/             # Build and utility scripts
+└── __tests__/           # Test files
 ```
+
+## 🔔 Toast Notifications
+
+UniWell uses a unified toast notification system that works seamlessly across all platforms (iOS, Android, and Web).
+
+### Quick Usage
+
+```tsx
+// Always import from @/lib/toast - no platform-specific imports needed!
+import { toast } from '@/lib/toast';
+
+// Simple notifications
+toast('Hello World!');
+toast.success('Profile saved!');
+toast.error('Something went wrong');
+
+// With options
+toast('Operation complete', {
+  preset: 'done',
+  duration: 3000  // Web only
+});
+
+// Handle async operations
+await toast.promise(saveProfile(), {
+  loading: 'Saving...',
+  success: 'Profile saved!',
+  error: 'Failed to save'
+});
+```
+
+### Key Points
+
+- ✅ **Always import from `@/lib/toast`** - The module automatically handles platform differences
+- ✅ **No platform-specific code needed** - Write once, run everywhere
+- ✅ **Fully typed** - TypeScript support included
+- ✅ **Zero configuration** - Works out of the box
+
+### Customization
+
+Customize toast behavior with options:
+
+```tsx
+toast('Custom toast', {
+  preset: 'done',        // 'done' | 'error' | 'none' | 'custom' | 'heart'
+  duration: 5000,        // Duration in ms (Web only)
+  position: 'top-right', // Position (Web only)
+  haptic: 'success'      // Haptic feedback (Native only)
+});
+```
+
+For more details, see the [full toast documentation](./lib/toast/README.md).
 
 ## 🤝 Contributing
 

@@ -20,7 +20,7 @@ export default function AddRoutineModal() {
 
   const handleSave = async () => {
     try {
-      await createRoutine(title, frequency, frequency === 'custom' ? selectedDays : [], routineTime);
+      await createRoutine(title, frequency, frequency === 'custom' ? selectedDays : [], routineTime.toISOString());
       router.back();
     } catch (error) {
       console.error('Error creating routine:', error);

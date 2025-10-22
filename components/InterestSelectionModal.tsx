@@ -15,7 +15,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
-import * as burnt from 'burnt';
+import * as Burnt from 'burnt';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
@@ -50,10 +50,13 @@ export default function InterestSelectionModal({
         if (prev.length < 10) {
           return [...prev, interestId];
         } else {
-          burnt.toast({
-            title: 'Maximum Reached',
+          Burnt.toast({
+            title: 'Error',
             message: 'You can select up to 10 interests',
             preset: 'error',
+            duration: 2,
+            from: 'top',
+            shouldDismissByDrag: true
           });
           return prev;
         }
@@ -63,10 +66,13 @@ export default function InterestSelectionModal({
 
   const handleSave = useCallback(async () => {
     if (selectedInterests.length === 0) {
-      burnt.toast({
-        title: 'Select Interests',
+      Burnt.toast({
+        title: 'Error',
         message: 'Please select at least one interest',
         preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
       return;
     }
@@ -100,17 +106,23 @@ export default function InterestSelectionModal({
       onInterestsUpdated(selectedInterests);
       onClose();
 
-      burnt.toast({
-        title: 'Interests Updated',
+      Burnt.toast({
+        title: 'Success',
         message: 'Your interests have been saved successfully',
         preset: 'done',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
     } catch (error) {
       console.error('Error saving interests:', error);
-      burnt.toast({
+      Burnt.toast({
         title: 'Error',
         message: 'Failed to save interests. Please try again.',
         preset: 'error',
+        duration: 2,
+        from: 'top',
+        shouldDismissByDrag: true
       });
     } finally {
       setLoading(false);

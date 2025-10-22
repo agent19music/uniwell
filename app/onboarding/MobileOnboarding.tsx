@@ -6,7 +6,7 @@ import Animated, {
   useAnimatedRef,
 } from 'react-native-reanimated';
 
-import { onboardingSlides } from './slidesData';
+import { onboardingSlides } from '../../onboarding/slidesData';
 import OnboardingSlide from './components/OnboardingSlide';
 import { useOnboarding } from './OnboardingContext';
 

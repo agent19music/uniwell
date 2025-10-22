@@ -334,12 +334,12 @@ export default function PostScreen() {
           <View style={[styles.postContainer, isDark && styles.postContainerDark]}>
             <View style={styles.postHeader}>
               <Image 
-                source={{ uri: post.profiles.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }} 
+                source={{ uri: post.profiles?.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }} 
                 style={styles.avatar} 
               />
               <View style={styles.postHeaderText}>
                 <Text style={[styles.username, isDark && styles.usernameDark]}>
-                  {post.profiles.username}
+                  {post.profiles?.username}
                 </Text>
                 <Text style={[styles.timestamp, isDark && styles.timestampDark]}>
                   {format(new Date(post.created_at), 'MMM d, yyyy')}
