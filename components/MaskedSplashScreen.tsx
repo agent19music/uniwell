@@ -61,7 +61,7 @@ export const MaskedSplashScreen: React.FC<MaskedSplashScreenProps> = ({
     <View style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
       <Animated.View style={[styles.mask, animatedStyle]}>
         <Image 
-          source={require('../assets/splash-removebg.png')} 
+          source={require('../assets/uniwell-logo-removebg.png')} 
           style={styles.logo}
           resizeMode="contain"
         />

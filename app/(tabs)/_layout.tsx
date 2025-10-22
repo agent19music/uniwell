@@ -1,13 +1,13 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { HouseSimpleIcon, UsersThreeIcon, CalendarDotsIcon, GameControllerIcon, RepeatIcon } from 'phosphor-react-native';
 import FluidTabBar from '../../components/FluidTabBar';
 import { TherapistProvider } from '../../contexts/TherapistContext';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
 
   return (
     <TherapistProvider>
@@ -16,7 +16,7 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
+            backgroundColor: colors.tabBar.background,
             borderTopWidth: 0,
             elevation: 0,
             shadowOpacity: 0,
@@ -24,8 +24,8 @@ export default function TabLayout() {
             paddingBottom: 8,
             paddingTop: 8,
           },
-          tabBarActiveTintColor: isDark ? '#FF7F50' : '#FF7F50',
-          tabBarInactiveTintColor: isDark ? '#888888' : '#666666',
+          tabBarActiveTintColor: colors.tabBar.iconSelected,
+          tabBarInactiveTintColor: colors.tabBar.iconDefault,
           tabBarLabelStyle: {
             fontSize: 12,
             fontWeight: '500',
@@ -37,7 +37,7 @@ export default function TabLayout() {
           options={{    
             title: 'Home' ,
             tabBarIcon: ({ size, color }) => (
-              <Feather name="home" size={size} color={color} />
+              <HouseSimpleIcon  size={size} color={color} />
             ),
           }}
         />
@@ -46,7 +46,7 @@ export default function TabLayout() {
           options={{
             title: 'Sessions',
             tabBarIcon: ({ size, color }) => (
-              <Ionicons name="calendar-outline" size={size} color={color} />
+              <CalendarDotsIcon size={size} color={color} />
             ),
           }}
         />
@@ -56,7 +56,7 @@ export default function TabLayout() {
           options={{
             title: 'Community',
             tabBarIcon: ({ size, color }) => (
-              <Ionicons name="people-outline" size={size} color={color} />
+              <UsersThreeIcon size={size} color={color} />
             ),
           }}
         />
@@ -65,7 +65,7 @@ export default function TabLayout() {
           options={{
             title: 'Routines',
             tabBarIcon: ({ size, color }) => (
-              <Ionicons name="repeat-sharp" size={size} color={color} />
+              <RepeatIcon size={size} color={color} />
             ),
           }}
         />
@@ -74,7 +74,7 @@ export default function TabLayout() {
           options={{
             title: 'Games',
             tabBarIcon: ({ size, color }) => (
-              <Ionicons name="game-controller-outline" size={size} color={color} />
+              <GameControllerIcon size={size} color={color} />
             ),
           }}
         />

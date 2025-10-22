@@ -7,10 +7,9 @@ import {
   useColorScheme, 
   TouchableOpacity, 
   Image,
-  ActivityIndicator,
-  RefreshControl,
   Alert,
-  Linking
+  Linking,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +17,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTherapist } from '../../contexts/TherapistContext';
 import { Appointment } from '../../types/therapist';
 import { supabase } from '../../lib/supabase';
+import { LoadingIndicator } from '@rn-nui/loading-indicator';
+import { Colors } from '@/constants/Colors';
 
 export default function SessionsScreen() {
   const colorScheme = useColorScheme();
@@ -281,7 +282,7 @@ export default function SessionsScreen() {
     return (
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF7F50" />
+          <LoadingIndicator containerSize={50} containerColor={Colors.primary} animating={true} color={Colors.background} />
           <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading sessions...</Text>
         </View>
       </SafeAreaView>

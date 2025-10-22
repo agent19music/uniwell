@@ -5,11 +5,11 @@
     "scheme": "uniwell",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/uniwell-logo.png",
     "notification": {},
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/uniwell-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -26,7 +26,7 @@
     "newArchEnabled": true,
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/uniwell-logo.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.sean.uniwell",
@@ -64,6 +64,7 @@
           }
         }
       ],
+      "./plugins/loading-indicator-plugin.js",
       "expo-audio",
       "expo-font",
       "expo-web-browser"

@@ -38,7 +38,7 @@ export async function scheduleLocalNotification(
   if ('Notification' in window && Notification.permission === 'granted') {
     new Notification(title, {
       body,
-      icon: '/icon.png', // You can customize this
+      icon: '/uniwell-logo.png', // You can customize this
       badge: '/badge.png',
     });
   } else {

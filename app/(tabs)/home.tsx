@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Image, useWindowDimensions, Animated } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, useWindowDimensions, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Entypo, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useMood, MoodType } from '../../contexts/MoodContext';
 import * as Burnt from 'burnt';
+import { useTheme } from '../../hooks/useTheme';
+
 
 const MOOD_OPTIONS = [
   { id: 'happy', icon: '😊', label: 'Happy', color: '#FF69B4' },
@@ -17,8 +19,7 @@ const MOOD_OPTIONS = [
 
 export default function HomeScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const { height } = useWindowDimensions();
   const [userName, setUserName] = useState('');
   const [scaleValue] = useState(new Animated.Value(1));
@@ -162,7 +163,7 @@ export default function HomeScreen() {
 
   const renderMoodPrompt = () => (
     <>
-      <Text style={[styles.question, isDark && styles.darkSubText]}>
+      <Text style={[styles.question, { color: colors.textSecondary }]}>
         How are you feeling today?
       </Text>
       <View style={styles.moodContainer}>
@@ -173,7 +174,7 @@ export default function HomeScreen() {
             onPress={() => handleMoodSelection(mood)}
           >
             <Text style={styles.moodEmoji}>{mood.icon}</Text>
-            <Text style={[styles.moodLabel, isDark && styles.darkText]}>{mood.label}</Text>
+            <Text style={[styles.moodLabel, { color: colors.textPrimary }]}>{mood.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -189,11 +190,11 @@ export default function HomeScreen() {
     return (
       <View style={styles.currentMoodContainer}>
         <View style={styles.currentMoodHeader}>
-          <Text style={[styles.currentMoodTitle, isDark && styles.darkText]}>
+          <Text style={[styles.currentMoodTitle, { color: colors.textPrimary }]}>
             Today's Mood
           </Text>
           <TouchableOpacity onPress={handleViewMoodHistory}>
-            <Text style={styles.viewHistoryText}>View History</Text>
+            <Text style={[styles.viewHistoryText, { color: colors.primary }]}>View History</Text>
           </TouchableOpacity>
         </View>
         
@@ -203,10 +204,10 @@ export default function HomeScreen() {
         ]}>
           <Text style={styles.currentMoodEmoji}>{selectedMood.icon}</Text>
           <View style={styles.currentMoodContent}>
-            <Text style={[styles.currentMoodLabel, isDark && styles.darkText]}>
+            <Text style={[styles.currentMoodLabel, { color: colors.textPrimary }]}>
               {selectedMood.label}
             </Text>
-            <Text style={[styles.currentMoodTime, isDark && styles.darkSubText]}>
+            <Text style={[styles.currentMoodTime, { color: colors.textSecondary }]}>
               Recorded at {new Date(currentMood.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
             </Text>
           </View>
@@ -239,10 +240,10 @@ export default function HomeScreen() {
     }
     
     return (
-      <View style={[styles.moodMessageCard, isDark && styles.darkMoodMessageCard]}>
-        <Text style={[styles.moodMessage, isDark && styles.darkText]}>{message}</Text>
+      <View style={[styles.moodMessageCard, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
+        <Text style={[styles.moodMessage, { color: colors.textPrimary }]}>{message}</Text>
         <TouchableOpacity 
-          style={styles.journalButton}
+          style={[styles.journalButton, { backgroundColor: colors.primary }]}
           onPress={handleJournalPress}
         >
           <Text style={styles.journalButtonText}>Write in Journal</Text>
@@ -256,70 +257,70 @@ export default function HomeScreen() {
     <View style={styles.cardsContainer}>
       {/* Sleep Card */}
       <TouchableOpacity 
-        style={[styles.card, isDark && styles.darkCard]} 
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
         onPress={handleSleepCardPress}
       >
         <View style={styles.cardHeader}>
-          <Ionicons name="moon-outline" size={24} color="#FF7F50" />
-          <Text style={[styles.cardTitle, isDark && styles.darkText]}>Sleep</Text>
+          <Ionicons name="moon-outline" size={24} color={colors.primary} />
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Sleep</Text>
         </View>
-        <Text style={[styles.cardSubtitle, isDark && styles.darkSubText]}>
+        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
           Track your sleep patterns
         </Text>
       </TouchableOpacity>
 
       {/*Library Card */}
       <TouchableOpacity 
-        style={[styles.card, isDark && styles.darkCard]} 
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
         onPress={handleLibraryPress}
       >
         <View style={styles.cardHeader}>
-          <Ionicons name="book-outline" size={24} color="#FF7F50" />
-          <Text style={[styles.cardTitle, isDark && styles.darkText]}>Library</Text>
+          <Ionicons name="book-outline" size={24} color={colors.primary} />
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Library</Text>
         </View>
-        <Text style={[styles.cardSubtitle, isDark && styles.darkSubText]}>
+        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
           Read and listen to articles
         </Text>
       </TouchableOpacity>
 
       {/* Chat Card */}
       <TouchableOpacity 
-        style={[styles.card, isDark && styles.darkCard]} 
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
         onPress={handleChatCardPress}
       >
         <View style={styles.cardHeader}>
-          <Ionicons name="chatbubble-outline" size={24} color="#FF7F50" />
-          <Text style={[styles.cardTitle, isDark && styles.darkText]}>Chat</Text>
+          <Ionicons name="chatbubble-outline" size={24} color={colors.primary} />
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Chat</Text>
         </View>
-        <Text style={[styles.cardSubtitle, isDark && styles.darkSubText]}>
+        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
           Chat with your AI therapist
         </Text>
       </TouchableOpacity>
 
       {/* Therapist Dashboard Card */}
       {/* <TouchableOpacity 
-        style={[styles.card, isDark && styles.darkCard]} 
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
         onPress={handleTherapistDashboardPress}
       >
         <View style={styles.cardHeader}>
-          <Ionicons name="calendar-outline" size={24} color="#FF7F50" />
-          <Text style={[styles.cardTitle, isDark && styles.darkText]}>Therapist</Text>
+          <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Therapist</Text>
         </View>
-        <Text style={[styles.cardSubtitle, isDark && styles.darkSubText]}>
+        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
           Open therapist dashboard
         </Text>
       </TouchableOpacity> */}
 
       {/* Streaks Card */}
       <TouchableOpacity 
-        style={[styles.card, isDark && styles.darkCard]} 
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
         onPress={handleStreakCardPress}
       >
         <View style={styles.cardHeader}>
-          <Octicons name="flame" size={24} color="#FF7F50" />
-          <Text style={[styles.cardTitle, isDark && styles.darkText]}>Streaks</Text>
+          <Octicons name="flame" size={24} color={colors.primary} />
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Streaks</Text>
         </View>
-        <Text style={[styles.cardSubtitle, isDark && styles.darkSubText]}>
+        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
           Track your progress
         </Text>
       </TouchableOpacity>
@@ -334,7 +335,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView 
         style={styles.scrollView} 
         showsVerticalScrollIndicator={false}
@@ -354,12 +355,12 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity onPress={handleNotificationsPress}>
               <View style={styles.notificationIcon}>
-                <Ionicons name="notifications-outline" size={24} color={isDark ? '#ffffff' : '#000000'} />
-                <View style={styles.notificationBadge} />
+                <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
+                <View style={[styles.notificationBadge, { backgroundColor: colors.primary }]} />
               </View>
             </TouchableOpacity>
           </View>
-          <Text style={[styles.greeting, isDark && styles.darkText]}>
+          <Text style={[styles.greeting, { color: colors.textPrimary }]}>
             Good {getTimeOfDay()},{'\n'}{userName || 'Guest'}
           </Text>
           
@@ -375,10 +376,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
-  },
-  darkContainer: {
-    backgroundColor: '#121212',
   },
   scrollView: {
     flex: 1,
@@ -411,26 +408,17 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FF7F50',
   },
   greeting: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
     marginVertical: 16,
     fontFamily: 'Vercetti-Regular',
   },
   question: {
     fontSize: 16,
-    color: '#666',
     marginBottom: 16,
     fontFamily: 'Vercetti-Regular',
-  },
-  darkText: {
-    color: '#ffffff',
-  },
-  darkSubText: {
-    color: '#aaaaaa',
   },
   moodContainer: {
     flexDirection: 'row',
@@ -450,7 +438,6 @@ const styles = StyleSheet.create({
   },
   moodLabel: {
     fontSize: 14,
-    color: '#333',
     marginTop: 4,
     fontFamily: 'Vercetti-Regular',
   },
@@ -466,12 +453,10 @@ const styles = StyleSheet.create({
   currentMoodTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
   },
   viewHistoryText: {
     fontSize: 14,
-    color: '#FF7F50',
     fontFamily: 'Vercetti-Regular',
   },
   currentMoodCard: {
@@ -491,34 +476,25 @@ const styles = StyleSheet.create({
   currentMoodLabel: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
   },
   currentMoodTime: {
     fontSize: 14,
-    color: '#666',
   },
   moodMessageCard: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: 'white',
     marginBottom: 16,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  darkMoodMessageCard: {
-    backgroundColor: '#1e1e1e',
-  },
   moodMessage: {
     fontSize: 14,
-    color: '#333',
     lineHeight: 20,
     marginBottom: 16,
   },
   journalButton: {
-    backgroundColor: '#FF7F50',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -535,18 +511,13 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    backgroundColor: 'white',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-  },
-  darkCard: {
-    backgroundColor: '#1e1e1e',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -556,13 +527,11 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
     marginLeft: 8,
     fontFamily: 'Vercetti-Regular',
   },
   cardSubtitle: {
     fontSize: 14,
-    color: '#666',
     fontFamily: 'Vercetti-Regular',
   }
 });
