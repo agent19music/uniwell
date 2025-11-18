@@ -48,3 +48,5 @@ mcp.json
 # typescript
 *.tsbuildinfo
 .cursor
+
+docs/
