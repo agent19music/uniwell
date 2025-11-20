@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { format, parseISO, differenceInDays, isYesterday, isToday, isFuture } from 'date-fns';
-import { ClassSchedule } from '../types/TimetableTypes'; // Adjust the import based on your types
+import { ClassSchedule } from '../types/TimetableTypes';
 import { useAuth } from './AuthContext';
 import * as Notifications from 'expo-notifications';
+import { routineCache, streakCache } from '../lib/cache';
+import type { RoutineCacheData } from '../lib/cache';
 
 type Frequency = 'daily' | 'weekly' | 'custom';
 type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -419,12 +421,68 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser?.id) return;
 
     try {
+      // Try cache first
+      let cachedData = await streakCache.getStreaks(currentUser.id);
+      
+      if (cachedData) {
+        const streaksData = cachedData.streaks.map((s): Streak => ({
+          id: s.id,
+          title: s.title,
+          type: s.type,
+          status: s.status,
+          startDate: s.start_date,
+          startTime: s.start_time,
+          currentStreak: s.current_streak,
+          longestStreak: s.longest_streak,
+          targetCount: s.target_count,
+          color: s.color,
+          icon: s.icon,
+        }));
+        setStreaks(streaksData);
+        
+        // Check if stale and refresh
+        const status = await streakCache.getStatus(currentUser.id);
+        if (status === 'stale') {
+          fetchStreaksFromServer();
+        }
+      } else {
+        await fetchStreaksFromServer();
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const fetchStreaksFromServer = async () => {
+    if (!currentUser?.id) return;
+
+    try {
       const { data, error } = await supabase
         .from('streaks')
         .select('*')
         .eq('user_id', currentUser.id);
 
       if (error) throw error;
+
+      // Update cache
+      await streakCache.setStreaks(currentUser.id, {
+        streaks: data.map((s: any) => ({
+          id: s.id,
+          user_id: s.user_id,
+          title: s.title,
+          type: s.type,
+          status: s.status,
+          start_date: s.start_date,
+          start_time: s.start_time,
+          current_streak: s.current_streak,
+          longest_streak: s.longest_streak,
+          target_count: s.target_count,
+          color: s.color,
+          icon: s.icon,
+          created_at: s.created_at,
+          updated_at: s.updated_at,
+        })),
+      });
 
       const streaksData = data.map(formatStreak);
       setStreaks(streaksData);
@@ -766,17 +824,111 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchRoutines = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('routines')
-        .select('*')
-        .eq('user_id', currentUser?.id);
+    if (!currentUser?.id) return;
 
-      if (error) throw error;
-      setRoutines(data || []);
+    try {
+      // Try cache first
+      let cachedData = await routineCache.getRoutines(currentUser.id);
       
-      // Fetch completions for each routine
-      await fetchRoutineCompletionsForUser();
+      if (cachedData) {
+        setRoutines(cachedData.routines);
+        
+        // Group completions by date
+        const completionsByDate: Record<string, RoutineCompletion[]> = {};
+        cachedData.completions.forEach(comp => {
+          if (!completionsByDate[comp.completion_date]) {
+            completionsByDate[comp.completion_date] = [];
+          }
+          completionsByDate[comp.completion_date].push({
+            id: comp.id,
+            routineId: comp.routine_id,
+            userId: comp.user_id,
+            completionDate: comp.completion_date,
+            completedAt: comp.completed_at,
+            status: comp.status as CompletionStatus,
+            notes: comp.notes || undefined,
+          });
+        });
+        setRoutineCompletions(completionsByDate);
+        
+        // Check if cache is stale and refresh in background
+        const status = await routineCache.getStatus(currentUser.id);
+        if (status === 'stale') {
+          fetchRoutinesFromServer();
+        }
+      } else {
+        // Not in cache, fetch from server
+        await fetchRoutinesFromServer();
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const fetchRoutinesFromServer = async () => {
+    if (!currentUser?.id) return;
+
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      const [routinesRes, completionsRes] = await Promise.all([
+        supabase.from('routines').select('*').eq('user_id', currentUser.id),
+        supabase.from('routine_completions').select('*')
+          .eq('user_id', currentUser.id)
+          .gte('completion_date', format(startDate, 'yyyy-MM-dd'))
+      ]);
+
+      if (routinesRes.error) throw routinesRes.error;
+      if (completionsRes.error) throw completionsRes.error;
+
+      // Update cache
+      await routineCache.setRoutines(currentUser.id, {
+        routines: routinesRes.data.map((r: any) => ({
+          id: r.id,
+          user_id: r.user_id,
+          title: r.title,
+          frequency: r.frequency,
+          custom_days: r.custom_days || [],
+          color: r.color,
+          icon: r.icon,
+          is_active: r.is_active,
+          notification_time: r.notification_time,
+          notification_enabled: r.notification_enabled,
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+        })),
+        completions: completionsRes.data.map((c: any) => ({
+          id: c.id,
+          routine_id: c.routine_id,
+          user_id: c.user_id,
+          completion_date: c.completion_date,
+          completed_at: c.completed_at,
+          status: c.status,
+          notes: c.notes,
+        })),
+      });
+
+      setRoutines(routinesRes.data || []);
+      
+      // Group completions by date
+      const completionsByDate: Record<string, RoutineCompletion[]> = {};
+      completionsRes.data.forEach((item: any) => {
+        const dateStr = item.completion_date;
+        if (!completionsByDate[dateStr]) {
+          completionsByDate[dateStr] = [];
+        }
+        completionsByDate[dateStr].push({
+          id: item.id,
+          routineId: item.routine_id,
+          userId: item.user_id,
+          completionDate: item.completion_date,
+          completedAt: item.completed_at,
+          status: item.status as CompletionStatus,
+          notes: item.notes,
+        });
+      });
+      setRoutineCompletions(completionsByDate);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -909,82 +1061,25 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     if (!canCompleteRoutine(routineId, date)) {
       throw new Error('Cannot complete routines older than 2 days');
     }
+    if (!currentUser?.id) {
+      throw new Error('User not authenticated');
+    }
 
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
       
-      // First check if user has permission
-      const { data: userSession } = await supabase.auth.getSession();
-      console.log("Current session:", userSession);
+      // Complete routine in cache (optimistic update)
+      await routineCache.completeRoutine(currentUser.id, routineId, date);
       
-      if (!userSession?.session?.access_token) {
-        throw new Error("Authentication required to complete routines");
-      }
-      
-      // Add authorization headers explicitly to solve RLS issues
-      const { data, error } = await supabase
-        .from('routine_completions')
-        .insert({
-          routine_id: routineId,
-          user_id: currentUser?.id,
-          completion_date: formattedDate,
-          status: 'completed',
-          notes
-        })
-        .select();
-
-      if (error) {
-        
-        // If we hit an RLS policy error, try a direct RPC call instead
-        if (error.code === '42501') {
-          const { data: rpcData, error: rpcError } = await supabase.rpc(
-            'complete_routine',
-            { 
-              p_routine_id: routineId,
-              p_user_id: currentUser?.id,
-              p_completion_date: formattedDate,
-              p_notes: notes || null
-            }
-          );
-          
-          if (rpcError) throw rpcError;
-          
-          // Create a manual completion record for the state
-          const manualCompletion: RoutineCompletion = {
-            id: `temp-${Date.now()}`,  // Temporary ID
-            routineId: routineId,
-            userId: currentUser?.id || '',
-            completionDate: formattedDate,
-            completedAt: new Date().toISOString(),
-            status: 'completed',
-            notes: notes
-          };
-          
-          // Update local state manually
-          setRoutineCompletions(prev => {
-            const updated = { ...prev };
-            if (!updated[formattedDate]) {
-              updated[formattedDate] = [];
-            }
-            updated[formattedDate] = [...updated[formattedDate], manualCompletion];
-            return updated;
-          });
-          
-          return;
-        }
-        
-        throw error;
-      }
-
-      // Update local state with properly formatted data
-      const completion: RoutineCompletion = {
-        id: data[0].id,
-        routineId: data[0].routine_id,
-        userId: data[0].user_id,
-        completionDate: data[0].completion_date,
-        completedAt: data[0].completed_at,
-        status: data[0].status,
-        notes: data[0].notes
+      // Update local state immediately
+      const tempCompletion: RoutineCompletion = {
+        id: `temp-${Date.now()}`,
+        routineId: routineId,
+        userId: currentUser.id,
+        completionDate: formattedDate,
+        completedAt: new Date().toISOString(),
+        status: 'completed',
+        notes: notes
       };
       
       setRoutineCompletions(prev => {
@@ -992,7 +1087,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
         if (!updated[formattedDate]) {
           updated[formattedDate] = [];
         }
-        updated[formattedDate] = [...updated[formattedDate], completion];
+        updated[formattedDate] = [...updated[formattedDate], tempCompletion];
         return updated;
       });
 
@@ -1000,7 +1095,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
       await fetchProgressArchive();
     } catch (err) {
       setError((err as Error).message);
-      throw err; // Re-throw to allow the UI to handle the error
+      throw err;
     }
   };
 

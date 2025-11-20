@@ -8,13 +8,13 @@ import {
   Modal,
   TextInput,
   Alert,
-  useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { format, addDays, subDays, isToday, isFuture } from 'date-fns';
 import { useRoutine } from '../contexts/RoutineContext';
 import ProgressArchive from '../components/ProgressArchive';
 import { Picker } from '@react-native-picker/picker';
+import { useTheme } from '../hooks/useTheme';
 
 export default function RoutinesScreen() {
   const {
@@ -36,8 +36,7 @@ export default function RoutinesScreen() {
   const [newRoutineCustomDays, setNewRoutineCustomDays] = useState<string[]>([]);
   const [newRoutineNotificationTime, setNewRoutineNotificationTime] = useState('');
   const [editingRoutine, setEditingRoutine] = useState<any>(null);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
 
   const handleAddRoutine = async () => {
     if (!newRoutineTitle.trim()) {
@@ -133,33 +132,38 @@ export default function RoutinesScreen() {
         showsHorizontalScrollIndicator={false}
         style={styles.dateSelector}
       >
-        {dates.map((date) => (
-          <TouchableOpacity
-            key={date.toISOString()}
-            style={[
-              styles.dateButton,
-              selectedDate.toDateString() === date.toDateString() && styles.selectedDateButton,
-            ]}
-            onPress={() => setSelectedDate(date)}
-          >
-            <Text
+        {dates.map((date) => {
+          const isSelected = selectedDate.toDateString() === date.toDateString();
+          return (
+            <TouchableOpacity
+              key={date.toISOString()}
               style={[
-                styles.dateButtonText,
-                selectedDate.toDateString() === date.toDateString() && styles.selectedDateButtonText,
+                styles.dateButton,
+                {
+                  backgroundColor: isSelected ? '#FF7F50' : colors.card,
+                }
               ]}
+              onPress={() => setSelectedDate(date)}
             >
-              {format(date, 'EEE')}
-            </Text>
-            <Text
-              style={[
-                styles.dateButtonDay,
-                selectedDate.toDateString() === date.toDateString() && styles.selectedDateButtonText,
-              ]}
-            >
-              {format(date, 'd')}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.dateButtonText,
+                  { color: isSelected ? '#FFFFFF' : colors.textSecondary }
+                ]}
+              >
+                {format(date, 'EEE')}
+              </Text>
+              <Text
+                style={[
+                  styles.dateButtonDay,
+                  { color: isSelected ? '#FFFFFF' : colors.textPrimary }
+                ]}
+              >
+                {format(date, 'd')}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     );
   };
@@ -169,11 +173,11 @@ export default function RoutinesScreen() {
     const canComplete = canCompleteRoutine(routine.id, selectedDate);
 
     return (
-      <View key={routine.id} style={styles.routineItem}>
+      <View key={routine.id} style={[styles.routineItem, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
         <View style={styles.routineHeader}>
           <View style={styles.routineInfo}>
             <Ionicons name={routine.icon || 'list'} size={24} color={routine.color || '#FF7F50'} />
-            <Text style={[styles.routineTitle, isDark && styles.darkText]}>{routine.title}</Text>
+            <Text style={[styles.routineTitle, { color: colors.textPrimary }]}>{routine.title}</Text>
           </View>
           <View style={styles.routineActions}>
             {!isFuture(selectedDate) && canComplete && (
@@ -187,7 +191,7 @@ export default function RoutinesScreen() {
                 <Ionicons
                   name={status === 'completed' ? 'checkmark-circle' : 'ellipse-outline'}
                   size={24}
-                  color={status === 'completed' ? '#34C759' : '#FF7F50'}
+                  color={status === 'completed' ? colors.success : '#FF7F50'}
                 />
               </TouchableOpacity>
             )}
@@ -195,18 +199,18 @@ export default function RoutinesScreen() {
               onPress={() => handleEditRoutine(routine)}
               style={styles.editButton}
             >
-              <Ionicons name="pencil" size={20} color="#007AFF" />
+              <Ionicons name="pencil" size={20} color={colors.info} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleDeleteRoutine(routine.id)}
               style={styles.deleteButton}
             >
-              <Ionicons name="trash" size={20} color="#FF3B30" />
+              <Ionicons name="trash" size={20} color={colors.error} />
             </TouchableOpacity>
           </View>
         </View>
         <View style={styles.routineDetails}>
-          <Text style={[styles.routineFrequency, isDark && styles.darkText]}>
+          <Text style={[styles.routineFrequency, { color: colors.textSecondary }]}>
             {routine.frequency === 'daily'
               ? 'Daily'
               : routine.frequency === 'weekly'
@@ -214,7 +218,7 @@ export default function RoutinesScreen() {
               : `Custom (${routine.customDays.length} days)`}
           </Text>
           {routine.notificationTime && (
-            <Text style={[styles.routineNotification, isDark && styles.darkText]}>
+            <Text style={[styles.routineNotification, { color: colors.textSecondary }]}>
               Reminder: {routine.notificationTime}
             </Text>
           )}
@@ -224,14 +228,14 @@ export default function RoutinesScreen() {
   };
 
   return (
-    <View style={[styles.container, isDark && styles.darkContainer]}>
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, isDark && styles.darkText]}>Routines</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.divider }]}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Routines</Text>
         <TouchableOpacity
           style={styles.archiveButton}
           onPress={() => setShowArchiveModal(true)}
         >
-          <Ionicons name="time" size={24} color={isDark ? '#FFFFFF' : '#000000'} />
+          <Ionicons name="time" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -262,80 +266,85 @@ export default function RoutinesScreen() {
         onRequestClose={() => setShowAddModal(false)}
       >
         <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, isDark && styles.darkModalContent]}>
-            <Text style={[styles.modalTitle, isDark && styles.darkText]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
               {editingRoutine ? 'Edit Routine' : 'Add New Routine'}
             </Text>
 
             <TextInput
-              style={[styles.input, isDark && styles.darkInput]}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
               placeholder="Routine Title"
-              placeholderTextColor={isDark ? '#666666' : '#999999'}
+              placeholderTextColor={colors.textSecondary}
               value={newRoutineTitle}
               onChangeText={setNewRoutineTitle}
             />
 
             <View style={styles.pickerContainer}>
-              <Text style={[styles.pickerLabel, isDark && styles.darkText]}>Frequency</Text>
+              <Text style={[styles.pickerLabel, { color: colors.textPrimary }]}>Frequency</Text>
               <Picker
                 selectedValue={newRoutineFrequency}
                 onValueChange={(value) => setNewRoutineFrequency(value)}
-                style={[styles.picker, isDark && styles.darkPicker]}
+                style={[styles.picker, { backgroundColor: colors.surface, color: colors.textPrimary }]}
               >
-                <Picker.Item label="Daily" value="daily" />
-                <Picker.Item label="Weekly" value="weekly" />
-                <Picker.Item label="Custom" value="custom" />
+                <Picker.Item label="Daily" value="daily" color={colors.textPrimary} />
+                <Picker.Item label="Weekly" value="weekly" color={colors.textPrimary} />
+                <Picker.Item label="Custom" value="custom" color={colors.textPrimary} />
               </Picker>
             </View>
 
             {newRoutineFrequency === 'custom' && (
               <View style={styles.customDaysContainer}>
-                <Text style={[styles.pickerLabel, isDark && styles.darkText]}>Custom Days</Text>
+                <Text style={[styles.pickerLabel, { color: colors.textPrimary }]}>Custom Days</Text>
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(
-                  (day) => (
-                    <TouchableOpacity
-                      key={day}
-                      style={[
-                        styles.dayButton,
-                        newRoutineCustomDays.includes(day.toLowerCase()) && styles.selectedDayButton,
-                      ]}
-                      onPress={() => {
-                        const dayLower = day.toLowerCase();
-                        setNewRoutineCustomDays((prev) =>
-                          prev.includes(dayLower)
-                            ? prev.filter((d) => d !== dayLower)
-                            : [...prev, dayLower]
-                        );
-                      }}
-                    >
-                      <Text
+                  (day) => {
+                    const isSelected = newRoutineCustomDays.includes(day.toLowerCase());
+                    return (
+                      <TouchableOpacity
+                        key={day}
                         style={[
-                          styles.dayButtonText,
-                          newRoutineCustomDays.includes(day.toLowerCase()) && styles.selectedDayButtonText,
+                          styles.dayButton,
+                          {
+                            backgroundColor: isSelected ? '#FF7F50' : colors.border,
+                          }
                         ]}
+                        onPress={() => {
+                          const dayLower = day.toLowerCase();
+                          setNewRoutineCustomDays((prev) =>
+                            prev.includes(dayLower)
+                              ? prev.filter((d) => d !== dayLower)
+                              : [...prev, dayLower]
+                          );
+                        }}
                       >
-                        {day.slice(0, 3)}
-                      </Text>
-                    </TouchableOpacity>
-                  )
+                        <Text
+                          style={[
+                            styles.dayButtonText,
+                            { color: isSelected ? '#FFFFFF' : colors.textPrimary }
+                          ]}
+                        >
+                          {day.slice(0, 3)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }
                 )}
               </View>
             )}
 
             <TextInput
-              style={[styles.input, isDark && styles.darkInput]}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
               placeholder="Notification Time (HH:MM)"
-              placeholderTextColor={isDark ? '#666666' : '#999999'}
+              placeholderTextColor={colors.textSecondary}
               value={newRoutineNotificationTime}
               onChangeText={setNewRoutineNotificationTime}
             />
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.border }]}
                 onPress={() => setShowAddModal(false)}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={[styles.cancelButtonText, { color: colors.textPrimary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
@@ -361,10 +370,6 @@ export default function RoutinesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  darkContainer: {
-    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -372,12 +377,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000000',
+    fontFamily: 'Vercetti-Regular',
   },
   archiveButton: {
     padding: 8,
@@ -392,35 +396,30 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     marginRight: 8,
-    backgroundColor: '#FFFFFF',
-  },
-  selectedDateButton: {
-    backgroundColor: '#FF7F50',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   dateButtonText: {
     fontSize: 14,
-    color: '#000000',
+    fontFamily: 'Vercetti-Regular',
   },
   dateButtonDay: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000000',
-  },
-  selectedDateButtonText: {
-    color: '#FFFFFF',
+    fontFamily: 'Vercetti-Regular',
   },
   routineList: {
     flex: 1,
     padding: 16,
   },
   routineItem: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -436,8 +435,8 @@ const styles = StyleSheet.create({
   routineTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
     marginLeft: 12,
+    fontFamily: 'Vercetti-Regular',
   },
   routineActions: {
     flexDirection: 'row',
@@ -460,12 +459,12 @@ const styles = StyleSheet.create({
   },
   routineFrequency: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: 'Vercetti-Regular',
   },
   routineNotification: {
     fontSize: 14,
-    color: '#666666',
     marginTop: 4,
+    fontFamily: 'Vercetti-Regular',
   },
   addButton: {
     position: 'absolute',
@@ -491,65 +490,50 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '90%',
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-  },
-  darkModalContent: {
-    backgroundColor: '#1C1C1E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#000000',
     marginBottom: 16,
+    fontFamily: 'Vercetti-Regular',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#CCCCCC',
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
-    color: '#000000',
-  },
-  darkInput: {
-    borderColor: '#333333',
-    color: '#FFFFFF',
+    fontFamily: 'Vercetti-Regular',
   },
   pickerContainer: {
     marginBottom: 16,
   },
   pickerLabel: {
     fontSize: 16,
-    color: '#000000',
     marginBottom: 8,
+    fontFamily: 'Vercetti-Regular',
   },
   picker: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
-  },
-  darkPicker: {
-    backgroundColor: '#1C1C1E',
-    color: '#FFFFFF',
   },
   customDaysContainer: {
     marginBottom: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   dayButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F2F2F7',
     marginRight: 8,
     marginBottom: 8,
   },
-  selectedDayButton: {
-    backgroundColor: '#FF7F50',
-  },
   dayButtonText: {
-    color: '#000000',
-  },
-  selectedDayButtonText: {
-    color: '#FFFFFF',
+    fontFamily: 'Vercetti-Regular',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -562,18 +546,15 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   cancelButton: {
-    backgroundColor: '#F2F2F7',
   },
   saveButton: {
     backgroundColor: '#FF7F50',
   },
   cancelButtonText: {
-    color: '#000000',
+    fontFamily: 'Vercetti-Regular',
   },
   saveButtonText: {
     color: '#FFFFFF',
-  },
-  darkText: {
-    color: '#FFFFFF',
+    fontFamily: 'Vercetti-Regular',
   },
 }); 

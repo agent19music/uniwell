@@ -1,4 +1,4 @@
-import { Pressable, View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions, ActivityIndicator, Animated, Modal } from 'react-native';
+import { Pressable, View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Animated, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import CreateSemesterModal from '../modals/CreateSemesterModal';
 import UpdateSemesterModal from '../modals/UpdateSemesterModal';
 import { useSemester } from '@/contexts/SemesterContext';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../hooks/useTheme';
 
 // Import our modular components
 import {ScheduleHeader} from '@/components/schedule/ScheduleHeader';
@@ -42,8 +43,7 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 const TIME_SLOTS = Array.from({ length: 24 }, (_, i) => i); // 0-23 hours
 
 export default function ClassScheduleScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day');
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -55,6 +55,7 @@ export default function ClassScheduleScreen() {
   const [classSchedules, setClassSchedules] = useState<ClassSchedule[]>([]);
   const [isScheduleEditorVisible, setIsScheduleEditorVisible] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [showAttendanceStats, setShowAttendanceStats] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const { width } = Dimensions.get('window');
   
@@ -67,7 +68,9 @@ export default function ClassScheduleScreen() {
     classSchedules: storedClassSchedules,
     deleteSemester,
     updateSemester,
-    deleteClassSchedule
+    deleteClassSchedule,
+    attendanceRecords,
+    calculateAttendance
   } = useSemester();
   
   // Track if we have content to display
@@ -289,6 +292,24 @@ export default function ClassScheduleScreen() {
     });
   };
 
+  // Calculate overall attendance rate
+  const calculateOverallAttendance = useMemo(() => {
+    if (!storedClassSchedules || storedClassSchedules.length === 0) return 0;
+    
+    let totalRate = 0;
+    let classCount = 0;
+    
+    storedClassSchedules.forEach(schedule => {
+      const attendanceRate = calculateAttendance(schedule.id);
+      if (attendanceRate > 0 || attendanceRecords.some(r => r.classId === schedule.id)) {
+        totalRate += attendanceRate;
+        classCount++;
+      }
+    });
+    
+    return classCount > 0 ? Math.round(totalRate / classCount) : 0;
+  }, [storedClassSchedules, attendanceRecords, calculateAttendance]);
+
   // Process class schedules to fit the day view
   const getClassesForDay = (dayIndex:number) => {
     if (!classSchedules) return [];
@@ -334,6 +355,9 @@ export default function ClassScheduleScreen() {
           return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
         };
 
+        // Calculate attendance rate for this class
+        const attendanceRate = calculateAttendance(schedule.id);
+
         return {
           id: schedule.courseCode,
           startTime: startDecimal,
@@ -343,7 +367,9 @@ export default function ClassScheduleScreen() {
           duration: duration,
           name: schedule.courseName,
           color: generateColorFromString(schedule.courseCode),
-          location: schedule.room || 'No location'
+          location: schedule.room || 'No location',
+          attendanceRate: attendanceRate,
+          classId: schedule.id
         };
       })
       .sort((a, b) => a.startTime - b.startTime);
@@ -463,8 +489,56 @@ export default function ClassScheduleScreen() {
     return getClassesForDay(date.getDay());
   };
 
+  // Render attendance statistics panel
+  const renderAttendanceStats = () => {
+    if (!showAttendanceStats || !storedClassSchedules || storedClassSchedules.length === 0) return null;
+    
+    return (
+      <View style={[styles.attendanceStatsPanel, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
+        <View style={styles.attendanceStatsHeader}>
+          <Text style={[styles.attendanceStatsTitle, { color: colors.textPrimary }]}>Attendance Overview</Text>
+          <TouchableOpacity onPress={() => setShowAttendanceStats(false)}>
+            <Ionicons name="close" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.overallAttendance}>
+          <Text style={[styles.overallAttendanceLabel, { color: colors.textSecondary }]}>Overall Attendance</Text>
+          <Text style={[styles.overallAttendanceValue, { color: colors.textPrimary }]}>
+            {calculateOverallAttendance}%
+          </Text>
+        </View>
+        
+        <ScrollView style={styles.classAttendanceList} showsVerticalScrollIndicator={false}>
+          {storedClassSchedules.map(schedule => {
+            const rate = calculateAttendance(schedule.id);
+            const rateColor = rate >= 80 ? colors.success : rate >= 60 ? colors.warning : colors.error;
+            
+            return (
+              <View key={schedule.id} style={[styles.classAttendanceItem, { borderBottomColor: colors.divider }]}>
+                <View style={styles.classAttendanceInfo}>
+                  <Text style={[styles.classAttendanceName, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {schedule.courseName}
+                  </Text>
+                  <Text style={[styles.classAttendanceCode, { color: colors.textSecondary }]}>
+                    {schedule.courseCode}
+                  </Text>
+                </View>
+                <View style={[styles.attendanceBadge, { backgroundColor: rateColor + '20' }]}>
+                  <Text style={[styles.attendanceBadgeText, { color: rateColor }]}>
+                    {rate}%
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
+
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
       <ScheduleHeader
         activeSemester={activeSemester?.name || null}
@@ -478,6 +552,22 @@ export default function ClassScheduleScreen() {
         onSemesterPress={() => setIsSemesterModalVisible(true)}
         onTodayPress={goToToday}
       />
+      
+      {/* Attendance Stats Toggle */}
+      {shouldShowTimetable && (
+        <TouchableOpacity 
+          style={[styles.attendanceToggle, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
+          onPress={() => setShowAttendanceStats(!showAttendanceStats)}
+        >
+          <Ionicons name="stats-chart" size={20} color={colors.textPrimary} />
+          <Text style={[styles.attendanceToggleText, { color: colors.textPrimary }]}>
+            Attendance: {calculateOverallAttendance}%
+          </Text>
+        </TouchableOpacity>
+      )}
+      
+      {/* Attendance Statistics Panel */}
+      {renderAttendanceStats()}
 
       {/* Main Content Area */}
       <View style={styles.contentContainer}>
@@ -514,6 +604,7 @@ export default function ClassScheduleScreen() {
               onDaySelect={handleDaySelect}
               onSwipeChangeWeek={navigateDay}
               getClassesForDay={getClassesForDate}
+              calculateAttendance={calculateAttendance}
             />
           </ScrollView>
         )}
@@ -602,15 +693,103 @@ export default function ClassScheduleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  darkContainer: {
-    backgroundColor: '#1C1C1E',
   },
   contentContainer: {
     flex: 1,
   },
   scrollView: {
     flex: 1,
+  },
+  attendanceToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    gap: 8,
+  },
+  attendanceToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Vercetti-Regular',
+  },
+  attendanceStatsPanel: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 16,
+    padding: 16,
+    maxHeight: 400,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  attendanceStatsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  attendanceStatsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'Vercetti-Regular',
+  },
+  overallAttendance: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  overallAttendanceLabel: {
+    fontSize: 14,
+    marginBottom: 4,
+    fontFamily: 'Vercetti-Regular',
+  },
+  overallAttendanceValue: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    fontFamily: 'Vercetti-Regular',
+  },
+  classAttendanceList: {
+    maxHeight: 200,
+  },
+  classAttendanceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  classAttendanceInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  classAttendanceName: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+    fontFamily: 'Vercetti-Regular',
+  },
+  classAttendanceCode: {
+    fontSize: 13,
+    fontFamily: 'Vercetti-Regular',
+  },
+  attendanceBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  attendanceBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Vercetti-Regular',
   },
 });

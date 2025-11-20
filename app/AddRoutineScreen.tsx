@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useRoutine } from '@/contexts/RoutineContext';
 import { Ionicons } from '@expo/vector-icons';
 import { TimePickerInteraction } from '@/components/TimePickerInteraction';
+import { useTheme } from '../hooks/useTheme';
 
 type Frequency = 'daily' | 'weekly' | 'custom';
 type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -15,8 +16,7 @@ export default function AddRoutineModal() {
   const [frequency, setFrequency] = useState<Frequency>('daily');
   const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
   const [routineTime, setRoutineTime] = useState(new Date());
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
 
   const handleSave = async () => {
     try {
@@ -28,12 +28,12 @@ export default function AddRoutineModal() {
   };
 
   return (
-    <View style={[styles.container, isDark && styles.darkContainer]}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.divider }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="close" size={24} color="#FF7F50" />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, isDark && styles.darkText]}>New Routine</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>New Routine</Text>
         <TouchableOpacity onPress={handleSave}>
           <Text style={styles.saveButton}>Save</Text>
         </TouchableOpacity>
@@ -41,36 +41,45 @@ export default function AddRoutineModal() {
 
       <View style={styles.form}>
         <TextInput
-          style={[styles.input, isDark && styles.darkInput]}
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
           placeholder="Routine Title"
           value={title}
           onChangeText={setTitle}
-          placeholderTextColor="#666"
+          placeholderTextColor={colors.textSecondary}
         />
 
         <View style={styles.frequencySection}>
-          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Frequency</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Frequency</Text>
           <TouchableOpacity 
-            style={[styles.frequencyButton, frequency === 'daily' && styles.selectedFrequency]}
+            style={[
+              styles.frequencyButton,
+              { backgroundColor: frequency === 'daily' ? '#FF7F50' : colors.surface, borderColor: colors.border }
+            ]}
             onPress={() => setFrequency('daily')}
           >
-            <Text style={[styles.frequencyText, frequency === 'daily' && styles.selectedText]}>Daily</Text>
+            <Text style={[styles.frequencyText, { color: frequency === 'daily' ? '#FFFFFF' : colors.textPrimary }]}>Daily</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.frequencyButton, frequency === 'weekly' && styles.selectedFrequency]}
+            style={[
+              styles.frequencyButton,
+              { backgroundColor: frequency === 'weekly' ? '#FF7F50' : colors.surface, borderColor: colors.border }
+            ]}
             onPress={() => setFrequency('weekly')}
           >
-            <Text style={[styles.frequencyText, frequency === 'weekly' && styles.selectedText]}>Weekly</Text>
+            <Text style={[styles.frequencyText, { color: frequency === 'weekly' ? '#FFFFFF' : colors.textPrimary }]}>Weekly</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.frequencyButton, frequency === 'custom' && styles.selectedFrequency]}
+            style={[
+              styles.frequencyButton,
+              { backgroundColor: frequency === 'custom' ? '#FF7F50' : colors.surface, borderColor: colors.border }
+            ]}
             onPress={() => setFrequency('custom')}
           >
-            <Text style={[styles.frequencyText, frequency === 'custom' && styles.selectedText]}>Custom</Text>
+            <Text style={[styles.frequencyText, { color: frequency === 'custom' ? '#FFFFFF' : colors.textPrimary }]}>Custom</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Routine Time</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Routine Time</Text>
         <TimePickerInteraction
           value={routineTime}
           onChange={setRoutineTime}
@@ -78,10 +87,10 @@ export default function AddRoutineModal() {
 
         {frequency === 'custom' && (
           <View style={styles.daysSection}>
-            <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Days</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Days</Text>
             {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
               <View key={day} style={styles.dayRow}>
-                <Text style={[styles.dayText, isDark && styles.darkText]}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
+                <Text style={[styles.dayText, { color: colors.textPrimary }]}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
                 <Switch
                   value={selectedDays.includes(day as DayOfWeek)}
                   onValueChange={(value) => {
@@ -91,7 +100,7 @@ export default function AddRoutineModal() {
                       setSelectedDays(selectedDays.filter(d => d !== day));
                     }
                   }}
-                  trackColor={{ false: '#767577', true: '#FF7F50' }}
+                  trackColor={{ false: colors.border, true: '#FF7F50' }}
                 />
               </View>
             ))}
@@ -105,11 +114,7 @@ export default function AddRoutineModal() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
     marginTop: 12,
-  },
-  darkContainer: {
-    backgroundColor: '#121212',
   },
   header: {
     flexDirection: 'row',
@@ -117,16 +122,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
-  },
-  darkText: {
-    color: '#ffffff',
   },
   saveButton: {
     color: '#FF7F50',
@@ -138,16 +138,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   input: {
-    backgroundColor: 'white',
     padding: 16,
     borderRadius: 12,
     fontSize: 16,
     marginBottom: 20,
+    borderWidth: 1,
     fontFamily: 'Vercetti-Regular',
-  },
-  darkInput: {
-    backgroundColor: '#1e1e1e',
-    color: '#ffffff',
   },
   frequencySection: {
     marginBottom: 20,
@@ -156,25 +152,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
   },
   frequencyButton: {
     padding: 16,
     borderRadius: 12,
-    backgroundColor: 'white',
     marginBottom: 8,
-  },
-  selectedFrequency: {
-    backgroundColor: '#FF7F50',
+    borderWidth: 1,
   },
   frequencyText: {
     fontSize: 16,
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
-  },
-  selectedText: {
-    color: 'white',
   },
   daysSection: {
     marginTop: 20,
@@ -187,7 +175,6 @@ const styles = StyleSheet.create({
   },
   dayText: {
     fontSize: 16,
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
   },
 });

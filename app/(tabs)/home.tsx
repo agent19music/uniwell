@@ -9,6 +9,7 @@ import * as Burnt from 'burnt';
 import { useTheme } from '../../hooks/useTheme';
 import { useWellnessScore } from '../../hooks/useWellnessScore';
 import { LoadingIndicator } from '@rn-nui/loading-indicator';
+import { Menu } from '../../components/Menu';
 
 
 const MOOD_OPTIONS = [
@@ -27,6 +28,25 @@ export default function HomeScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [reflectionText, setReflectionText] = useState('');
   const [savingReflection, setSavingReflection] = useState(false);
+  
+  // Menu states
+  const [moodMenuVisible, setMoodMenuVisible] = useState(false);
+  const [progressMenuVisible, setProgressMenuVisible] = useState(false);
+  const [journalMenuVisible, setJournalMenuVisible] = useState(false);
+
+  // Menu items
+  const moodMenuItems = [
+    { label: 'View Weekly Mood Report', icon: 'stats-chart-outline', onPress: () => router.push('/mood-detail') },
+  ];
+
+  const progressMenuItems = [
+    { label: 'View Monthly Progress', icon: 'calendar-outline', onPress: () => router.push('/wellness-report') },
+  ];
+
+  const journalMenuItems = [
+    { label: 'Record Voice Journal', icon: 'mic-outline', onPress: () => router.push('/journals') },
+    { label: 'View All Journals', icon: 'book-outline', onPress: () => router.push('/journals') },
+  ];
   
   // Get wellness score
   const { score: wellnessScore, loading: wellnessLoading } = useWellnessScore();
@@ -144,7 +164,7 @@ export default function HomeScreen() {
   };
 
   const handleChatCardPress = () => {
-    router.push('/chatUI');
+    router.push('/ChatUI');
   };
 
   useEffect(() => {
@@ -174,9 +194,21 @@ export default function HomeScreen() {
   // Render daily reflection section
   const renderDailyReflection = () => (
     <View style={styles.reflectionSection}>
-      <Text style={[styles.greeting, { color: colors.textPrimary }]}>
-        Hello, {userName || 'Guest'} 
-      </Text>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.greeting, { color: colors.textPrimary, marginBottom: 0, fontSize: 24 }]}>
+          Hello, {userName || 'Guest'} 
+        </Text>
+        <Menu 
+          visible={journalMenuVisible}
+          onDismiss={() => setJournalMenuVisible(false)}
+          items={journalMenuItems}
+          trigger={
+            <TouchableOpacity onPress={() => setJournalMenuVisible(true)}>
+              <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+          }
+        />
+      </View>
       <Text style={[styles.reflectionHeading, { color: colors.textPrimary }]}>
         How do you feel{'\n'}about your <Text style={styles.boldText}>current{'\n'}emotions</Text>?
       </Text>
@@ -214,7 +246,16 @@ export default function HomeScreen() {
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
           Daily Mood Log
         </Text>
-        <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
+        <Menu 
+          visible={moodMenuVisible}
+          onDismiss={() => setMoodMenuVisible(false)}
+          items={moodMenuItems}
+          trigger={
+            <TouchableOpacity onPress={() => setMoodMenuVisible(true)}>
+              <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+          }
+        />
       </View>
       <View style={styles.moodOptionsContainer}>
         {MOOD_OPTIONS.map((mood) => (
@@ -237,7 +278,16 @@ export default function HomeScreen() {
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
           Your progress
         </Text>
-        <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
+        <Menu 
+          visible={progressMenuVisible}
+          onDismiss={() => setProgressMenuVisible(false)}
+          items={progressMenuItems}
+          trigger={
+            <TouchableOpacity onPress={() => setProgressMenuVisible(true)}>
+              <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+          }
+        />
       </View>
       <View style={styles.progressContent}>
         {wellnessLoading ? (

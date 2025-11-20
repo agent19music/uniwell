@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, PanResponder, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Animated, PanResponder, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
 import {ClassBlock, ClassInfo} from '@/components/schedule/ClassBlock';
 import {CurrentTimeIndicator} from '@/components/schedule/CurrentTimeIndicator';
 
@@ -13,11 +13,17 @@ interface TimeGridProps {
   getClassesForDay?: (date: Date) => ClassInfo[];
 }
 
-export const TimeGrid = ({ isDark, currentDate, classes, viewMode, onDaySelect, onSwipeChangeWeek, getClassesForDay }: TimeGridProps) => {
+export const TimeGrid = ({ isDark, currentDate, classes, viewMode, onDaySelect, onSwipeChangeWeek, getClassesForDay, calculateAttendance }: TimeGridProps) => {
   const styles = useTimeGridStyles(isDark);
   // Display hours from 6 AM to 10 PM (common class hours)
   const visibleTimeSlots = Array.from({ length: 17 }, (_, i) => i + 6); // 6-22 hours
   const { width } = Dimensions.get('window');
+  
+  // Use calculateAttendance if provided, otherwise return 0
+  const getAttendanceRate = (classId?: string) => {
+    if (!classId || !calculateAttendance) return undefined;
+    return calculateAttendance(classId);
+  };
   
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
@@ -200,13 +206,15 @@ export const TimeGrid = ({ isDark, currentDate, classes, viewMode, onDaySelect, 
         {/* Classes/Events with adjusted positioning */}
         {classes.map(classInfo => {
           const topPosition = timeToPosition(classInfo.startTime);
+          const attendanceRate = getAttendanceRate(classInfo.classId);
           
           return (
             <ClassBlock 
               key={classInfo.id} 
               classInfo={{
                 ...classInfo,
-                positionTop: topPosition
+                positionTop: topPosition,
+                attendanceRate: attendanceRate
               }}
               isDark={isDark}
               onEdit={() => { /* Handle edit */ }}
@@ -288,65 +296,82 @@ export const TimeGrid = ({ isDark, currentDate, classes, viewMode, onDaySelect, 
         </View>
         
         {/* Days columns with grid lines */}
-        <View style={styles.daysContainer}>
-          {/* Horizontal hour lines */}
-          {visibleTimeSlots.map((hour, index) => (
-            <View 
-              key={hour} 
-              style={[
-                styles.hourDivider, 
-                isDark && styles.darkHourDivider,
-                { top: index * 60 } 
-              ]} 
-            />
-          ))}
-          
-          {/* Day columns */}
-          {weekDays.map((day, dayIndex) => {
-            const dayClasses = localGetClassesForDay(day);
-            const isToday = day.toDateString() === new Date().toDateString();
-            
-            return (
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled={true}
+          style={styles.daysScrollContainer}
+          contentContainerStyle={styles.daysScrollContent}
+        >
+          <View style={styles.daysContainer}>
+            {/* Horizontal hour lines - positioned absolutely across all columns */}
+            {visibleTimeSlots.map((hour, index) => (
               <View 
-                key={dayIndex} 
+                key={hour} 
                 style={[
-                  styles.dayColumn,
-                  isToday && styles.todayColumn
-                ]}
-              >
-                {/* Classes for this day */}
-                {dayClasses.map(classInfo => {
-                  const topPosition = timeToPosition(classInfo.startTime);
+                  styles.hourDivider, 
+                  isDark && styles.darkHourDivider,
+                  { 
+                    top: index * 60,
+                    left: 0,
+                    right: 0,
+                  } 
+                ]} 
+              />
+            ))}
+            
+            {/* Day columns */}
+            {weekDays.map((day, dayIndex) => {
+              const dayClasses = localGetClassesForDay(day);
+              const isToday = day.toDateString() === new Date().toDateString();
+              
+              return (
+                <View 
+                  key={dayIndex} 
+                  style={[
+                    styles.dayColumn,
+                    isToday && styles.todayColumn,
+                    { width: (screenWidth - 60) / 7 } // Equal width for each day column
+                  ]}
+                >
+                  {/* Classes for this day */}
+                  {dayClasses.map(classInfo => {
+                    const topPosition = timeToPosition(classInfo.startTime);
+                    const attendanceRate = getAttendanceRate(classInfo.classId);
+                    
+                    return (
+                      <ClassBlock 
+                        key={classInfo.id} 
+                        classInfo={{
+                          ...classInfo,
+                          positionTop: topPosition,
+                          attendanceRate: attendanceRate
+                        }}
+                        isDark={isDark}
+                        isWeekView
+                        onEdit={() => { /* Handle edit */ }}
+                        onDelete={() => { /* Handle delete */ }}
+                      />
+                    );
+                  })}
                   
-                  return (
-                    <ClassBlock 
-                      key={classInfo.id} 
-                      classInfo={{
-                        ...classInfo,
-                        positionTop: topPosition
-                      }}
-                      isDark={isDark}
-                      isWeekView
-                      onEdit={() => { /* Handle edit */ }}
-                      onDelete={() => { /* Handle delete */ }}
-                    />
-                  );
-                })}
-                
-                {/* Current time indicator */}
-                {isToday && (
-                  <CurrentTimeIndicator currentDate={day} isDark={isDark} />
-                )}
-              </View>
-            );
-          })}
-        </View>
+                  {/* Current time indicator */}
+                  {isToday && (
+                    <CurrentTimeIndicator currentDate={day} isDark={isDark} />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
       </View>
     </Animated.View>
   );
   
   return viewMode === 'day' ? renderDayView() : renderWeekView();
 };
+
+const { width: screenWidth } = Dimensions.get('window');
 
 const useTimeGridStyles = (isDark: boolean) => StyleSheet.create({
   timeGrid: {
@@ -406,13 +431,18 @@ const useTimeGridStyles = (isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     flex: 1,
   },
-  daysContainer: {
+  daysScrollContainer: {
     flex: 1,
+  },
+  daysScrollContent: {
+    paddingRight: 16,
+  },
+  daysContainer: {
     flexDirection: 'row',
     position: 'relative',
+    minWidth: screenWidth - 60,
   },
   dayColumn: {
-    flex: 1,
     position: 'relative',
     borderLeftWidth: 1,
     borderLeftColor: isDark ? '#2C2C2E' : '#E9E9E9',

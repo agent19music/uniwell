@@ -6,6 +6,8 @@ import { Alert } from 'react-native';
 import { registerForPushNotificationsAsync } from '../lib/NotificationHandler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Burnt from 'burnt';
+import { profileCache, cacheManager } from '../lib/cache';
+import type { CachedProfile } from '../lib/cache';
 
 // Define a type for stored users
 interface StoredUser {
@@ -230,14 +232,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      // Fetch profile (may or may not exist yet)
-      const { data, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
+      // Try cache first
+      let data = await profileCache.getProfile(user.id);
+      
+      if (!data) {
+        // Not in cache, fetch from server
+        const { data: serverData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      if (profileError && profileError.code !== 'PGRST116') throw profileError;
+        if (profileError && profileError.code !== 'PGRST116') throw profileError;
+        
+        if (serverData) {
+          // Cache the fetched data
+          await profileCache.setProfile(user.id, serverData as CachedProfile);
+          data = serverData;
+        }
+      } else {
+        // Check if cache is stale and refresh in background
+        const status = await profileCache.getStatus(user.id);
+        if (status === 'stale') {
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle()
+            .then(({ data: freshData }) => {
+              if (freshData) {
+                profileCache.setProfile(user.id, freshData as CachedProfile);
+              }
+            });
+        }
+      }
 
       // Derive role from auth metadata when available
       const derivedRole = (user.user_metadata as any)?.role ?? null;
@@ -318,6 +346,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await registerForPushNotificationsAsync();
         // Check user role on sign in
         await checkUserRole();
+        // Warmup cache with user data
+        if (newSession.user) {
+          cacheManager.warmupCache(newSession.user.id);
+        }
       } else {
         // Reset everything when logged out
         setProfile({
@@ -328,6 +360,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(null);
         setUserRole(null);
         setUserWithRole(null);
+        // Clear all caches on logout
+        cacheManager.clearAllCaches();
       }
       
       setLoading(false);

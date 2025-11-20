@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { format, startOfWeek, endOfWeek, isAfter, isSameDay } from 'date-fns';
+import { moodCache } from '../lib/cache';
 
 export type MoodType = 'happy' | 'calm' | 'stressed' | 'angry' | 'sad';
 
@@ -378,36 +379,30 @@ export function MoodProvider({ children }: { children: React.ReactNode }) {
       const today = new Date();
       const dayOfWeek = today.getDay();
 
-      const { data, error } = await supabase
-        .from('mood_entries')
-        .insert({
-          user_id: user.id,
-          mood_type: moodType,
-          intensity,
-          notes,
-          day_of_week: dayOfWeek
-        })
-        .select();
+      // Add to cache (optimistic update)
+      await moodCache.addEntry(user.id, {
+        mood_type: moodType,
+        intensity,
+        notes: notes || null,
+        day_of_week: dayOfWeek,
+      });
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const newMood: MoodEntry = {
-          id: data[0].id,
-          moodType: data[0].mood_type,
-          intensity: data[0].intensity,
-          notes: data[0].notes,
-          createdAt: new Date(data[0].created_at),
-          dayOfWeek: data[0].day_of_week
-        };
-        
-        setCurrentMood(newMood);
-        setTodaysMoodRecorded(true);
-        setShouldPromptForMood(false);
-        
-        // Update weekly moods
-        setWeeklyMoods(prev => [...prev, newMood]);
-      }
+      // Update local state immediately
+      const newMood: MoodEntry = {
+        id: `temp-${Date.now()}`,
+        moodType,
+        intensity,
+        notes,
+        createdAt: today,
+        dayOfWeek,
+      };
+      
+      setCurrentMood(newMood);
+      setTodaysMoodRecorded(true);
+      setShouldPromptForMood(false);
+      
+      // Update weekly moods
+      setWeeklyMoods(prev => [...prev, newMood]);
     } catch (error) {
       console.error('Error recording mood:', error);
       throw error;

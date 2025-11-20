@@ -13,6 +13,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SemesterProvider } from '@/contexts/SemesterContext';
 import { BootstrapProvider } from '@/components/BootstrapProvider';
 import { Toaster as BurntToast } from 'burnt/web';
+import { cacheManager } from '@/lib/cache';
 
 // Import Toaster for web support
 let Toaster: any = null;
@@ -53,6 +54,18 @@ export default function RootLayout() {
     }
     
     loadFonts();
+  }, []);
+
+  // Initialize cache system on app startup
+  useEffect(() => {
+    cacheManager.initialize().catch(err => {
+      console.error('Failed to initialize cache system:', err);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      cacheManager.shutdown();
+    };
   }, []);
 
   useEffect(() => {
