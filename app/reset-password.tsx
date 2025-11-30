@@ -1,30 +1,41 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, useColorScheme, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ImageBackground } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ImageBackground, Animated, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import * as Burnt from 'burnt';
+import { ArrowLeft, Envelope } from 'phosphor-react-native';
+import { useTheme } from '../hooks/useTheme';
+import { toast } from '@/lib/toast';
 
 export default function ResetPasswordScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // Animation refs
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const handleResetPassword = async () => {
-    if (!email) {
-      Burnt.toast({
-        title: 'Error',
-        message: 'Please enter your email address',
-        preset: 'error',
-        duration: 2,
-        from: 'top',
-        shouldDismissByDrag: true
-      });
+    if (!email.trim()) {
+      toast.error('Please enter your email address');
       return;
     }
 
@@ -36,95 +47,103 @@ export default function ResetPasswordScreen() {
 
       if (error) throw error;
 
-      Burnt.toast({
-        title: 'Success',
-        message: 'Password reset instructions sent to your email',
-        preset: 'done',
-        duration: 2,
-        from: 'top',
-        shouldDismissByDrag: true
-      });
-
+      toast.success('Password reset instructions sent to your email');
       router.back();
     } catch (error) {
       console.error('Error resetting password:', (error as Error).message);
-      Burnt.toast({
-        title: 'Error',
-        message: (error as Error).message,
-        preset: 'error',
-        duration: 2,
-        from: 'top',
-        shouldDismissByDrag: true
-      });
+      toast.error((error as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ImageBackground
-      source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-99.png')}
-      style={styles.container}
-    >
-      <LinearGradient
-        colors={['rgba(255, 127, 80, 0.2)', 'rgba(255, 127, 80, 0.05)']}
-        style={styles.gradient}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <ImageBackground
+        source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-99.png')}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
       >
-        <SafeAreaView style={styles.content}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardView}
-          >
-            <BlurView intensity={20} style={styles.glassCard}>
-              <View style={styles.header}>
-                <TouchableOpacity 
-                  style={styles.backButton} 
-                  onPress={() => router.back()}
-                >
-                  <Ionicons name="arrow-back" size={24} color="#ffffff" />
-                </TouchableOpacity>
-                <Text style={styles.title}>Reset Password</Text>
-                <Text style={styles.subtitle}>
-                  Enter your email to receive reset instructions
-                </Text>
-              </View>
+        <View style={[styles.overlay, { 
+          backgroundColor: isDark ? 'rgba(28, 24, 21, 0.85)' : 'rgba(254, 253, 251, 0.85)' 
+        }]} />
+      </ImageBackground>
 
-              <View style={styles.form}>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="mail-outline" size={24} color="rgba(255, 255, 255, 0.6)" />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Email"
-                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                </View>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Back Button */}
+          <Animated.View style={[
+            styles.backButtonContainer,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          ]}>
+            <TouchableOpacity 
+              style={[styles.backButton, { backgroundColor: colors.surface }]} 
+              onPress={() => router.back()}
+            >
+              <ArrowLeft size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </Animated.View>
 
-                <TouchableOpacity 
-                  style={styles.primaryButton}
-                  onPress={handleResetPassword}
-                  disabled={loading}
-                >
-                  <LinearGradient
-                    colors={['#FF7F50', '#FF6B45']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.gradientButton}
-                  >
-                    <Text style={styles.buttonText}>
-                      {loading ? 'Sending...' : 'Send Reset Link'}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+          {/* Header */}
+          <Animated.View style={[
+            styles.header,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          ]}>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>
+              Reset Password
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Enter your email address and we'll send you instructions to reset your password
+            </Text>
+          </Animated.View>
+
+          {/* Form */}
+          <Animated.View style={[
+            styles.form,
+            { opacity: fadeAnim }
+          ]}>
+            {/* Email Input */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Email</Text>
+              <View style={[styles.inputContainer, { 
+                backgroundColor: colors.surface,
+                borderColor: colors.border 
+              }]}>
+                <Envelope size={20} color={colors.textSecondary} />
+                <TextInput
+                  style={[styles.input, { color: colors.textPrimary }]}
+                  placeholder="your@email.com"
+                  placeholderTextColor={colors.textTertiary}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!loading}
+                />
               </View>
-            </BlurView>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </LinearGradient>
-    </ImageBackground>
+            </View>
+
+            {/* Send Reset Link Button */}
+            <TouchableOpacity 
+              style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+              onPress={handleResetPassword}
+              disabled={loading}
+            >
+              <Text style={[styles.buttonText, { color: isDark ? colors.background : '#FFFFFF' }]}>
+                {loading ? 'Sending...' : 'Send Reset Link'}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -132,85 +151,84 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  gradient: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   keyboardView: {
     flex: 1,
-    justifyContent: 'center',
   },
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 24,
-    overflow: 'hidden',
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+  scrollView: {
+    flex: 1,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-    position: 'relative',
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  backButtonContainer: {
+    marginBottom: 20,
   },
   backButton: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    padding: 8,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  header: {
+    marginBottom: 48,
   },
   title: {
-    fontSize: 32,
-    color: '#ffffff',
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-    fontFamily: 'SF-Regular',
+    fontSize: 34,
+    fontWeight: '700',
+    marginBottom: 12,
+    letterSpacing: -0.5,
+    fontFamily: 'Vercetti-Regular',
   },
   subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-    paddingHorizontal: 20,
+    fontSize: 17,
+    lineHeight: 24,
     fontFamily: 'SF-Regular',
   },
   form: {
-    gap: 16,
+    gap: 24,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  inputLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    fontFamily: 'SF-Regular',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    height: 56,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    height: 56,
     paddingHorizontal: 16,
+    gap: 12,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#ffffff',
-    height: '100%',
-    paddingVertical: 8,
-    marginLeft: 12,
     fontFamily: 'SF-Regular',
   },
   primaryButton: {
     height: 56,
     borderRadius: 16,
-    overflow: 'hidden',
-  },
-  gradientButton: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
   },
   buttonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'SF-Regular',

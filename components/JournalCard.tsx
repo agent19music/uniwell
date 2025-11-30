@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useAudioPlayer } from 'expo-audio';
 import { Menu } from './Menu';
+import { CircularVideoPlayer } from './CircularVideoPlayer';
 import { JournalEntry } from '../types/journal';
 import { 
   PushPin, 
@@ -222,6 +223,10 @@ export const JournalCard = ({
           {/* Content Section */}
           {item.type === 'voice' ? (
             <VoicePlayer uri={item.content} colorScheme={colorScheme} />
+          ) : item.type === 'video' ? (
+            <View style={styles.videoContainer}>
+              <CircularVideoPlayer uri={item.content} colorScheme={colorScheme} size={100} />
+            </View>
           ) : (
             <Text style={styles.cardContent} numberOfLines={4}>
               {item.content}
@@ -263,6 +268,10 @@ export const JournalCard = ({
           >
             {item.type === 'voice' ? (
               <VoicePlayer uri={item.content} colorScheme={colorScheme} />
+            ) : item.type === 'video' ? (
+              <View style={styles.dialogVideoContainer}>
+                <CircularVideoPlayer uri={item.content} colorScheme={colorScheme} size={240} />
+              </View>
             ) : (
               <Text style={styles.dialogText}>{item.content}</Text>
             )}
@@ -368,6 +377,11 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     marginTop: 4,
   },
+  videoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
   dialogOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -425,5 +439,10 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: '#374151',
     fontFamily: 'Vercetti-Regular',
+  },
+  dialogVideoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
   },
 });

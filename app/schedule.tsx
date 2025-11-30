@@ -1,7 +1,7 @@
 import { Pressable, View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Animated, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import { ChartLine, X, Plus } from 'phosphor-react-native';
 import FloatingActionButton from '../components/FloatingActionButton';
 import ScheduleEditorModal from '../modals/ScheduleEditorModal';
 import AddClassModal from '../modals/AddClassModal';
@@ -498,7 +498,7 @@ export default function ClassScheduleScreen() {
         <View style={styles.attendanceStatsHeader}>
           <Text style={[styles.attendanceStatsTitle, { color: colors.textPrimary }]}>Attendance Overview</Text>
           <TouchableOpacity onPress={() => setShowAttendanceStats(false)}>
-            <Ionicons name="close" size={20} color={colors.textSecondary} />
+            <X size={20} color={colors.textSecondary} weight="bold" />
           </TouchableOpacity>
         </View>
         
@@ -539,19 +539,19 @@ export default function ClassScheduleScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Header */}
-      <ScheduleHeader
-        activeSemester={activeSemester?.name || null}
-        isDark={isDark}
-        viewMode={viewMode}
-        setViewMode={toggleViewMode}
-        currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
-        formatHeaderDate={formatHeaderDate}
-        navigateDay={navigateDay}
-        onSemesterPress={() => setIsSemesterModalVisible(true)}
-        onTodayPress={goToToday}
-      />
+        {/* Header */}
+        <ScheduleHeader
+          activeSemester={activeSemester?.name || null}
+          isDark={isDark}
+          viewMode={viewMode}
+          setViewMode={toggleViewMode}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          formatHeaderDate={formatHeaderDate}
+          navigateDay={navigateDay}
+          onSemesterPress={() => setIsSemesterModalVisible(true)}
+          onTodayPress={goToToday}
+        />
       
       {/* Attendance Stats Toggle */}
       {shouldShowTimetable && (
@@ -559,7 +559,7 @@ export default function ClassScheduleScreen() {
           style={[styles.attendanceToggle, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
           onPress={() => setShowAttendanceStats(!showAttendanceStats)}
         >
-          <Ionicons name="stats-chart" size={20} color={colors.textPrimary} />
+          <ChartLine size={20} color={colors.textPrimary} weight="bold" />
           <Text style={[styles.attendanceToggleText, { color: colors.textPrimary }]}>
             Attendance: {calculateOverallAttendance}%
           </Text>
@@ -786,6 +786,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
+    minWidth: 60,
+    alignItems: 'center',
   },
   attendanceBadgeText: {
     fontSize: 14,

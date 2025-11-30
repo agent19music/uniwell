@@ -12,6 +12,7 @@ export interface CachedProfile {
   username: string | null;
   avatar_url: string | null;
   full_name: string | null;
+  gender?: string | null;
   bio: string | null;
   university: string | null;
   occupation: string | null;

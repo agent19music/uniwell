@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { CalendarDots, CaretLeft, CaretRight } from 'phosphor-react-native';
 import {CalendarDayHeader} from '@/components/schedule/CalendarDayHeader'; 
 
 
@@ -48,7 +48,7 @@ interface ScheduleHeaderProps {
             style={styles.semesterButton}
             onPress={onSemesterPress}
           >
-            <MaterialIcons name="edit-calendar" size={22} color={isDark ? '#FFFFFF' : '#FF7F50'} />
+            <CalendarDots size={22} color={isDark ? '#FBEEE3' : '#8B7355'} weight="fill" />
             <Text style={[styles.semesterText, isDark && styles.darkText]}>
               {activeSemester || 'Select Semester'}
             </Text>
@@ -92,10 +92,10 @@ interface ScheduleHeaderProps {
             style={styles.dateNavButton}
             onPress={() => navigateDay(-1)}
           >
-            <Ionicons 
-              name="chevron-back" 
-              size={22}
-              color={isDark ? '#FFFFFF' : '#FF7F50'} 
+            <CaretLeft 
+              size={24}
+              color={isDark ? '#FBEEE3' : '#8B7355'} 
+              weight="bold"
             />
           </TouchableOpacity>
           
@@ -107,10 +107,10 @@ interface ScheduleHeaderProps {
             style={styles.dateNavButton}
             onPress={() => navigateDay(1)}
           >
-            <Ionicons 
-              name="chevron-forward" 
-              size={22}
-              color={isDark ? '#FFFFFF' : '#FF7F50'} 
+            <CaretRight 
+              size={24}
+              color={isDark ? '#FBEEE3' : '#8B7355'} 
+              weight="bold"
             />
           </TouchableOpacity>
         </View>
@@ -140,67 +140,78 @@ interface ScheduleHeaderProps {
   const useScheduleHeaderStyles = (isDark: boolean) => StyleSheet.create({
     header: {
       borderBottomWidth: 0.5,
-      borderBottomColor: '#C6C6C8',
+      borderBottomColor: isDark ? 'rgba(251, 238, 227, 0.15)' : 'rgba(139, 115, 85, 0.15)',
     },
     headerTop: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingTop: 8,
+      paddingTop: 12,
+      paddingBottom: 8,
     },
     semesterButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 8,
+      gap: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      backgroundColor: isDark ? 'rgba(139, 115, 85, 0.15)' : 'rgba(251, 238, 227, 0.6)',
+      borderRadius: 14,
     },
     semesterText: {
       fontSize: 15,
-      fontWeight: '500',
-      marginLeft: 6,
-      color: '#000000',
+      fontWeight: '600',
+      fontFamily: 'Vercetti-Regular',
+      color: '#8B7355',
     },
     viewToggle: {
       flexDirection: 'row',
-      borderRadius: 8,
-      padding: 2,
+      backgroundColor: isDark ? 'rgba(139, 115, 85, 0.1)' : 'rgba(251, 238, 227, 0.5)',
+      borderRadius: 10,
+      padding: 3,
     },
     viewToggleButton: {
+      paddingHorizontal: 16,
       paddingVertical: 6,
-      paddingHorizontal: 12,
-      borderRadius: 6,
+      borderRadius: 8,
     },
     viewToggleText: {
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: '500',
-      color: '#000000',
+      fontFamily: 'Vercetti-Regular',
+      color: isDark ? 'rgba(251, 238, 227, 0.6)' : 'rgba(139, 115, 85, 0.6)',
     },
     viewToggleTextActive: {
-      color: '#FF7F50',
+      color: isDark ? '#FBEEE3' : '#8B7355',
+      fontWeight: '700',
     },
     dateNavigation: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
       paddingVertical: 12,
+      position: 'relative',
     },
     dateNavButton: {
       padding: 8,
+      borderRadius: 8,
     },
     currentDateText: {
-      fontSize: 17,
+      fontSize: 18,
       fontWeight: '600',
-      color: '#000000',
+      fontFamily: 'Vercetti-Regular',
+      color: '#8B7355',
       paddingHorizontal: 20,
     },
     darkText: {
-      color: '#FFFFFF',
+      color: '#FBEEE3',
     },
     todayButton: {
       position: 'absolute',
       right: 16,
       top: 16,
-      backgroundColor: '#FF7F50',
+      backgroundColor: '#8B7355',
       paddingVertical: 6,
       paddingHorizontal: 12,
       borderRadius: 14,
@@ -211,11 +222,12 @@ interface ScheduleHeaderProps {
       elevation: 2,
     },
     darkTodayButton: {
-      backgroundColor: '#FF9500',
+      backgroundColor: 'rgba(139, 115, 85, 0.3)',
     },
     todayButtonText: {
       color: '#FFFFFF',
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '600',
+      fontFamily: 'Vercetti-Regular',
     },
   });

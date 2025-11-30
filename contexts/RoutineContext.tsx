@@ -137,6 +137,7 @@ interface RoutineContextType {
   progressArchive: ProgressArchive[];
   completeRoutine: (routineId: string, date: Date, notes?: string) => Promise<void>;
   getRoutineCompletions: (date: Date) => Promise<RoutineCompletion[]>;
+  getRoutineCompletionsForRange: (startDate: Date, endDate: Date) => Promise<RoutineCompletion[]>;
   getProgressArchive: (startDate: Date, endDate: Date) => Promise<ProgressArchive[]>;
   isRoutineCompleted: (routineId: string, date: Date) => boolean;
   canCompleteRoutine: (routineId: string, date: Date) => boolean;
@@ -831,7 +832,20 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
       let cachedData = await routineCache.getRoutines(currentUser.id);
       
       if (cachedData) {
-        setRoutines(cachedData.routines);
+        setRoutines(cachedData.routines.map((r: any) => ({
+          id: r.id,
+          userId: r.user_id,
+          title: r.title,
+          frequency: r.frequency,
+          customDays: r.custom_days || [],
+          color: r.color,
+          icon: r.icon,
+          isActive: r.is_active,
+          notificationTime: r.notification_time,
+          notificationEnabled: r.notification_enabled,
+          created_at: r.created_at,
+          updatedAt: r.updated_at,
+        })));
         
         // Group completions by date
         const completionsByDate: Record<string, RoutineCompletion[]> = {};
@@ -1099,7 +1113,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const getRoutineCompletions = async (date: Date) => {
+  const getRoutineCompletions = useCallback(async (date: Date) => {
     try {
       const { data, error } = await supabase
         .from('routine_completions')
@@ -1113,7 +1127,34 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
       setError((err as Error).message);
       return [];
     }
-  };
+  }, [currentUser?.id]);
+
+  const getRoutineCompletionsForRange = useCallback(async (startDate: Date, endDate: Date) => {
+    try {
+      const { data, error } = await supabase
+        .from('routine_completions')
+        .select('*')
+        .eq('user_id', currentUser?.id)
+        .gte('completion_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('completion_date', format(endDate, 'yyyy-MM-dd'));
+
+      if (error) throw error;
+      
+      // Map to RoutineCompletion type
+      return (data || []).map((item: any) => ({
+        id: item.id,
+        routineId: item.routine_id,
+        userId: item.user_id,
+        completionDate: item.completion_date,
+        completedAt: item.completed_at,
+        status: item.status as CompletionStatus,
+        notes: item.notes,
+      }));
+    } catch (err) {
+      setError((err as Error).message);
+      return [];
+    }
+  }, [currentUser?.id]);
 
   const getProgressArchive = async (startDate: Date, endDate: Date) => {
     try {
@@ -1133,7 +1174,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const isRoutineCompleted = (routineId: string, date: Date) => {
+  const isRoutineCompleted = useCallback((routineId: string, date: Date) => {
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       
@@ -1156,15 +1197,15 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
       console.error('Error checking routine completion:', error);
       return false;
     }
-  };
+  }, [routineCompletions]);
 
-  const canCompleteRoutine = (routineId: string, date: Date) => {
+  const canCompleteRoutine = useCallback((routineId: string, date: Date) => {
     if (isFuture(date)) return false;
     const daysDiff = differenceInDays(new Date(), date);
     return daysDiff <= 2;
-  };
+  }, []);
 
-  const getRoutineStatus = (routineId: string, date: Date): CompletionStatus => {
+  const getRoutineStatus = useCallback((routineId: string, date: Date): CompletionStatus => {
     if (isFuture(date)) return 'pending';
     if (!canCompleteRoutine(routineId, date)) return 'missed';
     
@@ -1188,7 +1229,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
 
     return 'pending';
-  };
+  }, [canCompleteRoutine, isRoutineCompleted]);
 
   const value = {
     plans,
@@ -1228,6 +1269,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     progressArchive,
     completeRoutine,
     getRoutineCompletions,
+    getRoutineCompletionsForRange,
     getProgressArchive,
     isRoutineCompleted,
     canCompleteRoutine,

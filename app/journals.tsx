@@ -13,7 +13,8 @@ import {
   CheckCircle, 
   X, 
   CaretUp, 
-  LockSimple 
+  LockSimple,
+  VideoCamera 
 } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -25,6 +26,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Menu } from '../components/Menu';
 import { JournalCard } from '../components/JournalCard';
+import { CircularVideoRecorder } from '../components/CircularVideoRecorder';
 import { JournalEntry } from '../types/journal';
 import {
   useAudioRecorder,
@@ -37,6 +39,7 @@ import {
 
 const JOURNAL_KEY = '@journals';
 const AUDIO_DIRECTORY = `${FileSystem.documentDirectory}audio/`;
+const VIDEO_DIRECTORY = `${FileSystem.documentDirectory}video/`;
 
 const { width } = Dimensions.get('window');
 
@@ -52,6 +55,7 @@ export default function JournalScreen() {
   
   const [isSaving, setIsSaving] = useState(false);
   const [isRecordingModalVisible, setIsRecordingModalVisible] = useState(false);
+  const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -64,6 +68,7 @@ export default function JournalScreen() {
 
   useEffect(() => {
     setupAudioDirectory();
+    setupVideoDirectory();
     loadJournals();
     setupAudioPermissions();
   }, []);
@@ -90,6 +95,17 @@ export default function JournalScreen() {
     }
   };
 
+  const setupVideoDirectory = async () => {
+    try {
+      const dirInfo = await FileSystem.getInfoAsync(VIDEO_DIRECTORY);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(VIDEO_DIRECTORY, { intermediates: true });
+      }
+    } catch (error) {
+      console.error('Error setting up video directory:', error);
+    }
+  };
+
   const loadJournals = async () => {
     try {
       setLoading(true);
@@ -108,16 +124,24 @@ export default function JournalScreen() {
           .order('created_at', { ascending: false });
 
         if (!error && data) {
-          const formattedJournals = data.map((entry: any) => ({
-            id: entry.id,
-            user_id: entry.user_id,
-            title: entry.title,
-            is_pinned: entry.is_pinned || false,
-            type: entry.content.startsWith('file://') || entry.content.includes('/audio/') ? 'voice' : 'text',
-            content: entry.content,
-            created_at: entry.created_at,
-            timestamp: entry.created_at,
-          }));
+          const formattedJournals = data.map((entry: any) => {
+            let type: 'text' | 'voice' | 'video' = 'text';
+            if (entry.content.includes('/audio/')) {
+              type = 'voice';
+            } else if (entry.content.includes('/video/')) {
+              type = 'video';
+            }
+            return {
+              id: entry.id,
+              user_id: entry.user_id,
+              title: entry.title,
+              is_pinned: entry.is_pinned || false,
+              type,
+              content: entry.content,
+              created_at: entry.created_at,
+              timestamp: entry.created_at,
+            };
+          });
           setJournals(formattedJournals);
           await AsyncStorage.setItem(JOURNAL_KEY, JSON.stringify(formattedJournals));
         }
@@ -304,6 +328,54 @@ export default function JournalScreen() {
     }
   };
 
+  const handleVideoSave = async (uri: string) => {
+    if (!uri) return;
+    
+    try {
+      setIsVideoModalVisible(false);
+      const filename = `video-note-${Date.now()}.mp4`;
+      const dest = `${VIDEO_DIRECTORY}${filename}`;
+      await FileSystem.moveAsync({ from: uri, to: dest });
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .insert({
+          user_id: user.id,
+          title: 'Video Note',
+          entry_date: new Date().toISOString().split('T')[0],
+          content: dest,
+          created_at: new Date().toISOString(),
+          is_pinned: false,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        const newEntry: JournalEntry = {
+          id: data.id,
+          user_id: user.id,
+          title: data.title,
+          content: data.content,
+          type: 'video',
+          is_pinned: false,
+          created_at: data.created_at,
+          timestamp: data.created_at,
+        };
+        setJournals(prev => [newEntry, ...prev]);
+        await AsyncStorage.setItem(JOURNAL_KEY, JSON.stringify([newEntry, ...journals]));
+      }
+
+      Burnt.toast({ title: 'Video Note Saved', preset: 'done' });
+
+    } catch (err) {
+      console.error('Error saving video note:', err);
+      Burnt.toast({ title: 'Error', message: 'Failed to save video note', preset: 'error' });
+    }
+  };
+
   // Pan Responder for Voice Recording
   const panResponder = useRef(
     PanResponder.create({
@@ -398,9 +470,14 @@ export default function JournalScreen() {
               multiline
             />
             <View style={styles.actionButtons}>
-              <TouchableOpacity onPress={() => setIsRecordingModalVisible(true)} style={styles.iconButton}>
-                <Microphone size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
+              <View style={styles.mediaButtons}>
+                <TouchableOpacity onPress={() => setIsRecordingModalVisible(true)} style={styles.iconButton}>
+                  <Microphone size={24} color={colors.textPrimary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setIsVideoModalVisible(true)} style={styles.iconButton}>
+                  <VideoCamera size={24} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
               
               {(bodyText.trim().length > 0 || titleText.trim().length > 0) && (
                 <TouchableOpacity 
@@ -472,6 +549,18 @@ export default function JournalScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Video Recording Modal */}
+      <Modal
+        visible={isVideoModalVisible}
+        animationType="slide"
+        onRequestClose={() => setIsVideoModalVisible(false)}
+      >
+        <CircularVideoRecorder
+          onSave={handleVideoSave}
+          onClose={() => setIsVideoModalVisible(false)}
+        />
       </Modal>
     </SafeAreaView>
   );
@@ -560,6 +649,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
+  },
+  mediaButtons: {
+    flexDirection: 'row',
+    gap: 12,
   },
   iconButton: {
     padding: 4,

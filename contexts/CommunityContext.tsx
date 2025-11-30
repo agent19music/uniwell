@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode } from 'base64-arraybuffer';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { Post } from '../types/community';
 
 
@@ -74,9 +74,9 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
           : { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      const base64 = await FileSystem.readAsStringAsync(manipResult.uri, {
-        encoding: 'base64',
-      });
+      // Use new File API
+      const fileInstance = new File(manipResult.uri);
+      const base64 = await fileInstance.base64();
 
       const fileName = `${user.id}/${type}-${Date.now()}.${type === 'image' ? 'jpg' : 'mp4'}`;
       const { error: uploadError } = await supabase.storage

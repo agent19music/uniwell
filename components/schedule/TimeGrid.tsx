@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, PanResponder, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
 import {ClassBlock, ClassInfo} from '@/components/schedule/ClassBlock';
 import {CurrentTimeIndicator} from '@/components/schedule/CurrentTimeIndicator';
+import {ClassDetailDialog} from '@/components/schedule/ClassDetailDialog';
 
 interface TimeGridProps {
   isDark: boolean;
@@ -11,10 +12,14 @@ interface TimeGridProps {
   onDaySelect?: (date: Date) => void;
   onSwipeChangeWeek?: (direction: number) => void;
   getClassesForDay?: (date: Date) => ClassInfo[];
+  calculateAttendance?: (classId: string) => number;
 }
 
 export const TimeGrid = ({ isDark, currentDate, classes, viewMode, onDaySelect, onSwipeChangeWeek, getClassesForDay, calculateAttendance }: TimeGridProps) => {
   const styles = useTimeGridStyles(isDark);
+  const [selectedClass, setSelectedClass] = useState<ClassInfo | null>(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  
   // Display hours from 6 AM to 10 PM (common class hours)
   const visibleTimeSlots = Array.from({ length: 17 }, (_, i) => i + 6); // 6-22 hours
   const { width } = Dimensions.get('window');
@@ -226,147 +231,112 @@ export const TimeGrid = ({ isDark, currentDate, classes, viewMode, onDaySelect, 
     </Animated.View>
   );
   
-  // Week view rendering
-  const renderWeekView = () => (
-    <Animated.View 
-      style={[
-        styles.weekContainer,
-        {
-          opacity: fadeAnim,
-          transform: [
-            { scale: scaleAnim },
-            { translateX: slideAnim }
-          ]
-        }
-      ]}
-      {...panResponder.panHandlers}
-    >
-      {/* Day headers */}
-      <View style={styles.weekHeader}>
-        <View style={styles.timeHeaderSpacer} />
-        {weekDays.map((day, index) => {
-          const isToday = day.toDateString() === new Date().toDateString();
-          const isSelected = day.toDateString() === currentDate.toDateString();
-          
-          return (
-            <TouchableOpacity 
-              key={index} 
-              style={[
-                styles.dayHeader,
-                isToday && styles.todayHeader,
-                isSelected && styles.selectedDayHeader
-              ]}
-              onPress={() => onDaySelect && onDaySelect(day)}
-            >
-              <Text style={[
-                styles.dayName, 
-                isDark && styles.darkDayName,
-                isToday && styles.todayText,
-                isSelected && styles.selectedDayText
-              ]}>
-                {DAYS_OF_WEEK[day.getDay()]}
-              </Text>
-              <Text style={[
-                styles.dayDate, 
-                isDark && styles.darkDayDate,
-                isToday && styles.todayText,
-                isSelected && styles.selectedDayText
-              ]}>
-                {day.getDate()}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      
-      {/* Time grid */}
-      <View style={styles.weekGrid}>
-        {/* Time labels */}
-        <View style={styles.timeLabels}>
-          {visibleTimeSlots.map(hour => (
-            <View key={hour} style={styles.timeSlot}>
-              <Text style={[styles.timeLabel, isDark && styles.darkTimeLabel]}>
-                {hour === 0 ? '12 AM' : 
-                 hour < 12 ? `${hour} AM` : 
-                 hour === 12 ? '12 PM' : 
-                 `${hour - 12} PM`}
-              </Text>
-            </View>
-          ))}
-        </View>
-        
-        {/* Days columns with grid lines */}
+  // Week view rendering - List style
+  const renderWeekView = () => {
+    const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    return (
+      <Animated.View 
+        style={[
+          styles.weekListContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }]
+          }
+        ]}
+      >
         <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          nestedScrollEnabled={true}
-          style={styles.daysScrollContainer}
-          contentContainerStyle={styles.daysScrollContent}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.weekListContent}
         >
-          <View style={styles.daysContainer}>
-            {/* Horizontal hour lines - positioned absolutely across all columns */}
-            {visibleTimeSlots.map((hour, index) => (
-              <View 
-                key={hour} 
-                style={[
-                  styles.hourDivider, 
-                  isDark && styles.darkHourDivider,
-                  { 
-                    top: index * 60,
-                    left: 0,
-                    right: 0,
-                  } 
-                ]} 
-              />
-            ))}
+          {weekDays.map((day, index) => {
+            const dayClasses = localGetClassesForDay(day);
+            const isToday = day.toDateString() === new Date().toDateString();
+            const dateNum = day.getDate();
+            const monthName = MONTHS_SHORT[day.getMonth()];
+            const dayName = DAYS_SHORT[day.getDay()];
             
-            {/* Day columns */}
-            {weekDays.map((day, dayIndex) => {
-              const dayClasses = localGetClassesForDay(day);
-              const isToday = day.toDateString() === new Date().toDateString();
-              
-              return (
-                <View 
-                  key={dayIndex} 
-                  style={[
-                    styles.dayColumn,
-                    isToday && styles.todayColumn,
-                    { width: (screenWidth - 60) / 7 } // Equal width for each day column
-                  ]}
-                >
-                  {/* Classes for this day */}
-                  {dayClasses.map(classInfo => {
-                    const topPosition = timeToPosition(classInfo.startTime);
-                    const attendanceRate = getAttendanceRate(classInfo.classId);
-                    
-                    return (
-                      <ClassBlock 
-                        key={classInfo.id} 
-                        classInfo={{
-                          ...classInfo,
-                          positionTop: topPosition,
-                          attendanceRate: attendanceRate
-                        }}
-                        isDark={isDark}
-                        isWeekView
-                        onEdit={() => { /* Handle edit */ }}
-                        onDelete={() => { /* Handle delete */ }}
-                      />
-                    );
-                  })}
-                  
-                  {/* Current time indicator */}
-                  {isToday && (
-                    <CurrentTimeIndicator currentDate={day} isDark={isDark} />
+            return (
+              <View key={index} style={[styles.weekListRow, isToday && styles.weekListRowToday]}>
+                {/* Date Column */}
+                <View style={styles.weekDateColumn}>
+                  <Text style={[styles.weekDayName, isDark && styles.darkText, isToday && styles.accentText]}>
+                    {dayName}
+                  </Text>
+                  <Text style={[styles.weekDateNumber, isDark && styles.darkText, isToday && styles.accentText]}>
+                    {monthName} {dateNum}
+                  </Text>
+                </View>
+
+                {/* Classes Column */}
+                <View style={styles.weekClassesColumn}>
+                  {dayClasses.length > 0 ? (
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false} 
+                      style={styles.classesScroll}
+                      contentContainerStyle={styles.classesScrollContent}
+                    >
+                      {dayClasses.map((classInfo, idx) => (
+                        <TouchableOpacity
+                          key={`${classInfo.id}-${idx}`}
+                          style={[
+                            styles.classPill,
+                            { backgroundColor: classInfo.color }
+                          ]}
+                          onPress={() => {
+                            setSelectedClass(classInfo);
+                            setDialogVisible(true);
+                          }}
+                          activeOpacity={0.9}
+                        >
+                          <View style={styles.pillHeader}>
+                            <Text style={styles.pillCode}>{classInfo.id}</Text>
+                            {classInfo.attendanceRate !== undefined && (
+                              <View style={[
+                                styles.pillAttendanceDot,
+                                {
+                                  backgroundColor: classInfo.attendanceRate >= 80 ? '#4CD964' :
+                                                 classInfo.attendanceRate >= 60 ? '#FF9500' :
+                                                 '#FF3B30'
+                                }
+                              ]} />
+                            )}
+                          </View>
+                          <Text style={styles.pillName} numberOfLines={1}>{classInfo.name}</Text>
+                          <Text style={styles.pillTime}>
+                            {classInfo.startTimeString} - {classInfo.endTimeString}
+                          </Text>
+                          {classInfo.location && (
+                             <Text style={styles.pillLocation} numberOfLines={1}>📍 {classInfo.location}</Text>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  ) : (
+                    <View style={styles.emptyDayContainer}>
+                      <Text style={[styles.emptyDayText, isDark && styles.darkSubText]}>
+                        No classes
+                      </Text>
+                    </View>
                   )}
                 </View>
-              );
-            })}
-          </View>
+              </View>
+            );
+          })}
+          <View style={{height: 100}} /> 
         </ScrollView>
-      </View>
-    </Animated.View>
-  );
+        
+        <ClassDetailDialog
+          visible={dialogVisible}
+          classInfo={selectedClass}
+          isDark={isDark}
+          onClose={() => setDialogVisible(false)}
+        />
+      </Animated.View>
+    );
+  };
   
   return viewMode === 'day' ? renderDayView() : renderWeekView();
 };
@@ -377,79 +347,126 @@ const useTimeGridStyles = (isDark: boolean) => StyleSheet.create({
   timeGrid: {
     flexDirection: 'row',
     flex: 1,
-    paddingBottom: 100, // Space at bottom for scrolling past last hour
-  },
-  weekContainer: {
-    flex: 1,
     paddingBottom: 100,
   },
-  weekHeader: {
-    flexDirection: 'row',
-    height: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: isDark ? '#2C2C2E' : '#E0E0E0',
-  },
-  timeHeaderSpacer: {
-    width: 60,
-  },
-  dayHeader: {
+  // New Week View Styles
+  weekListContainer: {
     flex: 1,
+    paddingTop: 10,
+  },
+  weekListContent: {
+    paddingBottom: 100,
+  },
+  weekListRow: {
+    flexDirection: 'row',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
     alignItems: 'center',
+  },
+  weekListRowToday: {
+    backgroundColor: isDark ? 'rgba(139, 115, 85, 0.1)' : 'rgba(251, 238, 227, 0.4)',
+  },
+  weekDateColumn: {
+    width: 80,
+    marginRight: 12,
     justifyContent: 'center',
-    padding: 8,
   },
-  todayHeader: {
-    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)',
+  weekDayName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: isDark ? '#A0A0A0' : '#666666',
+    fontFamily: 'Vercetti-Regular',
+    marginBottom: 2,
   },
-  selectedDayHeader: {
-    backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
-  },
-  dayName: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#007AFF',
-    marginBottom: 4,
-  },
-  darkDayName: {
-    color: '#0A84FF',
-  },
-  dayDate: {
+  weekDateNumber: {
     fontSize: 16,
-    fontWeight: '500',
-    color: isDark ? '#FFFFFF' : '#000000',
+    fontWeight: '700',
+    color: isDark ? '#FFFFFF' : '#333333',
+    fontFamily: 'Vercetti-Regular',
   },
-  darkDayDate: {
+  darkText: {
     color: '#FFFFFF',
   },
-  todayText: {
-    color: '#FF3B30',
+  darkSubText: {
+    color: 'rgba(255,255,255,0.4)',
   },
-  selectedDayText: {
-    fontWeight: '600',
+  accentText: {
+    color: '#FF7F50',
   },
-  weekGrid: {
-    flexDirection: 'row',
+  weekClassesColumn: {
     flex: 1,
+    justifyContent: 'center',
   },
-  daysScrollContainer: {
-    flex: 1,
+  classesScroll: {
+    flexGrow: 0,
   },
-  daysScrollContent: {
+  classesScrollContent: {
     paddingRight: 16,
   },
-  daysContainer: {
+  classPill: {
+    borderRadius: 16,
+    padding: 12,
+    marginRight: 12,
+    minWidth: 160,
+    maxWidth: 220,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  pillHeader: {
     flexDirection: 'row',
-    position: 'relative',
-    minWidth: screenWidth - 60,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  dayColumn: {
-    position: 'relative',
-    borderLeftWidth: 1,
-    borderLeftColor: isDark ? '#2C2C2E' : '#E9E9E9',
+  pillCode: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Vercetti-Regular',
   },
-  todayColumn: {
-    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
+  pillAttendanceDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
   },
+  pillName: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: 6,
+    fontFamily: 'SF-Regular',
+  },
+  pillTime: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: 'SF-Regular',
+  },
+  pillLocation: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
+    fontFamily: 'SF-Regular',
+  },
+  emptyDayContainer: {
+    paddingVertical: 10,
+  },
+  emptyDayText: {
+    fontSize: 14,
+    color: 'rgba(0,0,0,0.3)',
+    fontStyle: 'italic',
+    fontFamily: 'SF-Regular',
+  },
+  // Day view styles (unchanged)
   timeLabels: {
     width: 60,
     paddingRight: 10,
@@ -462,11 +479,12 @@ const useTimeGridStyles = (isDark: boolean) => StyleSheet.create({
   },
   timeLabel: {
     fontSize: 12,
-    color: '#8E8E93',
+    fontFamily: 'SF-Regular',
+    color: isDark ? 'rgba(251, 238, 227, 0.6)' : 'rgba(139, 115, 85, 0.7)',
     fontWeight: '500',
   },
   darkTimeLabel: {
-    color: '#8E8E93',
+    color: 'rgba(251, 238, 227, 0.6)',
   },
   eventsContainer: {
     flex: 1,
@@ -477,19 +495,20 @@ const useTimeGridStyles = (isDark: boolean) => StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: isDark ? 'rgba(251, 238, 227, 0.1)' : 'rgba(139, 115, 85, 0.12)',
   },
   darkHourDivider: {
-    backgroundColor: '#2C2C2E',
+    backgroundColor: 'rgba(251, 238, 227, 0.1)',
   },
   halfHourDivider: {
     position: 'absolute',
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: isDark ? 'rgba(251, 238, 227, 0.05)' : 'rgba(139, 115, 85, 0.06)',
   },
   darkHalfHourDivider: {
-    backgroundColor: '#242426',
+    backgroundColor: 'rgba(251, 238, 227, 0.05)',
   },
+
 });

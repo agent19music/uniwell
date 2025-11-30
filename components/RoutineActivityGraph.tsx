@@ -20,7 +20,7 @@ interface RoutineActivityGraphProps {
 
 export default function RoutineActivityGraph({ onDayPress }: RoutineActivityGraphProps) {
   const { colors } = useTheme();
-  const { routineCompletions, getRoutineCompletions } = useRoutine();
+  const { routineCompletions, getRoutineCompletions, getRoutineCompletionsForRange } = useRoutine();
   const [activityData, setActivityData] = useState<Record<string, number>>({});
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedCount, setSelectedCount] = useState<number>(0);
@@ -38,24 +38,37 @@ export default function RoutineActivityGraph({ onDayPress }: RoutineActivityGrap
   // Fetch completion data
   useEffect(() => {
     const fetchActivityData = async () => {
-      const data: Record<string, number> = {};
+      if (dates.length === 0) return;
       
-      // Get completions for each day in the date range
-      for (const date of dates) {
-        try {
-          const completions = await getRoutineCompletions(date);
-          const dateKey = format(date, 'yyyy-MM-dd');
-          data[dateKey] = completions.length;
-        } catch (error) {
-          console.error('Error fetching completions for date:', date, error);
-        }
+      const startDate = dates[0];
+      const endDate = dates[dates.length - 1];
+      
+      try {
+        const completions = await getRoutineCompletionsForRange(startDate, endDate);
+        
+        const data: Record<string, number> = {};
+        
+        // Initialize all dates with 0
+        dates.forEach(date => {
+          data[format(date, 'yyyy-MM-dd')] = 0;
+        });
+        
+        // Count completions per day
+        completions.forEach(completion => {
+          const dateKey = completion.completionDate;
+          if (data[dateKey] !== undefined) {
+            data[dateKey]++;
+          }
+        });
+        
+        setActivityData(data);
+      } catch (error) {
+        console.error('Error fetching activity data:', error);
       }
-      
-      setActivityData(data);
     };
 
     fetchActivityData();
-  }, [dates, getRoutineCompletions]);
+  }, [dates, getRoutineCompletionsForRange]);
 
   // Group dates by week
   const weeks = useMemo(() => {

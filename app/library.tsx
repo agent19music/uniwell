@@ -6,17 +6,15 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  useColorScheme,
   Animated,
   FlatList,
   Dimensions,
-  ActivityIndicator,
   RefreshControl,
   Modal,
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { CaretLeft, Books, Sparkle, Gear } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -28,6 +26,8 @@ import LibraryFilter from '../components/LibraryFilter';
 import ResourceCard from '../components/ResourceCard';
 import FeaturedCard from '../components/FeaturedCard';
 import InterestSelectionModal from '../components/InterestSelectionModal';
+import { useTheme } from '../hooks/useTheme';
+import { LoadingIndicator } from '@rn-nui/loading-indicator';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -73,8 +73,7 @@ const CONTENT_CATEGORIES = [
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const { streaks } = useRoutine();
   
   const [resources, setResources] = useState<Resource[]>([]);
@@ -92,14 +91,14 @@ export default function LibraryScreen() {
   
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = scrollY.interpolate({
-    inputRange: [0, 120],
-    outputRange: [150, 80],
+    inputRange: [0, 100],
+    outputRange: [130, 75],
     extrapolate: 'clamp'
   });
   
   const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 60, 120],
-    outputRange: [1, 0.8, 0.6],
+    inputRange: [0, 50, 100],
+    outputRange: [1, 0.9, 0.8],
     extrapolate: 'clamp'
   });
 
@@ -180,7 +179,7 @@ export default function LibraryScreen() {
       
       if (data) {
         // Transform data to match Resource interface
-        const transformedResources: Resource[] = data.map(item => ({
+        const transformedResources: Resource[] = data.map((item: any) => ({
           id: item.id,
           title: item.title,
           description: item.description,
@@ -410,37 +409,37 @@ export default function LibraryScreen() {
   }, [resources, selectedCategory, streaks, savedResources]);
 
   const EmptyListComponent = useCallback(() => (
-    <View style={[styles.emptyState, isDark && styles.darkEmptyState]}>
-      <View style={styles.emptyStateIconContainer}>
-        <Ionicons 
-          name="library-outline" 
-          size={80} 
-          color={isDark ? '#444444' : '#CCCCCC'} 
+    <View style={[styles.emptyState, { backgroundColor: colors.card }]}>
+      <View style={[styles.emptyStateIconContainer, { backgroundColor: colors.input.background }]}>
+        <Books 
+          size={64} 
+          color={colors.textTertiary} 
+          weight="regular"
         />
       </View>
-      <Text style={[styles.emptyStateText, isDark && styles.darkText]}>
+      <Text style={[styles.emptyStateText, { color: colors.textPrimary }]}>
         {selectedCategory === 'saved' 
           ? "Your Saved Collection is Empty" 
           : "No Resources Found"}
       </Text>
-      <Text style={[styles.emptyStateSubText, isDark && styles.darkSubText]}>
+      <Text style={[styles.emptyStateSubText, { color: colors.textSecondary }]}>
         {selectedCategory === 'saved' 
           ? "Save interesting resources to build your personal collection" 
           : "Try selecting a different category or update your interests"}
       </Text>
       {selectedCategory === 'saved' && (
         <TouchableOpacity
-          style={[styles.primaryButton, styles.emptyStateButton]}
+          style={[styles.primaryButton, { backgroundColor: colors.primary }, styles.emptyStateButton]}
           onPress={() => setSelectedCategory('featured')}
         >
-          <Text style={styles.primaryButtonText}>Browse Resources</Text>
+          <Text style={[styles.primaryButtonText, { color: colors.background }]}>Browse Resources</Text>
         </TouchableOpacity>
       )}
     </View>
-  ), [selectedCategory, isDark]);
+  ), [selectedCategory, colors]);
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <Animated.View style={[styles.header, { height: headerHeight }]}>
         <BlurView 
           intensity={isDark ? 40 : 60} 
@@ -453,23 +452,23 @@ export default function LibraryScreen() {
               style={styles.backButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons 
-                name="chevron-back" 
+              <CaretLeft 
                 size={28} 
-                color={isDark ? '#ffffff' : '#000000'} 
+                color={colors.textPrimary} 
+                weight="regular"
               />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, isDark && styles.darkText]}>Library</Text>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Library</Text>
             <View style={styles.headerRight}>
               <TouchableOpacity 
                 onPress={() => setShowInterestModal(true)} 
                 style={styles.interestButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons 
-                  name="options-outline" 
+                <Sparkle 
                   size={24} 
-                  color={isDark ? '#ffffff' : '#000000'} 
+                  color={colors.textPrimary} 
+                  weight="regular"
                 />
               </TouchableOpacity>
               <TouchableOpacity 
@@ -477,10 +476,10 @@ export default function LibraryScreen() {
                 style={styles.searchButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons 
-                  name="search" 
+                <Gear 
                   size={24} 
-                  color={isDark ? '#ffffff' : '#000000'} 
+                  color={colors.textPrimary} 
+                  weight="regular"
                 />
               </TouchableOpacity>
             </View>
@@ -495,8 +494,8 @@ export default function LibraryScreen() {
 
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF7F50" />
-          <Text style={[styles.loadingText, isDark && styles.darkText]}>
+          <LoadingIndicator containerSize={50} containerColor={colors.primary} animating={true} color={colors.background} />
+          <Text style={[styles.loadingText, { color: colors.textPrimary, marginTop: 16 }]}>
             Curating your personal library...
           </Text>
         </View>
@@ -511,26 +510,26 @@ export default function LibraryScreen() {
             <>
               {selectedCategory === 'featured' && (
                 <View style={styles.featuredSection}>
-                  <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+                  <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
                     Featured For You
                   </Text>
-                  <Text style={[styles.sectionSubtitle, isDark && styles.darkSubText]}>
+                  <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
                     Personalized recommendations based on your interests
                   </Text>
                   {!hasInterests ? (
-                    <View style={[styles.emptyState, isDark && styles.darkEmptyState]}>
-                      <Ionicons name="library-outline" size={80} color={isDark ? '#444444' : '#CCCCCC'} />
-                      <Text style={[styles.emptyStateText, isDark && styles.darkText]}>
+                    <View style={[styles.emptyState, { backgroundColor: colors.card }]}>
+                      <Books size={64} color={colors.textTertiary} weight="regular" />
+                      <Text style={[styles.emptyStateText, { color: colors.textPrimary }]}>
                         Personalize Your Library
                       </Text>
-                      <Text style={[styles.emptyStateSubText, isDark && styles.darkSubText]}>
+                      <Text style={[styles.emptyStateSubText, { color: colors.textSecondary }]}>
                         Select your interests to get personalized recommendations
                       </Text>
                       <TouchableOpacity
-                        style={[styles.interestButton, styles.primaryButton]}
+                        style={[styles.primaryButton, { backgroundColor: colors.primary }]}
                         onPress={() => setShowInterestModal(true)}
                       >
-                        <Text style={styles.primaryButtonText}>Select Interests</Text>
+                        <Text style={[styles.primaryButtonText, { color: colors.background }]}>Select Interests</Text>
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -557,7 +556,7 @@ export default function LibraryScreen() {
                   )}
                 </View>
               )}
-              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
                 {selectedCategory === 'saved' ? 'Your Saved Items' : 'Resources'}
               </Text>
             </>
@@ -572,8 +571,8 @@ export default function LibraryScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={['#FF7F50']}
-              tintColor={isDark ? '#ffffff' : '#FF7F50'}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
             />
           }
           removeClippedSubviews={true}
@@ -612,10 +611,6 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
-  },
-  darkContainer: {
-    backgroundColor: '#121212',
   },
   header: {
     position: 'absolute',
@@ -626,49 +621,43 @@ const styles = StyleSheet.create({
   },
   headerBlur: {
     flex: 1,
-    paddingTop: 10,
+    paddingTop: 8,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   backButton: {
-    padding: 8,
+    padding: 6,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  darkText: {
-    color: '#ffffff',
-  },
-  darkSubText: {
-    color: '#aaaaaa',
+    fontSize: 24,
+    fontFamily: 'Vercetti-Regular',
+    fontWeight: '600',
   },
   searchButton: {
-    padding: 8,
+    padding: 6,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   interestButton: {
-    padding: 8,
-    marginRight: 8,
+    padding: 6,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 100,
+    paddingTop: 80,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+    fontSize: 15,
+    fontFamily: 'Vercetti-Regular',
     textAlign: 'center',
     fontWeight: '500',
   },
@@ -676,101 +665,100 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   resourceListContent: {
-    paddingTop: 180,
+    paddingTop: 145,
     paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingBottom: 32,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 22,
+    fontFamily: 'Vercetti-Regular',
+    fontWeight: '600',
     marginBottom: 8,
-    color: '#000000',
   },
   sectionSubtitle: {
-    fontSize: 16,
+    fontSize: 15,
+    fontFamily: 'Vercetti-Regular',
     marginBottom: 16,
-    color: '#666666',
-    fontWeight: '500',
+    fontWeight: '400',
+    lineHeight: 21,
   },
   featuredSection: {
-    marginBottom: 32,
+    marginBottom: 28,
   },
   featuredList: {
-    paddingRight: 8,
+    paddingRight: 4,
   },
   featuredListContent: {
-    paddingLeft: 4,
+    paddingLeft: 2,
   },
   emptyState: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 48,
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    marginHorizontal: 16,
-    marginTop: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    borderRadius: 20,
+    marginTop: 20,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 8,
+        elevation: 3,
       },
     }),
   },
-  darkEmptyState: {
-    backgroundColor: '#1E1E1E',
-  },
   emptyStateIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#F8F8F8',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   emptyStateText: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 20,
+    fontFamily: 'Vercetti-Regular',
+    fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 12,
-    color: '#000000',
+    marginBottom: 10,
   },
   emptyStateSubText: {
-    fontSize: 16,
+    fontSize: 15,
+    fontFamily: 'Vercetti-Regular',
     textAlign: 'center',
-    color: '#666666',
-    fontWeight: '500',
-    lineHeight: 24,
+    fontWeight: '400',
+    lineHeight: 22,
   },
   emptyStateButton: {
-    marginTop: 24,
-    minWidth: 200,
+    marginTop: 20,
+    minWidth: 180,
   },
   primaryButton: {
-    backgroundColor: '#FF7F50',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 16,
-    marginTop: 24,
-    shadowColor: '#FF7F50',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
+    fontSize: 16,
+    fontFamily: 'Vercetti-Regular',
     fontWeight: '600',
   },
 }); 

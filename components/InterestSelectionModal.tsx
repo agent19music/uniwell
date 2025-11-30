@@ -6,17 +6,17 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  useColorScheme,
-  ActivityIndicator,
   Animated,
   Dimensions,
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { X, Check } from 'phosphor-react-native';
 import { supabase } from '../lib/supabase';
 import * as Burnt from 'burnt';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../hooks/useTheme';
+import { LoadingIndicator } from '@rn-nui/loading-indicator';
 
 const { width } = Dimensions.get('window');
 
@@ -33,8 +33,7 @@ export default function InterestSelectionModal({
   onInterestsUpdated,
   initialInterests = [],
 }: InterestSelectionModalProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const [selectedInterests, setSelectedInterests] = useState<string[]>(initialInterests);
   const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -263,18 +262,18 @@ export default function InterestSelectionModal({
             <LinearGradient
               colors={
                 isDark 
-                  ? ['#1c1c1e', '#2c2c2e'] 
-                  : ['#ffffff', '#f8f8f8']
+                  ? [colors.surface, colors.background] 
+                  : [colors.card, colors.background]
               }
               style={styles.gradient}
             >
-              <View style={styles.dragIndicator} />
+              <View style={[styles.dragIndicator, { backgroundColor: colors.textTertiary }]} />
               
               <View style={styles.header}>
-                <Text style={[styles.title, isDark && styles.darkText]}>
+                <Text style={[styles.title, { color: colors.textPrimary }]}>
                   Select Your Interests
                 </Text>
-                <Text style={[styles.subtitle, isDark && styles.darkSubText]}>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                   Choose up to 10 topics that interest you
                 </Text>
                 <TouchableOpacity
@@ -282,11 +281,11 @@ export default function InterestSelectionModal({
                   onPress={onClose}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 >
-                  <View style={[styles.iconBackground, isDark && styles.darkIconBackground]}>
-                    <Ionicons
-                      name="close"
+                  <View style={[styles.iconBackground, { backgroundColor: colors.input.background }]}>
+                    <X
                       size={20}
-                      color={isDark ? '#ffffff' : '#000000'}
+                      color={colors.textPrimary}
+                      weight="regular"
                     />
                   </View>
                 </TouchableOpacity>
@@ -303,18 +302,19 @@ export default function InterestSelectionModal({
                     key={category}
                     style={[
                       styles.categoryTab,
-                      selectedCategory === category && styles.selectedCategoryTab,
-                      isDark && styles.darkCategoryTab,
-                      isDark && selectedCategory === category && styles.darkSelectedCategoryTab
+                      { 
+                        backgroundColor: selectedCategory === category ? colors.primary : colors.input.background,
+                      }
                     ]}
                     onPress={() => setSelectedCategory(category)}
                   >
                     <Text
                       style={[
                         styles.categoryTabText,
-                        selectedCategory === category && styles.selectedCategoryTabText,
-                        isDark && styles.darkText,
-                        isDark && selectedCategory === category && styles.darkSelectedCategoryTabText
+                        { 
+                          color: selectedCategory === category ? colors.background : colors.textSecondary,
+                          fontFamily: 'Vercetti-Regular'
+                        }
                       ]}
                     >
                       {category.charAt(0).toUpperCase() + category.slice(1)}
@@ -333,9 +333,10 @@ export default function InterestSelectionModal({
                     key={interest.id}
                     style={[
                       styles.interestItem,
-                      selectedInterests.includes(interest.id) && styles.selectedInterestItem,
-                      isDark && styles.darkInterestItem,
-                      isDark && selectedInterests.includes(interest.id) && styles.darkSelectedInterestItem
+                      { 
+                        backgroundColor: selectedInterests.includes(interest.id) ? colors.primary : colors.card,
+                        borderColor: selectedInterests.includes(interest.id) ? colors.primary : colors.border,
+                      }
                     ]}
                     onPress={() => toggleInterest(interest.id)}
                     activeOpacity={0.7}
@@ -343,43 +344,42 @@ export default function InterestSelectionModal({
                     <Text
                       style={[
                         styles.interestText,
-                        selectedInterests.includes(interest.id) && styles.selectedInterestText,
-                        isDark && styles.darkText,
-                        isDark && selectedInterests.includes(interest.id) && styles.darkSelectedInterestText
+                        { 
+                          color: selectedInterests.includes(interest.id) ? colors.background : colors.textPrimary,
+                          fontFamily: 'Vercetti-Regular'
+                        }
                       ]}
                     >
                       {interest.label}
                     </Text>
                     {selectedInterests.includes(interest.id) && (
-                      <Ionicons
-                        name="checkmark"
-                        size={22}
-                        color="#FF7F50"
+                      <Check
+                        size={20}
+                        color={colors.background}
+                        weight="bold"
                       />
                     )}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
 
-              <View style={[styles.footer, isDark && styles.darkFooter]}>
-                <Text style={[styles.selectedCount, isDark && styles.darkText]}>
+              <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+                <Text style={[styles.selectedCount, { color: colors.textSecondary }]}>
                   {selectedInterests.length} of 10 selected
                 </Text>
                 <TouchableOpacity
                   style={[
                     styles.saveButton,
-                    selectedInterests.length === 0 && styles.saveButtonDisabled,
-                    isDark && styles.darkSaveButton,
-                    isDark && selectedInterests.length === 0 && styles.darkSaveButtonDisabled
+                    { backgroundColor: selectedInterests.length === 0 ? colors.textTertiary : colors.primary },
                   ]}
                   onPress={handleSave}
                   disabled={loading || selectedInterests.length === 0}
                   activeOpacity={0.8}
                 >
                   {loading ? (
-                    <ActivityIndicator color="#ffffff" />
+                    <LoadingIndicator containerSize={24} containerColor={colors.background} animating={true} color={colors.primary} />
                   ) : (
-                    <Text style={styles.saveButtonText}>Save Interests</Text>
+                    <Text style={[styles.saveButtonText, { color: colors.background }]}>Save Interests</Text>
                   )}
                 </TouchableOpacity>
               </View>

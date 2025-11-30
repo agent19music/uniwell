@@ -3,7 +3,7 @@ export interface JournalEntry {
   user_id: string;
   title?: string;
   content: string;
-  type: 'text' | 'voice';
+  type: 'text' | 'voice' | 'video';
   is_pinned: boolean;
   created_at: string;
   timestamp: string; // For local compatibility

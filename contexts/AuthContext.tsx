@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Burnt from 'burnt';
 import { profileCache, cacheManager } from '../lib/cache';
 import type { CachedProfile } from '../lib/cache';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 // Define a type for stored users
 interface StoredUser {
@@ -72,6 +73,8 @@ interface AuthContextType {
   userRole: 'user' | 'therapist' | 'admin' | null;
   userWithRole: UserWithRole | null;
   checkUserRole: () => Promise<'user' | 'therapist' | 'admin' | null>;
+  signInWithGoogle: () => Promise<void>;
+  handleAuthCallback: () => Promise<void>;
 }
 
 const STORED_USERS_KEY = 'uniwell_stored_users';
@@ -96,6 +99,8 @@ export const AuthContext = createContext<AuthContextType>({
   userRole: null,
   userWithRole: null,
   checkUserRole: async () => null,
+  signInWithGoogle: async () => {},
+  handleAuthCallback: async () => {},
 });
 
 // This hook can be used to access the user info.
@@ -170,6 +175,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<'user' | 'therapist' | 'admin' | null>(null);
   const [userWithRole, setUserWithRole] = useState<UserWithRole | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    GoogleSignin.configure({
+      // scopes: ['https://www.googleapis.com/auth/drive.readonly'], // Remove if not needed
+      webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com', // TODO: Replace with your actual web client ID from Google Cloud Console
+    });
+  }, []);
 
   useProtectedRoute(session);
 
@@ -259,7 +271,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .select('*')
             .eq('id', user.id)
             .maybeSingle()
-            .then(({ data: freshData }) => {
+            .then(({ data: freshData }: { data: any }) => {
               if (freshData) {
                 profileCache.setProfile(user.id, freshData as CachedProfile);
               }
@@ -294,12 +306,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username: data?.username || user.user_metadata?.full_name || 'User',
         full_name: user.user_metadata?.full_name || data?.full_name || 'User',
         avatar_url: data?.avatar_url || user.user_metadata?.avatar_url || null,
-        gender: data?.gender,
-        interests: data?.interests,
-        primary_goal: data?.primary_goal,
-        bio: data?.bio,
-        occupation: data?.occupation,
-        university: data?.university,
+        gender: data?.gender ?? undefined,
+        interests: data?.interests ?? undefined,
+        primary_goal: data?.primary_goal ?? undefined,
+        bio: data?.bio ?? undefined,
+        occupation: data?.occupation ?? undefined,
+        university: data?.university ?? undefined,
         profile_completion_percentage: data?.profile_completion_percentage,
       };
 
@@ -421,6 +433,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      
+      if (userInfo.data?.idToken) {
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: userInfo.data.idToken,
+        });
+        
+        if (error) throw error;
+        
+        // Session will be handled by onAuthStateChange
+      } else {
+        throw new Error('No ID token present!');
+      }
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled the login flow
+        console.log('User cancelled login');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        // operation (e.g. sign in) is in progress already
+        console.log('Sign in in progress');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        // play services not available or outdated
+        Burnt.toast({
+          title: 'Error',
+          message: 'Google Play Services not available',
+          preset: 'error',
+        });
+      } else {
+        // some other error happened
+        console.error('Google Sign-In Error:', error);
+        Burnt.toast({
+          title: 'Error',
+          message: error.message || 'Failed to sign in with Google',
+          preset: 'error',
+        });
+      }
+    }
+  };
+
+  const handleAuthCallback = async () => {
+    // This function is kept for compatibility with the requested architecture
+    // but for Google Sign-In we use signInWithGoogle directly.
+    // If you have other OAuth providers that redirect, handle them here.
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      
+      if (session) {
+        setSession(session);
+        await fetchProfile();
+        router.replace('/(tabs)/home');
+      }
+    } catch (error) {
+      console.error('Auth Callback Error:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -439,6 +513,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userRole,
         userWithRole,
         checkUserRole,
+        signInWithGoogle,
+        handleAuthCallback,
       }}>
       {children}
     </AuthContext.Provider>

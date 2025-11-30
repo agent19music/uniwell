@@ -1,10 +1,11 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Article, Headphones, VideoCamera, BookOpen } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../hooks/useTheme';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.7;
+const CARD_WIDTH = width * 0.75;
 
 interface FeaturedCardProps {
   id: string;
@@ -23,28 +24,35 @@ const FeaturedCard: React.FC<FeaturedCardProps> = ({
   type,
   onPress
 }) => {
+  const { colors } = useTheme();
+  
+  const getTypeIcon = () => {
+    switch (type) {
+      case 'article':
+        return <Article size={14} color="#FFFFFF" weight="regular" />;
+      case 'podcast':
+        return <Headphones size={14} color="#FFFFFF" weight="regular" />;
+      case 'video':
+        return <VideoCamera size={14} color="#FFFFFF" weight="regular" />;
+      case 'book':
+        return <BookOpen size={14} color="#FFFFFF" weight="regular" />;
+    }
+  };
+  
   return (
     <TouchableOpacity 
       style={styles.featuredCard}
       onPress={() => onPress(id)}
-      activeOpacity={0.9}
+      activeOpacity={0.85}
     >
       <Image source={{ uri: imageUrl }} style={styles.featuredImage} />
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.8)']}
+        colors={['transparent', 'rgba(0,0,0,0.75)']}
         style={styles.featuredGradient}
       >
         <View style={styles.featuredContent}>
           <View style={styles.featuredTypeContainer}>
-            <Ionicons 
-              name={
-                type === 'article' ? 'document-text' : 
-                type === 'podcast' ? 'headset' : 
-                type === 'video' ? 'videocam' : 'book'
-              } 
-              size={14} 
-              color="#ffffff" 
-            />
+            {getTypeIcon()}
             <Text style={styles.featuredType}>{type}</Text>
           </View>
           
@@ -64,9 +72,9 @@ const FeaturedCard: React.FC<FeaturedCardProps> = ({
 const styles = StyleSheet.create({
   featuredCard: {
     width: CARD_WIDTH,
-    height: 220,
-    marginRight: 16,
-    borderRadius: 12,
+    height: 240,
+    marginRight: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#000',
   },
@@ -86,22 +94,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 6,
   },
   featuredType: {
     fontSize: 12,
-    marginLeft: 4,
+    fontFamily: 'Vercetti-Regular',
     color: '#ffffff',
-    textTransform: 'uppercase',
+    textTransform: 'capitalize',
+    fontWeight: '500',
   },
   featuredTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 19,
+    fontFamily: 'Vercetti-Regular',
+    fontWeight: '600',
     color: '#ffffff',
     marginBottom: 6,
+    lineHeight: 24,
   },
   featuredDescription: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    fontFamily: 'Vercetti-Regular',
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 19,
   },
 });
 

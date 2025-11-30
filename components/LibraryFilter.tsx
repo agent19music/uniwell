@@ -1,13 +1,14 @@
 import React, { memo } from 'react';
-import { ScrollView, TouchableOpacity, Text, StyleSheet, useColorScheme } from 'react-native';
+import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../hooks/useTheme';
 
 // Categories for content
 const CONTENT_CATEGORIES = [
-  { id: 'featured', label: 'Featured For You' },
-  { id: 'streak-related', label: 'Based On Your Streaks' },
-  { id: 'trending', label: 'Trending Now' },
-  { id: 'new', label: 'New Additions' },
-  { id: 'saved', label: 'Saved Items' },
+  { id: 'featured', label: 'Featured' },
+  { id: 'streak-related', label: 'For You' },
+  { id: 'trending', label: 'Trending' },
+  { id: 'new', label: 'New' },
+  { id: 'saved', label: 'Saved' },
 ];
 
 interface LibraryFilterProps {
@@ -16,8 +17,7 @@ interface LibraryFilterProps {
 }
 
 const LibraryFilter = ({ selectedCategory, onSelectCategory }: LibraryFilterProps) => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
 
   return (
     <ScrollView 
@@ -32,9 +32,8 @@ const LibraryFilter = ({ selectedCategory, onSelectCategory }: LibraryFilterProp
           key={category.id}
           style={[
             styles.categoryTab,
-            selectedCategory === category.id && styles.selectedCategoryTab,
-            isDark && styles.darkCategoryTab,
-            selectedCategory === category.id && isDark && styles.darkSelectedCategoryTab
+            { backgroundColor: colors.input.background },
+            selectedCategory === category.id && { backgroundColor: colors.primary }
           ]}
           onPress={() => onSelectCategory(category.id)}
           activeOpacity={0.7}
@@ -42,8 +41,10 @@ const LibraryFilter = ({ selectedCategory, onSelectCategory }: LibraryFilterProp
           <Text 
             style={[
               styles.categoryTabText,
-              selectedCategory === category.id && styles.selectedCategoryTabText,
-              isDark && styles.darkText
+              { 
+                color: selectedCategory === category.id ? colors.background : colors.textSecondary,
+                fontFamily: 'Vercetti-Regular'
+              }
             ]}
           >
             {category.label}
@@ -57,34 +58,18 @@ const LibraryFilter = ({ selectedCategory, onSelectCategory }: LibraryFilterProp
 const styles = StyleSheet.create({
   categoryTabsContainer: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   categoryTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-  },
-  selectedCategoryTab: {
-    backgroundColor: '#FF7F50',
-  },
-  darkCategoryTab: {
-    backgroundColor: '#333333',
-  },
-  darkSelectedCategoryTab: {
-    backgroundColor: '#FF7F50',
+    borderRadius: 16,
   },
   categoryTabText: {
+    fontSize: 14,
     fontWeight: '500',
-  },
-  selectedCategoryTabText: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  darkText: {
-    color: '#ffffff',
   },
 });
 

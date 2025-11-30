@@ -6,18 +6,17 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  useColorScheme,
-  ActivityIndicator,
   Dimensions,
   Linking,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { X, BookmarkSimple, ArrowSquareOut, PlayCircle, WarningCircle } from 'phosphor-react-native';
 import { WebView } from 'react-native-webview';
 import { supabase } from '../lib/supabase';
 import * as  Burnt from 'burnt';
-import { title } from 'process';
+import { useTheme } from '../hooks/useTheme';
+import { LoadingIndicator } from '@rn-nui/loading-indicator';
 
 interface ResourceDetailProps {
   resourceId: string;
@@ -39,8 +38,7 @@ interface Resource {
 }
 
 export default function ResourceDetail({ resourceId, onClose }: ResourceDetailProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const [resource, setResource] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
@@ -203,16 +201,16 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
               startInLoadingState
               renderLoading={() => (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#FF7F50" />
+                  <LoadingIndicator containerSize={40} containerColor={colors.primary} animating={true} color={colors.background} />
                 </View>
               )}
             />
             <TouchableOpacity
-              style={styles.browserButton}
+              style={[styles.browserButton, { backgroundColor: colors.primary }]}
               onPress={handleOpenInBrowser}
             >
-              <Ionicons name="open-outline" size={20} color="#ffffff" />
-              <Text style={styles.browserButtonText}>Open in Browser</Text>
+              <ArrowSquareOut size={20} color={colors.background} weight="regular" />
+              <Text style={[styles.browserButtonText, { color: colors.background }]}>Open in Browser</Text>
             </TouchableOpacity>
           </View>
         );
@@ -220,16 +218,16 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       case 'article':
         return (
           <ScrollView style={styles.articleContainer}>
-            <Text style={[styles.articleContent, isDark && styles.darkText]}>
+            <Text style={[styles.articleContent, { color: colors.textPrimary }]}>
               {resource.article_content}
             </Text>
             {resource.media_url && (
               <TouchableOpacity
-                style={styles.browserButton}
+                style={[styles.browserButton, { backgroundColor: colors.primary }]}
                 onPress={handleOpenInBrowser}
               >
-                <Ionicons name="open-outline" size={20} color="#ffffff" />
-                <Text style={styles.browserButtonText}>Read Full Article</Text>
+                <ArrowSquareOut size={20} color={colors.background} weight="regular" />
+                <Text style={[styles.browserButtonText, { color: colors.background }]}>Read Full Article</Text>
               </TouchableOpacity>
             )}
           </ScrollView>
@@ -243,11 +241,11 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
               style={styles.podcastImage}
             />
             <TouchableOpacity
-              style={styles.browserButton}
+              style={[styles.browserButton, { backgroundColor: colors.primary }]}
               onPress={handleOpenInBrowser}
             >
-              <Ionicons name="play-circle-outline" size={20} color="#ffffff" />
-              <Text style={styles.browserButtonText}>Listen on Spotify</Text>
+              <PlayCircle size={20} color={colors.background} weight="regular" />
+              <Text style={[styles.browserButtonText, { color: colors.background }]}>Listen on Spotify</Text>
             </TouchableOpacity>
           </View>
         );
@@ -259,10 +257,10 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF7F50" />
-          <Text style={[styles.loadingText, isDark && styles.darkText]}>
+          <LoadingIndicator containerSize={50} containerColor={colors.primary} animating={true} color={colors.background} />
+          <Text style={[styles.loadingText, { color: colors.textPrimary, marginTop: 16 }]}>
             Loading resource...
           </Text>
         </View>
@@ -272,14 +270,14 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
 
   if (!resource) {
     return (
-      <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color="#FF7F50" />
-          <Text style={[styles.errorText, isDark && styles.darkText]}>
+          <WarningCircle size={64} color={colors.error} weight="regular" />
+          <Text style={[styles.errorText, { color: colors.textPrimary }]}>
             Resource not found
           </Text>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeButtonText}>Go Back</Text>
+          <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.primary }]} onPress={onClose}>
+            <Text style={[styles.closeButtonText, { color: colors.background }]}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -287,16 +285,16 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
   }
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.backButton}>
-          <Ionicons name="close" size={24} color={isDark ? '#ffffff' : '#000000'} />
+          <X size={24} color={colors.textPrimary} weight="regular" />
         </TouchableOpacity>
         <TouchableOpacity onPress={toggleSaveResource} style={styles.saveButton}>
-          <Ionicons
-            name={isSaved ? 'bookmark' : 'bookmark-outline'}
+          <BookmarkSimple
             size={24}
-            color={isDark ? '#ffffff' : '#000000'}
+            color={colors.textPrimary}
+            weight={isSaved ? "fill" : "regular"}
           />
         </TouchableOpacity>
       </View>
@@ -330,24 +328,20 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  darkContainer: {
-    backgroundColor: '#121212',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
   },
   backButton: {
-    padding: 8,
+    padding: 6,
   },
   saveButton: {
-    padding: 8,
+    padding: 6,
   },
   content: {
     flex: 1,
@@ -355,8 +349,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontFamily: 'Vercetti-Regular',
+    fontWeight: '600',
     marginBottom: 12,
   },
   metaContainer: {
@@ -364,16 +358,16 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: 'Vercetti-Regular',
     marginBottom: 4,
   },
   authorText: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: 'Vercetti-Regular',
   },
   description: {
     fontSize: 16,
-    color: '#333333',
+    fontFamily: 'Vercetti-Regular',
     lineHeight: 24,
     marginBottom: 24,
   },
@@ -391,7 +385,7 @@ const styles = StyleSheet.create({
   },
   articleContent: {
     fontSize: 16,
-    color: '#333333',
+    fontFamily: 'Vercetti-Regular',
     lineHeight: 24,
   },
   podcastContainer: {
@@ -401,24 +395,23 @@ const styles = StyleSheet.create({
   podcastImage: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 16,
   },
   browserButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF7F50',
     paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    paddingHorizontal: 20,
+    borderRadius: 12,
     marginTop: 16,
+    gap: 8,
   },
   browserButtonText: {
-    color: '#ffffff',
     fontSize: 16,
+    fontFamily: 'Vercetti-Regular',
     fontWeight: '600',
-    marginLeft: 8,
   },
   loadingContainer: {
     flex: 1,
@@ -426,9 +419,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666666',
+    fontSize: 15,
+    fontFamily: 'Vercetti-Regular',
   },
   errorContainer: {
     flex: 1,
@@ -438,26 +430,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333333',
+    fontFamily: 'Vercetti-Regular',
+    fontWeight: '600',
     marginTop: 16,
     marginBottom: 24,
   },
   closeButton: {
-    backgroundColor: '#FF7F50',
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   closeButtonText: {
-    color: '#ffffff',
     fontSize: 16,
+    fontFamily: 'Vercetti-Regular',
     fontWeight: '600',
-  },
-  darkText: {
-    color: '#ffffff',
-  },
-  darkSubText: {
-    color: '#aaaaaa',
   },
 }); 
