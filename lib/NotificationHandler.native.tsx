@@ -37,61 +37,67 @@ export async function registerForPushNotificationsAsync() {
     return null;
   }
 
-  let token: string | undefined;
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF7F50',
-    });
-  }
-
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    burnt.toast({
-      title: 'Notification Permission',
-      message: 'Enable notifications to stay on track with your goals',
-      preset: 'done',
-    });
-    return;
-  }
-
-  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
-
-  if (!projectId) {
-    console.error('EXPO_PUBLIC_PROJECT_ID is not defined in the environment.');
-    return;
-  }
-
-  const pushToken = await Notifications.getExpoPushTokenAsync({
-    projectId,
-  });
-
-  token = pushToken.data;
-
-  // Save token to user profile
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase
-        .from('profiles')
-        .update({ push_token: token })
-        .eq('id', user.id);
-    }
-  } catch (error) {
-    console.error('Error saving push token:', error);
-  }
+    let token: string | undefined;
 
-  return token;
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF7F50',
+      });
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      burnt.toast({
+        title: 'Notification Permission',
+        message: 'Enable notifications to stay on track with your goals',
+        preset: 'done',
+      });
+      return null;
+    }
+
+    const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
+
+    if (!projectId) {
+      console.error('EXPO_PUBLIC_PROJECT_ID is not defined in the environment.');
+      return null;
+    }
+
+    const pushToken = await Notifications.getExpoPushTokenAsync({
+      projectId,
+    });
+
+    token = pushToken.data;
+
+    // Save token to user profile
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ push_token: token })
+          .eq('id', user.id);
+      }
+    } catch (error) {
+      console.error('Error saving push token:', error);
+    }
+
+    return token;
+  } catch (error) {
+    // Firebase may not be initialized - this is expected in dev builds without FCM setup
+    console.warn('Push notifications registration failed:', error);
+    return null;
+  }
 }
 
 export async function scheduleLocalNotification(

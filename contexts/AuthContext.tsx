@@ -354,8 +354,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(newSession);
       
       if (newSession) {
-        // Register for push notifications
-        await registerForPushNotificationsAsync();
+        // Register for push notifications (wrapped in try-catch to handle Firebase not being initialized)
+        try {
+          await registerForPushNotificationsAsync();
+        } catch (error) {
+          console.warn('Push notification registration failed:', error);
+        }
         // Check user role on sign in
         await checkUserRole();
         // Warmup cache with user data

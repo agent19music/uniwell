@@ -5,21 +5,13 @@ import { Ionicons, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useMood, MoodType } from '../../contexts/MoodContext';
-import * as Burnt from 'burnt';
+import { toast } from '../../lib/toast/toast';
 import { useTheme } from '../../hooks/useTheme';
 import { useWellnessScore } from '../../hooks/useWellnessScore';
 import { LoadingIndicator } from '@rn-nui/loading-indicator';
 import { Menu } from '../../components/Menu';
+import { MoodCard } from '../../components/mood';
 
-
-const MOOD_OPTIONS = [
-  { id: 'happy', icon: '😊', label: 'Happy', color: '#F4D03F' },
-  { id: 'calm', icon: '😌', label: 'Calm', color: '#A8B896' },
-  { id: 'stressed', icon: '😠', label: 'Stressed', color: '#E89B8E' },
-  { id: 'confident', icon: '😎', label: 'Confident', color: '#8ABADB' },
-  { id: 'anxious', icon: '😟', label: 'Anxious', color: '#F0D5D8' },
-  { id: 'tired', icon: '😴', label: 'Tired', color: '#B8B3C8' },
-];
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -71,25 +63,19 @@ export default function HomeScreen() {
     loading: moodLoading 
   } = moodContext;
 
-  const handleMoodSelection = async (mood: typeof MOOD_OPTIONS[0]) => {
+  const handleMoodSelection = async (moodId: MoodType, moodLabel: string) => {
     try {
       // Record the mood in our database
-      await recordMood(mood.id as MoodType);
+      await recordMood(moodId);
       
       // Show success toast
-      Burnt.toast({
-        title: 'Mood Recorded',
-        message: `You're feeling ${mood.label.toLowerCase()} today`,
-        preset: 'done',
+      toast.success('Mood Recorded', {
+        message: `You're feeling ${moodLabel.toLowerCase()} today`,
         duration: 2000,
-        from: 'top',
-        shouldDismissByDrag: true 
       });
     } catch (error) {
-      Burnt.toast({
-        title: 'Error',
+      toast.error('Error', {
         message: 'Failed to record your mood',
-        preset: 'error',
         duration: 2000,
       });
     }
@@ -119,23 +105,17 @@ export default function HomeScreen() {
       if (error) throw error;
 
       // Show success toast
-      Burnt.toast({
-        title: 'Reflection Saved',
+      toast.success('Reflection Saved', {
         message: 'Your daily reflection has been recorded',
-        preset: 'done',
         duration: 2000,
-        from: 'top',
-        shouldDismissByDrag: true 
       });
 
       // Clear the input
       setReflectionText('');
     } catch (error) {
       console.error('Error saving reflection:', error);
-      Burnt.toast({
-        title: 'Error',
+      toast.error('Error', {
         message: 'Failed to save your reflection',
-        preset: 'error',
         duration: 2000,
       });
     } finally {
@@ -239,36 +219,15 @@ export default function HomeScreen() {
     </View>
   );
 
-  // Render mood log section
+  // Render mood log section - now using MoodCard
   const renderMoodLog = () => (
-    <View style={styles.moodLogSection}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-          Daily Mood Log
-        </Text>
-        <Menu 
-          visible={moodMenuVisible}
-          onDismiss={() => setMoodMenuVisible(false)}
-          items={moodMenuItems}
-          trigger={
-            <TouchableOpacity onPress={() => setMoodMenuVisible(true)}>
-              <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
-          }
-        />
-      </View>
-      <View style={styles.moodOptionsContainer}>
-        {MOOD_OPTIONS.map((mood) => (
-          <TouchableOpacity 
-            key={mood.id} 
-            style={[styles.moodCircle, { backgroundColor: mood.color }]} 
-            onPress={() => handleMoodSelection(mood)}
-          >
-            <Text style={styles.moodIcon}>{mood.icon}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
+    <MoodCard
+      onMoodSelect={handleMoodSelection}
+      menuVisible={moodMenuVisible}
+      onMenuDismiss={() => setMoodMenuVisible(false)}
+      onMenuOpen={() => setMoodMenuVisible(true)}
+      menuItems={moodMenuItems}
+    />
   );
 
   // Render wellness progress section
@@ -486,11 +445,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Vercetti-Regular',
   },
-  // Mood Log Section
-  moodLogSection: {
-    paddingHorizontal: 24,
-    marginBottom: 32,
-  },
+  // Section styles (shared)
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -501,20 +456,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
-  },
-  moodOptionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  moodCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moodIcon: {
-    fontSize: 32,
   },
   // Wellness Progress Section
   progressSection: {
