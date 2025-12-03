@@ -1,7 +1,6 @@
 import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { LineChart, BarChart } from 'react-native-chart-kit';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { format, subDays, addDays, parseISO } from 'date-fns';
@@ -21,6 +20,35 @@ import {
 } from '../lib/services/sleepService';
 import { LoadingIndicator } from '@rn-nui/loading-indicator';
 import { Colors } from '@/constants/Colors';
+import { GlowingSleepChart } from '@/components/charts';
+
+// Dummy data for aesthetic testing
+const DUMMY_WEEKLY_DATA: WeeklySleepData[] = [
+  { day: 'Mon', hours: 7.5, quality: 8, goalAchieved: true },
+  { day: 'Tue', hours: 6.2, quality: 6, goalAchieved: false },
+  { day: 'Wed', hours: 8.1, quality: 9, goalAchieved: true },
+  { day: 'Thu', hours: 5.8, quality: 5, goalAchieved: false },
+  { day: 'Fri', hours: 7.0, quality: 7, goalAchieved: false },
+  { day: 'Sat', hours: 9.2, quality: 9, goalAchieved: true },
+  { day: 'Sun', hours: 8.0, quality: 8, goalAchieved: true },
+];
+
+const DUMMY_SLEEP_STATS: SleepStats = {
+  averageHours: 7.4,
+  averageQuality: 7.4,
+  consistencyScore: 72,
+  sleepDebt: 2.5,
+  trend: 'improving' as const,
+  goalAchievement: 57,
+};
+
+const DUMMY_INSIGHTS = [
+  "Your best sleep was on Saturday with 9.2 hours",
+  "You tend to sleep better on weekends",
+  "Consider going to bed 30 minutes earlier on weekdays",
+];
+
+const USE_DUMMY_DATA = true; // Toggle for aesthetic testing
 
 interface SleepAdvice {
   status: string;
@@ -123,26 +151,34 @@ export default function SleepStatsScreen() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Get sleep chart data
-      const { data: weekData, error: weekError } = await getWeeklySleepChartData();
-      if (weekError) throw weekError;
-      if (weekData) setChartData(weekData);
-      
-      // Get sleep statistics
-      const { data: statsData, error: statsError } = await calculateSleepStats();
-      if (statsError) throw statsError;
-      if (statsData) setSleepStats(statsData);
-      
-      // Get sleep goal
-      const { data: goalData, error: goalError } = await getActiveSleepGoal();
-      if (goalError) throw goalError;
-      setSleepGoalState(goalData);
-      
-      // Get insights
-      const { data: insightsData, error: insightsError } = await getSleepInsights('weekly');
-      if (insightsError) throw insightsError;
-      if (insightsData) {
-        setInsights(insightsData.map(insight => insight.insight_text));
+      if (USE_DUMMY_DATA) {
+        // Use dummy data for aesthetic testing
+        setChartData(DUMMY_WEEKLY_DATA);
+        setSleepStats(DUMMY_SLEEP_STATS);
+        setSleepGoalState({ target_hours: 8, is_active: true } as SleepGoal);
+        setInsights(DUMMY_INSIGHTS);
+      } else {
+        // Get sleep chart data
+        const { data: weekData, error: weekError } = await getWeeklySleepChartData();
+        if (weekError) throw weekError;
+        if (weekData) setChartData(weekData);
+        
+        // Get sleep statistics
+        const { data: statsData, error: statsError } = await calculateSleepStats();
+        if (statsError) throw statsError;
+        if (statsData) setSleepStats(statsData);
+        
+        // Get sleep goal
+        const { data: goalData, error: goalError } = await getActiveSleepGoal();
+        if (goalError) throw goalError;
+        setSleepGoalState(goalData);
+        
+        // Get insights
+        const { data: insightsData, error: insightsError } = await getSleepInsights('weekly');
+        if (insightsError) throw insightsError;
+        if (insightsData) {
+          setInsights(insightsData.map(insight => insight.insight_text));
+        }
       }
     } catch (error) {
       console.error('Error fetching sleep data:', error);
@@ -225,34 +261,16 @@ export default function SleepStatsScreen() {
     return getSleepAdvice(sleepStats as SleepStats);
   }, [sleepStats]);
 
-  const getChartConfig = (primaryColor: string = '#3F70F4') => {
-    return {
-      backgroundColor: 'transparent',
-      backgroundGradientFrom: isDark ? '#1e1e1e' : '#ffffff',
-      backgroundGradientTo: isDark ? '#1e1e1e' : '#ffffff',
-      decimalPlaces: 1,
-      color: (opacity = 1) => isDark 
-        ? `rgba(255, 255, 255, ${opacity})` 
-        : `rgba(0, 0, 0, ${opacity})`,
-      labelColor: (opacity = 1) => isDark 
-        ? `rgba(255, 255, 255, ${opacity})` 
-        : `rgba(0, 0, 0, ${opacity})`,
-      style: {
-        borderRadius: 16
-      },
-      propsForDots: {
-        r: "6",
-        strokeWidth: "2",
-        stroke: primaryColor
-      },
-      propsForBackgroundLines: {
-        strokeDasharray: "", // solid background lines
-        stroke: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
-        strokeWidth: 1
-      },
-      formatYLabel: (value: string) => Number(value).toFixed(1),
-    };
-  };
+  // Prepare chart data for GlowingSleepChart
+  const prepareGlowingChartData = useMemo(() => {
+    if (!chartData || chartData.length === 0) return [];
+    return chartData.map(d => ({
+      label: d.day,
+      hours: d.hours,
+      quality: d.quality,
+      goalAchieved: d.goalAchieved,
+    }));
+  }, [chartData]);
 
   const renderWeeklyChart = () => {
     if (!chartData || chartData.length === 0) {
@@ -265,53 +283,18 @@ export default function SleepStatsScreen() {
       );
     }
 
-    const data = {
-      labels: chartData.map(d => d.day),
-      datasets: [
-        {
-          data: chartData.map(d => d.hours),
-          color: (opacity = 1) => `rgba(63, 112, 244, ${opacity})`,
-          strokeWidth: 2
-        }
-      ],
-      legend: ["Sleep Hours"]
-    };
-
-    const targetLine = sleepGoal?.target_hours || 8;
-
     return (
-      <View style={styles.chartWrapper}>
-        <LineChart
-          data={data}
-          width={chartWidth}
+      <View style={[styles.glowingChartContainer, isDark && styles.darkCard]}>
+        <GlowingSleepChart
+          data={prepareGlowingChartData}
+          chartType="duration"
+          targetHours={sleepGoal?.target_hours || 8}
           height={220}
-          chartConfig={getChartConfig()}
-          bezier
-          style={styles.chart}
-          withInnerLines={true}
-          withOuterLines={true}
-          withHorizontalLabels={true}
-          withVerticalLabels={true}
-          withDots={true}
-          segments={5}
-          fromZero={false}
-          renderDotContent={({ x, y, index, indexData }) => (
-            <View key={index} style={[
-              styles.dataPoint,
-              { 
-                left: x - 16,
-                top: y - 36,
-                backgroundColor: chartData[index].goalAchieved ? '#4CAF50' : '#FF5722'
-              }
-            ]}>
-              <Text style={styles.dataPointText}>{indexData.toFixed(1)}</Text>
-            </View>
-          )}
+          showTargetLine={true}
+          showArea={true}
+          showGrid={true}
+          showDots={true}
         />
-        <View style={styles.targetLineContainer}>
-          <View style={styles.targetLine} />
-          <Text style={styles.targetLineText}>Goal: {targetLine} hrs</Text>
-        </View>
       </View>
     );
   };
@@ -321,35 +304,16 @@ export default function SleepStatsScreen() {
       return null;
     }
 
-    const data = {
-      labels: chartData.map(d => d.day),
-      datasets: [
-        {
-          data: chartData.map(d => d.quality),
-          color: (opacity = 1) => `rgba(156, 39, 176, ${opacity})`,
-          strokeWidth: 2
-        }
-      ],
-      legend: ["Sleep Quality"]
-    };
-
     return (
-      <View style={styles.chartWrapper}>
-        <LineChart
-          data={data}
-          width={chartWidth}
+      <View style={[styles.glowingChartContainer, isDark && styles.darkCard]}>
+        <GlowingSleepChart
+          data={prepareGlowingChartData}
+          chartType="quality"
           height={180}
-          chartConfig={getChartConfig('#9C27B0')}
-          bezier
-          style={styles.chart}
-          withInnerLines={true}
-          withOuterLines={true}
-          withHorizontalLabels={true}
-          withVerticalLabels={true}
-          withDots={true}
-          segments={4}
-          fromZero={false}
-          yAxisSuffix="/10"
+          showTargetLine={false}
+          showArea={true}
+          showGrid={true}
+          showDots={true}
         />
       </View>
     );
@@ -729,6 +693,18 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     marginBottom: 20,
+  },
+  glowingChartContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    paddingTop: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    overflow: 'hidden',
   },
   chartHeader: {
     flexDirection: 'row',

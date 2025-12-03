@@ -22,15 +22,10 @@ export default function HomeScreen() {
   const [savingReflection, setSavingReflection] = useState(false);
   
   // Menu states
-  const [moodMenuVisible, setMoodMenuVisible] = useState(false);
   const [progressMenuVisible, setProgressMenuVisible] = useState(false);
   const [journalMenuVisible, setJournalMenuVisible] = useState(false);
 
   // Menu items
-  const moodMenuItems = [
-    { label: 'View Weekly Mood Report', icon: 'stats-chart-outline', onPress: () => router.push('/mood-detail') },
-  ];
-
   const progressMenuItems = [
     { label: 'View Monthly Progress', icon: 'calendar-outline', onPress: () => router.push('/wellness-report') },
   ];
@@ -60,6 +55,8 @@ export default function HomeScreen() {
   
   const { 
     recordMood,
+    currentMood,
+    todaysMoodRecorded,
     loading: moodLoading 
   } = moodContext;
 
@@ -223,10 +220,9 @@ export default function HomeScreen() {
   const renderMoodLog = () => (
     <MoodCard
       onMoodSelect={handleMoodSelection}
-      menuVisible={moodMenuVisible}
-      onMenuDismiss={() => setMoodMenuVisible(false)}
-      onMenuOpen={() => setMoodMenuVisible(true)}
-      menuItems={moodMenuItems}
+      onViewWeeklyReport={() => router.push('/mood-detail')}
+      currentMood={currentMood}
+      todaysMoodRecorded={todaysMoodRecorded}
     />
   );
 

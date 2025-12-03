@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { StyleSheet, View, TouchableOpacity, Platform } from "react-native";
 import Slider from "@react-native-community/slider";
 import Animated, {
@@ -6,14 +6,18 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  withSpring,
+  useAnimatedRef,
+  runOnUI,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { Ionicons } from "@expo/vector-icons";
+import { format, formatDistanceToNow } from "date-fns";
 
 import { MoodShape } from "./MoodShape";
 import { AnimatedText } from "./AnimatedText";
 import { useTheme } from "../../hooks/useTheme";
-import { MoodType } from "../../contexts/MoodContext";
+import { MoodType, MoodEntry } from "../../contexts/MoodContext";
 import { Menu } from "../Menu";
 
 // Mood options mapping (aligned with MoodType from MoodContext)
@@ -44,23 +48,68 @@ const MOOD_IDS: MoodType[] = [
 
 interface MoodCardProps {
   onMoodSelect: (moodId: MoodType, moodLabel: string) => void;
-  menuVisible: boolean;
-  onMenuDismiss: () => void;
-  onMenuOpen: () => void;
-  menuItems: Array<{ label: string; icon: string; onPress: () => void }>;
+  onViewWeeklyReport: () => void;
+  currentMood: MoodEntry | null;
+  todaysMoodRecorded: boolean;
 }
+
+// Map MoodType to index for display
+const MOOD_TYPE_TO_INDEX: Record<MoodType, number> = {
+  sad: 0,
+  angry: 1,
+  stressed: 2,
+  calm: 3,
+  happy: 4,
+};
 
 export function MoodCard({
   onMoodSelect,
-  menuVisible,
-  onMenuDismiss,
-  onMenuOpen,
-  menuItems,
+  onViewWeeklyReport,
+  currentMood,
+  todaysMoodRecorded,
 }: MoodCardProps) {
   const { colors, isDark } = useTheme();
+  const [isExpanded, setIsExpanded] = useState(!todaysMoodRecorded);
+  const [menuVisible, setMenuVisible] = useState(false);
   const value = useSharedValue(3 / (MOOD_LABELS.length - 1)); // Start at "Calm" (index 3 of 5)
   const [currentMoodIndex, setCurrentMoodIndex] = useState(3);
   const [hasConfirmed, setHasConfirmed] = useState(false);
+
+  // Update expansion state when todaysMoodRecorded changes
+  useEffect(() => {
+    if (todaysMoodRecorded && !hasConfirmed) {
+      setIsExpanded(false);
+    }
+  }, [todaysMoodRecorded]);
+
+  // Set initial mood index based on current mood
+  useEffect(() => {
+    if (currentMood) {
+      const index = MOOD_TYPE_TO_INDEX[currentMood.moodType];
+      setCurrentMoodIndex(index);
+      value.value = index / (MOOD_LABELS.length - 1);
+    }
+  }, [currentMood]);
+
+  // Menu items for the collapsed state
+  const menuItems = [
+    { 
+      label: 'Update Mood', 
+      icon: 'create-outline', 
+      onPress: () => {
+        setIsExpanded(true);
+        setMenuVisible(false);
+      }
+    },
+    { 
+      label: 'View Weekly Summary', 
+      icon: 'stats-chart-outline', 
+      onPress: () => {
+        onViewWeeklyReport();
+        setMenuVisible(false);
+      }
+    },
+  ];
 
   useAnimatedReaction(
     () => value.value,
@@ -79,9 +128,33 @@ export function MoodCard({
     const moodLabel = MOOD_LABELS[currentMoodIndex];
     onMoodSelect(moodId, moodLabel);
     setHasConfirmed(true);
-    // Reset after a short delay
-    setTimeout(() => setHasConfirmed(false), 2000);
+    // Collapse after a short delay
+    setTimeout(() => {
+      setHasConfirmed(false);
+      setIsExpanded(false);
+    }, 1500);
   };
+
+  // Format last logged time
+  const getLastLoggedText = () => {
+    if (!currentMood?.createdAt) return null;
+    const date = new Date(currentMood.createdAt);
+    const timeAgo = formatDistanceToNow(date, { addSuffix: true });
+    return timeAgo;
+  };
+
+  // Get current mood display info
+  const getCurrentMoodDisplay = () => {
+    if (!currentMood) return null;
+    const index = MOOD_TYPE_TO_INDEX[currentMood.moodType];
+    return {
+      label: MOOD_LABELS[index],
+      color: MOOD_COLORS[index],
+      index,
+    };
+  };
+
+  const moodDisplay = getCurrentMoodDisplay();
 
   return (
     <View style={styles.container}>
@@ -91,17 +164,47 @@ export function MoodCard({
         </Animated.Text>
         <Menu
           visible={menuVisible}
-          onDismiss={onMenuDismiss}
+          onDismiss={() => setMenuVisible(false)}
           items={menuItems}
           trigger={
-            <TouchableOpacity onPress={onMenuOpen}>
+            <TouchableOpacity onPress={() => setMenuVisible(true)}>
               <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
           }
         />
       </View>
 
-      <View style={[styles.cardContainer, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
+      {/* Collapsed State - Show mood summary */}
+      {!isExpanded && todaysMoodRecorded && moodDisplay && (
+        <TouchableOpacity 
+          style={[styles.collapsedCard, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
+          onPress={() => setIsExpanded(true)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.collapsedContent}>
+            <View style={[styles.collapsedShapeContainer, { backgroundColor: moodDisplay.color }]}>
+              <MoodShape
+                progress={moodDisplay.index}
+                fillColor="#FFFFFF"
+                faceColor="#1A1A1A"
+              />
+            </View>
+            <View style={styles.collapsedTextContainer}>
+              <Animated.Text style={[styles.collapsedMoodLabel, { color: colors.textPrimary }]}>
+                Feeling {moodDisplay.label}
+              </Animated.Text>
+              <Animated.Text style={[styles.collapsedTimeLabel, { color: colors.textSecondary }]}>
+                Logged {getLastLoggedText()}
+              </Animated.Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+      )}
+
+      {/* Expanded State - Full mood picker */}
+      {(isExpanded || !todaysMoodRecorded) && (
+        <View style={[styles.cardContainer, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
         {/* Mood Label with animated text */}
         <View style={styles.labelContainer}>
           <AnimatedText
@@ -148,10 +251,11 @@ export function MoodCard({
           disabled={hasConfirmed}
         >
           <Animated.Text style={[styles.confirmButtonText, { color: "#FFFFFF" }]}>
-            {hasConfirmed ? "Recorded!" : "Log Mood"}
+            {hasConfirmed ? "Recorded!" : todaysMoodRecorded ? "Update Mood" : "Log Mood"}
           </Animated.Text>
         </TouchableOpacity>
       </View>
+      )}
     </View>
   );
 }
@@ -172,6 +276,45 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Vercetti-Regular",
   },
+  // Collapsed state styles
+  collapsedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 24,
+    padding: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  collapsedContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  collapsedShapeContainer: {
+    width: 56,
+    height: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 28,
+    marginRight: 16,
+  },
+  collapsedTextContainer: {
+    flex: 1,
+  },
+  collapsedMoodLabel: {
+    fontSize: 17,
+    fontWeight: "600",
+    fontFamily: "Vercetti-Regular",
+    marginBottom: 4,
+  },
+  collapsedTimeLabel: {
+    fontSize: 14,
+    fontFamily: "Vercetti-Regular",
+  },
+  // Expanded state styles
   cardContainer: {
     borderRadius: 28,
     padding: 24,
