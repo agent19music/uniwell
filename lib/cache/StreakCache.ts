@@ -1,12 +1,24 @@
 /**
  * Streak Cache Service
  * 
- * Caches streak data
+ * Caches streak data with events (milestones, relapses, check-ins)
  */
 
 import { BaseCacheService } from './BaseCacheService';
 import { CACHE_CONFIGS } from './types';
 import { syncQueue } from './SyncQueue';
+
+export type StreakEventType = 'relapse' | 'milestone' | 'check_in';
+
+export interface CachedStreakEvent {
+  id: string;
+  streak_id: string;
+  timestamp: string;
+  event_type: StreakEventType;
+  milestone_days: number | null;
+  notes: string | null;
+  created_at: string;
+}
 
 export interface CachedStreak {
   id: string;
@@ -19,10 +31,12 @@ export interface CachedStreak {
   current_streak: number;
   longest_streak: number;
   target_count: number;
+  target_days: number | null;
   color: string;
   icon: string;
   created_at: string;
   updated_at: string;
+  events?: CachedStreakEvent[];
 }
 
 export interface StreakCacheData {
@@ -215,6 +229,71 @@ class StreakCacheService extends BaseCacheService<StreakCacheData> {
     if (!data) return [];
     
     return data.streaks.filter(s => s.status === 'active');
+  }
+
+  /**
+   * Add a streak event (relapse, milestone, check_in)
+   */
+  async addEvent(
+    userId: string,
+    streakId: string,
+    event: Omit<CachedStreakEvent, 'id' | 'streak_id' | 'timestamp' | 'created_at'>
+  ): Promise<string> {
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+
+    const newEvent: CachedStreakEvent = {
+      ...event,
+      id: tempId,
+      streak_id: streakId,
+      timestamp: now,
+      created_at: now,
+    };
+
+    await this.update(
+      (existing) => {
+        if (!existing) return null as any;
+        
+        const streaks = existing.streaks.map(s => {
+          if (s.id === streakId) {
+            return {
+              ...s,
+              events: [...(s.events || []), newEvent],
+            };
+          }
+          return s;
+        });
+        
+        return { streaks };
+      },
+      userId
+    );
+
+    // Queue for sync
+    await syncQueue.enqueue({
+      type: 'create',
+      table: 'streak_events',
+      data: {
+        streak_id: streakId,
+        event_type: event.event_type,
+        milestone_days: event.milestone_days,
+        notes: event.notes,
+      },
+      userId,
+    });
+
+    return tempId;
+  }
+
+  /**
+   * Get events for a streak
+   */
+  async getStreakEvents(userId: string, streakId: string): Promise<CachedStreakEvent[]> {
+    const data = await this.get(userId);
+    if (!data) return [];
+    
+    const streak = data.streaks.find(s => s.id === streakId);
+    return streak?.events || [];
   }
 }
 

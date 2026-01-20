@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -6,63 +6,49 @@ import {
   ScrollView, 
   TouchableOpacity, 
   TextInput,
-  useColorScheme,
   ActivityIndicator,
-  Alert
+  Image,
+  Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import CustomDialog from '../components/CustomDialog';
-import * as Burnt from 'burnt';
+import { useTheme } from '../hooks/useTheme';
+import { toast } from '@/lib/toast';
+import { ArrowLeft, ArrowRight, Check, Camera, GraduationCap, Sparkle } from 'phosphor-react-native';
+import InterestSelectionModal from '../components/InterestSelectionModal';
 
-// Define interest categories
-const INTEREST_CATEGORIES = [
-  { id: 'fitness', label: 'Fitness', icon: 'fitness' },
-  { id: 'meditation', label: 'Meditation', icon: 'leaf' },
-  { id: 'nutrition', label: 'Nutrition', icon: 'nutrition' },
-  { id: 'sleep', label: 'Sleep', icon: 'moon' },
-  { id: 'productivity', label: 'Productivity', icon: 'calendar' },
-  { id: 'mental_health', label: 'Mental Health', icon: 'heart' },
-  { id: 'social', label: 'Social Wellness', icon: 'people' },
-  { id: 'education', label: 'Education', icon: 'school' },
-  { id: 'career', label: 'Career Growth', icon: 'briefcase' },
-  { id: 'hobbies', label: 'Hobbies', icon: 'color-palette' },
-];
+const { width } = Dimensions.get('window');
 
-// Define primary goals
-const PRIMARY_GOALS = [
-  { id: 'reduce_stress', label: 'Reduce Stress & Anxiety' },
-  { id: 'improve_sleep', label: 'Improve Sleep Quality' },
-  { id: 'build_habits', label: 'Build Healthy Habits' },
-  { id: 'increase_productivity', label: 'Increase Productivity' },
-  { id: 'enhance_focus', label: 'Enhance Focus & Concentration' },
-  { id: 'manage_time', label: 'Better Time Management' },
-  { id: 'improve_mood', label: 'Improve Mood & Emotional Health' },
-  { id: 'track_progress', label: 'Track Personal Progress' },
+// Avatar options - mix of styles for variety
+const AVATAR_OPTIONS = [
+  { id: 'avatar1', url: 'https://www.tapback.co/api/avatar/user55?color=3', gender: 'male' },
+  { id: 'avatar2', url: 'https://www.tapback.co/api/avatar/Ccd8b9', gender: 'female' },
+  { id: 'avatar3', url: 'https://www.tapback.co/api/avatar/alex123?color=1', gender: 'neutral' },
+  { id: 'avatar4', url: 'https://www.tapback.co/api/avatar/jordan?color=2', gender: 'neutral' },
+  { id: 'avatar5', url: 'https://www.tapback.co/api/avatar/sam42?color=4', gender: 'male' },
+  { id: 'avatar6', url: 'https://www.tapback.co/api/avatar/taylor?color=5', gender: 'female' },
+  { id: 'avatar7', url: 'https://www.tapback.co/api/avatar/chris99?color=6', gender: 'neutral' },
+  { id: 'avatar8', url: 'https://www.tapback.co/api/avatar/morgan?color=7', gender: 'neutral' },
 ];
 
 export default function ProfileCompletionScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const router = useRouter();
-  const { profile, setProfile } = useAuth();
+  const { profile, setProfile, fetchProfile } = useAuth();
   
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [showCompletedDialog, setShowCompletedDialog] = useState(false);
+  const [showInterestModal, setShowInterestModal] = useState(false);
   
-  // Form state
+  // Form state - simplified to: avatar, course, interests
+  const [selectedAvatar, setSelectedAvatar] = useState<string>('');
+  const [course, setCourse] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [primaryGoal, setPrimaryGoal] = useState('');
-  const [bio, setBio] = useState('');
-  const [occupation, setOccupation] = useState('');
-  const [university, setUniversity] = useState('');
   
   useEffect(() => {
     checkProfileStatus();
@@ -85,71 +71,42 @@ export default function ProfileCompletionScreen() {
         .eq('id', user.id)
         .single();
         
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') throw error;
       
       // Pre-fill form with existing data if available
       if (profileData) {
+        if (profileData.avatar_url) setSelectedAvatar(profileData.avatar_url);
+        if (profileData.course) setCourse(profileData.course);
         if (profileData.interests) setSelectedInterests(profileData.interests);
-        if (profileData.primary_goal) setPrimaryGoal(profileData.primary_goal);
-        if (profileData.university) setUniversity(profileData.university);
-        if (profileData.occupation) setOccupation(profileData.occupation);
         
-        // Check if profile is already complete
+        // Check if profile is already complete (100%)
         if (profileData.profile_completion_percentage === 100) {
-          setIsProfileComplete(true);
           setShowCompletedDialog(true);
         }
       }
     } catch (error) {
       console.error('Error checking profile status:', error);
+      toast.error('Failed to load profile data');
     } finally {
       setInitialLoading(false);
     }
   };
   
-  // Toggle interest selection
-  const toggleInterest = (interestId: string) => {
-    if (selectedInterests.includes(interestId)) {
-      setSelectedInterests(selectedInterests.filter(id => id !== interestId));
-    } else {
-      if (selectedInterests.length < 5) {
-        setSelectedInterests([...selectedInterests, interestId]);
-      } else {
-        Burnt.toast({
-          title: 'Error',
-          message: 'You can select up to 5 interests',
-          preset: 'error',
-          duration: 2,
-          from: 'top',
-          shouldDismissByDrag: true
-        });
-      }
-    }
-  };
-  
   // Handle next step
   const handleNextStep = () => {
-    if (step === 1 && selectedInterests.length === 0) {
-      Burnt.toast({
-        title: 'Error',
-        message: 'Please select at least one interest',
-        preset: 'error',
-        duration: 2,
-        from: 'top',
-        shouldDismissByDrag: true
-      });
+    if (step === 1 && !selectedAvatar) {
+      toast.error('Please select an avatar');
       return;
     }
     
-    if (step === 2 && !primaryGoal) {
-      Burnt.toast({
-        title: 'Error',
-        message: 'Please select your primary goal',
-        preset: 'error',
-        duration: 2,
-        from: 'top',
-        shouldDismissByDrag: true
-      });
+    if (step === 2 && !course.trim()) {
+      toast.error('Please enter your course/program');
+      return;
+    }
+    
+    if (step === 3) {
+      // Open interests modal instead of going to next step
+      setShowInterestModal(true);
       return;
     }
     
@@ -162,76 +119,65 @@ export default function ProfileCompletionScreen() {
       setStep(step - 1);
     }
   };
+
+  // Handle interests update from modal
+  const handleInterestsUpdated = useCallback((interests: string[]) => {
+    setSelectedInterests(interests);
+    setShowInterestModal(false);
+    // After interests are selected, complete the profile
+    handleCompleteProfile(interests);
+  }, [selectedAvatar, course]);
   
   // Complete profile setup
-  const handleCompleteProfile = async () => {
+  const handleCompleteProfile = async (interests?: string[]) => {
+    const finalInterests = interests || selectedInterests;
+    
+    if (finalInterests.length === 0) {
+      toast.error('Please select at least one interest');
+      return;
+    }
+    
     try {
       setLoading(true);
-      
-      // Validate final step
-      if (!university || !occupation) {
-        Burnt.toast({
-          title: 'Error',
-          message: 'Please fill in all fields',
-          preset: 'error',
-          duration: 2,
-          from: 'top',
-          shouldDismissByDrag: true
-        });
-        setLoading(false);
-        return;
-      }
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not found');
       
-      // Update profile in database
+      // Update profile in database with all collected data
       const { error } = await supabase
         .from('profiles')
         .update({
-          interests: selectedInterests,
-          primary_goal: primaryGoal,
-          bio: bio,
-          occupation: occupation,
-          university: university,
+          avatar_url: selectedAvatar,
+          course: course.trim(),
+          interests: finalInterests,
           profile_completion_percentage: 100,
-          updated_at: new Date()
+          onboarding_completed: true,
+          updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
         
       if (error) throw error;
       
-      // Save interests to user_interests table
-      for (const interest of selectedInterests) {
+      // Sync interests to user_interests table (for recommendations)
+      // First delete existing interests
+      await supabase
+        .from('user_interests')
+        .delete()
+        .eq('user_id', user.id);
+      
+      // Insert new interests
+      if (finalInterests.length > 0) {
+        const interestRecords = finalInterests.map(interest => ({
+          user_id: user.id,
+          interest: interest
+        }));
+        
         await supabase
           .from('user_interests')
-          .insert({
-            user_id: user.id,
-            interest: interest
-          });
+          .insert(interestRecords);
       }
       
-      // Save primary goal to user_goals table
-      await supabase
-        .from('user_goals')
-        .insert({
-          user_id: user.id,
-          goal: primaryGoal,
-          priority: 1
-        });
-      
-      // Update local profile state
-      setProfile({
-        ...profile,
-        interests: selectedInterests,
-        primary_goal: primaryGoal,
-        bio: bio,
-        occupation: occupation,
-        university: university,
-        profile_completion_percentage: 100
-      });
-      
-      // Delete the "Complete Your Profile" notification
+      // Delete the "Complete Your Profile" notification if exists
       await supabase
         .from('notifications')
         .delete()
@@ -240,29 +186,17 @@ export default function ProfileCompletionScreen() {
           category: 'profile'
         });
       
-      // Show success message
-      Burnt.toast({
-        title: 'Success',
-        message: 'Your profile has been successfully updated!',
-        preset: 'done',
-        duration: 2,
-        from: 'top',
-        shouldDismissByDrag: true
-      });
-
+      // Refresh the profile in context
+      await fetchProfile();
+      
+      toast.success('Profile completed successfully!');
+      
       // Navigate to home
       router.replace('/(tabs)/home');
       
     } catch (error) {
       console.error('Error completing profile:', error);
-      Burnt.toast({
-        title: 'Error',
-        message: 'Failed to complete profile. Please try again.',
-        preset: 'error',
-        duration: 2,
-        from: 'top',
-        shouldDismissByDrag: true
-      });
+      toast.error('Failed to complete profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -274,36 +208,39 @@ export default function ProfileCompletionScreen() {
       case 1:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, isDark && styles.darkText]}>
-              What are you interested in?
-            </Text>
-            <Text style={[styles.stepDescription, isDark && styles.darkSubText]}>
-              Select up to 5 topics that interest you the most
-            </Text>
+            <View style={styles.stepHeader}>
+              <Camera size={32} color={colors.primary} weight="duotone" />
+              <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
+                Choose Your Avatar
+              </Text>
+              <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
+                Pick an avatar that represents you
+              </Text>
+            </View>
             
-            <View style={styles.interestsGrid}>
-              {INTEREST_CATEGORIES.map(interest => (
+            <View style={styles.avatarGrid}>
+              {AVATAR_OPTIONS.map(avatar => (
                 <TouchableOpacity
-                  key={interest.id}
+                  key={avatar.id}
                   style={[
-                    styles.interestItem,
-                    selectedInterests.includes(interest.id) && styles.selectedInterest,
-                    isDark && styles.darkCard
+                    styles.avatarItem,
+                    { 
+                      backgroundColor: colors.surface,
+                      borderColor: selectedAvatar === avatar.url ? colors.primary : colors.border 
+                    },
+                    selectedAvatar === avatar.url && styles.selectedAvatar
                   ]}
-                  onPress={() => toggleInterest(interest.id)}
+                  onPress={() => setSelectedAvatar(avatar.url)}
                 >
-                  <Ionicons 
-                    name={interest.icon as any} 
-                    size={24} 
-                    color={selectedInterests.includes(interest.id) ? '#FF7F50' : isDark ? '#ffffff' : '#333333'} 
+                  <Image 
+                    source={{ uri: avatar.url }} 
+                    style={styles.avatarImage}
                   />
-                  <Text style={[
-                    styles.interestLabel,
-                    selectedInterests.includes(interest.id) && styles.selectedInterestText,
-                    isDark && styles.darkText
-                  ]}>
-                    {interest.label}
-                  </Text>
+                  {selectedAvatar === avatar.url && (
+                    <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
+                      <Check size={12} color="#FFFFFF" weight="bold" />
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -313,84 +250,85 @@ export default function ProfileCompletionScreen() {
       case 2:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, isDark && styles.darkText]}>
-              What's your primary goal?
-            </Text>
-            <Text style={[styles.stepDescription, isDark && styles.darkSubText]}>
-              Select the main reason you're using UniWell
-            </Text>
-            
-            <View style={styles.goalsList}>
-              {PRIMARY_GOALS.map(goal => (
-                <TouchableOpacity
-                  key={goal.id}
-                  style={[
-                    styles.goalItem,
-                    primaryGoal === goal.id && styles.selectedGoal,
-                    isDark && styles.darkCard
-                  ]}
-                  onPress={() => setPrimaryGoal(goal.id)}
-                >
-                  <View style={styles.goalRadio}>
-                    {primaryGoal === goal.id && <View style={styles.goalRadioSelected} />}
-                  </View>
-                  <Text style={[
-                    styles.goalLabel,
-                    primaryGoal === goal.id && styles.selectedGoalText,
-                    isDark && styles.darkText
-                  ]}>
-                    {goal.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.stepHeader}>
+              <GraduationCap size={32} color={colors.primary} weight="duotone" />
+              <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
+                What's Your Course?
+              </Text>
+              <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
+                Tell us what you're studying
+              </Text>
             </View>
+            
+            <View style={styles.formGroup}>
+              <TextInput
+                style={[
+                  styles.textInput, 
+                  { 
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.textPrimary 
+                  }
+                ]}
+                placeholder="e.g., Computer Science, Business, Medicine..."
+                placeholderTextColor={colors.textTertiary}
+                value={course}
+                onChangeText={setCourse}
+                autoFocus
+              />
+            </View>
+            
+            <Text style={[styles.helperText, { color: colors.textTertiary }]}>
+              This helps us personalize your experience with relevant resources
+            </Text>
           </View>
         );
         
       case 3:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, isDark && styles.darkText]}>
-              Tell us about yourself
-            </Text>
-            <Text style={[styles.stepDescription, isDark && styles.darkSubText]}>
-              This helps us personalize your experience
-            </Text>
-            
-            <View style={styles.formGroup}>
-              <Text style={[styles.inputLabel, isDark && styles.darkText]}>Bio</Text>
-              <TextInput
-                style={[styles.textArea, isDark && styles.darkInput]}
-                placeholder="Share a little about yourself..."
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
-                multiline
-                numberOfLines={4}
-                value={bio}
-                onChangeText={setBio}
-              />
+            <View style={styles.stepHeader}>
+              <Sparkle size={32} color={colors.primary} weight="duotone" />
+              <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
+                What Interests You?
+              </Text>
+              <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
+                Select topics you'd like to explore
+              </Text>
             </View>
             
-            <View style={styles.formGroup}>
-              <Text style={[styles.inputLabel, isDark && styles.darkText]}>Occupation</Text>
-              <TextInput
-                style={[styles.textInput, isDark && styles.darkInput]}
-                placeholder="What do you do?"
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
-                value={occupation}
-                onChangeText={setOccupation}
-              />
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={[styles.inputLabel, isDark && styles.darkText]}>University/School</Text>
-              <TextInput
-                style={[styles.textInput, isDark && styles.darkInput]}
-                placeholder="Where do you study?"
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
-                value={university}
-                onChangeText={setUniversity}
-              />
-            </View>
+            {selectedInterests.length > 0 ? (
+              <View style={styles.selectedInterestsPreview}>
+                <Text style={[styles.interestsCount, { color: colors.textSecondary }]}>
+                  {selectedInterests.length} interest{selectedInterests.length !== 1 ? 's' : ''} selected
+                </Text>
+                <View style={styles.interestTags}>
+                  {selectedInterests.slice(0, 5).map((interest) => (
+                    <View 
+                      key={interest} 
+                      style={[styles.interestTag, { backgroundColor: colors.primary + '20' }]}
+                    >
+                      <Text style={[styles.interestTagText, { color: colors.primary }]}>
+                        {interest.replace(/_/g, ' ')}
+                      </Text>
+                    </View>
+                  ))}
+                  {selectedInterests.length > 5 && (
+                    <View style={[styles.interestTag, { backgroundColor: colors.textTertiary + '20' }]}>
+                      <Text style={[styles.interestTagText, { color: colors.textSecondary }]}>
+                        +{selectedInterests.length - 5} more
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ) : (
+              <View style={[styles.emptyInterests, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.emptyInterestsText, { color: colors.textSecondary }]}>
+                  Tap "Select Interests" to choose topics that interest you
+                </Text>
+              </View>
+            )}
           </View>
         );
         
@@ -401,86 +339,94 @@ export default function ProfileCompletionScreen() {
   
   if (initialLoading) {
     return (
-      <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF7F50" />
-          <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textPrimary }]}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
   
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#000000'} />
+        <TouchableOpacity 
+          onPress={() => step > 1 ? handlePrevStep() : router.back()} 
+          style={[styles.backButton, { backgroundColor: colors.surface }]}
+        >
+          <ArrowLeft size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, isDark && styles.darkText]}>Complete Your Profile</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+          Complete Profile
+        </Text>
         <View style={styles.placeholder} />
       </View>
       
+      {/* Progress */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${(step / 3) * 100}%` }]} />
+        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+          <View 
+            style={[
+              styles.progressFill, 
+              { 
+                width: `${(step / 3) * 100}%`,
+                backgroundColor: colors.primary 
+              }
+            ]} 
+          />
         </View>
-        <Text style={[styles.progressText, isDark && styles.darkSubText]}>Step {step} of 3</Text>
+        <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+          Step {step} of 3
+        </Text>
       </View>
       
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      {/* Content */}
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {renderStepContent()}
       </ScrollView>
       
-      <View style={styles.footer}>
-        {step > 1 && (
-          <TouchableOpacity 
-            style={[styles.backButton, isDark && styles.darkButton]} 
-            onPress={handlePrevStep}
-          >
-            <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#333333'} />
-          </TouchableOpacity>
-        )}
-        
-        {step < 3 ? (
-          <TouchableOpacity 
-            style={styles.nextButton} 
-            onPress={handleNextStep}
-          >
-            <LinearGradient
-              colors={['#FF7F50', '#FF6B45']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientButton}
-            >
-              <Text style={styles.buttonText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={24} color="#ffffff" />
-            </LinearGradient>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={styles.nextButton} 
-            onPress={handleCompleteProfile}
-            disabled={loading}
-          >
-            <LinearGradient
-              colors={['#FF7F50', '#FF6B45']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientButton}
-            >
-              {loading ? (
-                <ActivityIndicator color="#ffffff" size="small" />
+      {/* Footer */}
+      <View style={[styles.footer, { borderTopColor: colors.border }]}>
+        <TouchableOpacity 
+          style={[styles.nextButton, { backgroundColor: colors.primary }]} 
+          onPress={handleNextStep}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <>
+              <Text style={styles.buttonText}>
+                {step === 3 
+                  ? (selectedInterests.length > 0 ? 'Complete Profile' : 'Select Interests')
+                  : 'Continue'
+                }
+              </Text>
+              {step < 3 ? (
+                <ArrowRight size={20} color="#FFFFFF" weight="bold" />
               ) : (
-                <>
-                  <Text style={styles.buttonText}>Complete Profile</Text>
-                  <Ionicons name="checkmark" size={24} color="#ffffff" />
-                </>
+                <Check size={20} color="#FFFFFF" weight="bold" />
               )}
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
+            </>
+          )}
+        </TouchableOpacity>
       </View>
       
+      {/* Interest Selection Modal */}
+      <InterestSelectionModal
+        visible={showInterestModal}
+        onClose={() => setShowInterestModal(false)}
+        onInterestsUpdated={handleInterestsUpdated}
+        initialInterests={selectedInterests}
+      />
+      
+      {/* Already Completed Dialog */}
       <CustomDialog
         visible={showCompletedDialog}
         title="Profile Already Complete"
@@ -499,237 +445,181 @@ export default function ProfileCompletionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
-  },
-  darkContainer: {
-    backgroundColor: '#121212',
   },
   header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  placeholder: {
+    width: 44,
   },
   progressContainer: {
-    marginVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#FF7F50',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   progressText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
     marginTop: 8,
     textAlign: 'right',
   },
-  content: {
+  scrollView: {
     flex: 1,
   },
-  contentContainer: {
-    padding: 16,
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
   },
   stepContainer: {
-    marginBottom: 24,
+    flex: 1,
+  },
+  stepHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
   stepTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  stepDescription: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
-  },
-  interestsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  interestItem: {
-    width: '48%',
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginBottom: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  selectedInterest: {
-    borderWidth: 2,
-    borderColor: '#FF7F50',
-    backgroundColor: 'rgba(255, 127, 80, 0.1)',
-  },
-  interestLabel: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#333',
+    marginTop: 16,
     textAlign: 'center',
   },
-  selectedInterestText: {
-    color: '#FF7F50',
-    fontWeight: 'bold',
-  },
-  goalsList: {
+  stepDescription: {
+    fontSize: 15,
     marginTop: 8,
+    textAlign: 'center',
   },
-  goalItem: {
+  // Avatar Grid
+  avatarGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 16,
   },
-  selectedGoal: {
-    borderWidth: 2,
-    borderColor: '#FF7F50',
-    backgroundColor: 'rgba(255, 127, 80, 0.1)',
-  },
-  goalRadio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#999',
-    marginRight: 12,
+  avatarItem: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
-  goalRadioSelected: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FF7F50',
+  selectedAvatar: {
+    borderWidth: 3,
   },
-  goalLabel: {
-    fontSize: 16,
-    color: '#333',
+  avatarImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
   },
-  selectedGoalText: {
-    color: '#FF7F50',
-    fontWeight: 'bold',
+  checkBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
+  // Form
   formGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   textInput: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#333',
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
   },
-  textArea: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#333',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
-    height: 120,
-    textAlignVertical: 'top',
+  helperText: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
   },
-  footer: {
+  // Interest Preview
+  selectedInterestsPreview: {
+    alignItems: 'center',
+  },
+  interestsCount: {
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  interestTags: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  interestTag: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  interestTagText: {
+    fontSize: 13,
+    fontWeight: '500',
+    textTransform: 'capitalize',
+  },
+  emptyInterests: {
+    padding: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  emptyInterestsText: {
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  // Footer
+  footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
-  },
-  backButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   nextButton: {
-    flex: 1,
-    height: 50,
-    borderRadius: 25,
-    overflow: 'hidden',
-    marginLeft: 16,
-  },
-  gradientButton: {
-    flex: 1,
+    height: 54,
+    borderRadius: 27,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 8,
   },
   buttonText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
-    marginRight: 8,
+    fontWeight: '600',
   },
-  darkText: {
-    color: '#ffffff',
-  },
-  darkSubText: {
-    color: '#aaaaaa',
-  },
-  darkCard: {
-    backgroundColor: '#1e1e1e',
-    borderColor: '#333333',
-  },
-  darkInput: {
-    backgroundColor: '#1e1e1e',
-    borderColor: '#333333',
-    color: '#ffffff',
-  },
-  darkButton: {
-    backgroundColor: '#333333',
-  },
+  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginLeft: 16,
-  },
-  placeholder: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
+    fontSize: 16,
+    marginTop: 12,
   },
 }); 

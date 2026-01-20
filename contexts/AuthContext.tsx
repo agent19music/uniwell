@@ -360,11 +360,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           console.warn('Push notification registration failed:', error);
         }
+        
         // Check user role on sign in
-        await checkUserRole();
+        try {
+          await checkUserRole();
+        } catch (error) {
+          console.warn('Error checking user role:', error);
+        }
+        
         // Warmup cache with user data
         if (newSession.user) {
-          cacheManager.warmupCache(newSession.user.id);
+          try {
+            await cacheManager.warmupCache(newSession.user.id);
+          } catch (error) {
+            console.warn('Error warming up cache:', error);
+          }
         }
       } else {
         // Reset everything when logged out

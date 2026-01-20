@@ -11,10 +11,13 @@ export interface CachedProfile {
   id: string;
   username: string | null;
   avatar_url: string | null;
-  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null; // Computed: first_name + last_name
   gender?: string | null;
   bio: string | null;
   university: string | null;
+  course: string | null; // New: user's course/major
   occupation: string | null;
   interests: string[] | null;
   primary_goal: string | null;

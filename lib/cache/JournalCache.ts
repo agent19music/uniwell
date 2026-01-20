@@ -2,22 +2,33 @@
  * Journal Entry Cache Service
  * 
  * Caches journal entries with offline-first support
+ * Supports text, audio, and video journal types with optional encryption
  */
 
 import { BaseCacheService } from './BaseCacheService';
 import { CACHE_CONFIGS } from './types';
 import { syncQueue } from './SyncQueue';
 
+export type JournalType = 'text' | 'audio' | 'video';
+
 export interface CachedJournalEntry {
   id: string;
   user_id: string;
+  title: string | null;
+  journal_type: JournalType;
+  text_content: string | null;
+  file_url: string | null;
   entry_date: string;
-  content: string | null;
-  voice_note_url: string | null;
   mood_type: string | null;
   mood_intensity: number | null;
+  is_pinned: boolean;
+  is_synced: boolean;
+  is_encrypted: boolean;
   created_at: string;
   updated_at: string;
+  // Legacy fields for backward compatibility
+  content?: string | null;
+  voice_note_url?: string | null;
 }
 
 export interface JournalCacheData {
@@ -48,7 +59,7 @@ class JournalCacheService extends BaseCacheService<JournalCacheData> {
    */
   async addEntry(
     userId: string, 
-    entry: Omit<CachedJournalEntry, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+    entry: Omit<CachedJournalEntry, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'is_synced'>
   ): Promise<string> {
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toISOString();
@@ -57,6 +68,7 @@ class JournalCacheService extends BaseCacheService<JournalCacheData> {
       ...entry,
       id: tempId,
       user_id: userId,
+      is_synced: false,
       created_at: now,
       updated_at: now,
     };

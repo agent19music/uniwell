@@ -1,12 +1,14 @@
 /**
  * Routine Cache Service
  * 
- * Caches user routines and their completions
+ * Caches user routines and their events (completions/misses)
  */
 
 import { BaseCacheService } from './BaseCacheService';
 import { CACHE_CONFIGS } from './types';
 import { syncQueue } from './SyncQueue';
+
+export type RoutineEventType = 'miss' | 'tick';
 
 export interface CachedRoutine {
   id: string;
@@ -14,6 +16,7 @@ export interface CachedRoutine {
   title: string;
   frequency: 'daily' | 'weekly' | 'custom';
   custom_days: string[];
+  days: string[] | null; // JSONB days for flexible patterns
   color: string;
   icon: string;
   is_active: boolean;
@@ -23,6 +26,17 @@ export interface CachedRoutine {
   updated_at: string;
 }
 
+export interface CachedRoutineEvent {
+  id: string;
+  routine_id: string;
+  user_id: string;
+  event_date: string;
+  event_type: RoutineEventType;
+  notes: string | null;
+  created_at: string;
+}
+
+// Legacy interface for backward compatibility
 export interface CachedRoutineCompletion {
   id: string;
   routine_id: string;
@@ -35,7 +49,8 @@ export interface CachedRoutineCompletion {
 
 export interface RoutineCacheData {
   routines: CachedRoutine[];
-  completions: CachedRoutineCompletion[];
+  events: CachedRoutineEvent[];
+  completions?: CachedRoutineCompletion[]; // Legacy support
 }
 
 class RoutineCacheService extends BaseCacheService<RoutineCacheData> {
@@ -74,7 +89,7 @@ class RoutineCacheService extends BaseCacheService<RoutineCacheData> {
 
     await this.update(
       (existing) => {
-        const data = existing || { routines: [], completions: [] };
+        const data = existing || { routines: [], events: [] };
         return {
           ...data,
           routines: [...data.routines, newRoutine],
@@ -132,7 +147,7 @@ class RoutineCacheService extends BaseCacheService<RoutineCacheData> {
         
         return {
           routines: existing.routines.filter(r => r.id !== routineId),
-          completions: existing.completions.filter(c => c.routine_id !== routineId),
+          events: existing.events.filter(e => e.routine_id !== routineId),
         };
       },
       userId
@@ -148,37 +163,44 @@ class RoutineCacheService extends BaseCacheService<RoutineCacheData> {
   }
 
   /**
-   * Complete a routine (local-first)
+   * Add a routine event (tick or miss) - local-first
    */
-  async completeRoutine(userId: string, routineId: string, date: Date): Promise<void> {
-    const completionDate = date.toISOString().split('T')[0];
+  async addEvent(
+    userId: string,
+    routineId: string,
+    eventType: RoutineEventType,
+    eventDate?: Date,
+    notes?: string
+  ): Promise<CachedRoutineEvent> {
+    const date = eventDate || new Date();
+    const eventDateStr = date.toISOString().split('T')[0];
     const now = new Date().toISOString();
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    const completion: CachedRoutineCompletion = {
+    const event: CachedRoutineEvent = {
       id: tempId,
       routine_id: routineId,
       user_id: userId,
-      completion_date: completionDate,
-      completed_at: now,
-      status: 'completed',
-      notes: null,
+      event_type: eventType,
+      event_date: eventDateStr,
+      notes: notes || null,
+      created_at: now,
     };
 
     await this.update(
       (existing) => {
         if (!existing) return null as any;
         
-        // Check if already completed
-        const alreadyCompleted = existing.completions.some(
-          c => c.routine_id === routineId && c.completion_date === completionDate
+        // Prevent duplicate events for same routine on same date
+        const alreadyExists = existing.events.some(
+          e => e.routine_id === routineId && e.event_date === eventDateStr
         );
         
-        if (alreadyCompleted) return existing;
+        if (alreadyExists) return existing;
         
         return {
           ...existing,
-          completions: [...existing.completions, completion],
+          events: [...existing.events, event],
         };
       },
       userId
@@ -187,15 +209,31 @@ class RoutineCacheService extends BaseCacheService<RoutineCacheData> {
     // Queue for sync
     await syncQueue.enqueue({
       type: 'create',
-      table: 'routine_completions',
+      table: 'routine_events',
       data: {
         routine_id: routineId,
-        completion_date: completionDate,
-        completed_at: now,
-        status: 'completed',
+        event_type: eventType,
+        event_date: eventDateStr,
+        notes: notes || null,
       },
       userId,
     });
+
+    return event;
+  }
+
+  /**
+   * Complete a routine (convenience method - adds a 'tick' event)
+   */
+  async completeRoutine(userId: string, routineId: string, date?: Date): Promise<void> {
+    await this.addEvent(userId, routineId, 'tick', date);
+  }
+
+  /**
+   * Mark a routine as missed
+   */
+  async missRoutine(userId: string, routineId: string, date?: Date, notes?: string): Promise<void> {
+    await this.addEvent(userId, routineId, 'miss', date, notes);
   }
 
   /**
@@ -205,22 +243,46 @@ class RoutineCacheService extends BaseCacheService<RoutineCacheData> {
     const data = await this.get(userId);
     if (!data) return false;
 
-    const completionDate = date.toISOString().split('T')[0];
-    return data.completions.some(
-      c => c.routine_id === routineId && 
-           c.completion_date === completionDate && 
-           c.status === 'completed'
+    const eventDate = date.toISOString().split('T')[0];
+    return data.events.some(
+      e => e.routine_id === routineId && 
+           e.event_date === eventDate && 
+           e.event_type === 'tick'
     );
   }
 
   /**
-   * Get completions for a routine
+   * Get all events for a routine
    */
-  async getRoutineCompletions(userId: string, routineId: string): Promise<CachedRoutineCompletion[]> {
+  async getRoutineEvents(userId: string, routineId: string): Promise<CachedRoutineEvent[]> {
     const data = await this.get(userId);
     if (!data) return [];
     
-    return data.completions.filter(c => c.routine_id === routineId);
+    return data.events.filter(e => e.routine_id === routineId);
+  }
+
+  /**
+   * Get routine events by type
+   */
+  async getRoutineEventsByType(
+    userId: string,
+    routineId: string,
+    eventType: RoutineEventType
+  ): Promise<CachedRoutineEvent[]> {
+    const data = await this.get(userId);
+    if (!data) return [];
+    
+    return data.events.filter(
+      e => e.routine_id === routineId && e.event_type === eventType
+    );
+  }
+
+  /**
+   * Get completions for a routine (backward compatibility - returns tick events)
+   * @deprecated Use getRoutineEvents instead
+   */
+  async getRoutineCompletions(userId: string, routineId: string): Promise<CachedRoutineEvent[]> {
+    return this.getRoutineEventsByType(userId, routineId, 'tick');
   }
 }
 

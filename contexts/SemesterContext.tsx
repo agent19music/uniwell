@@ -317,16 +317,14 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             // Optimistic update
             setSemesters(prev => [...prev, formattedSemester]);
             
-            // Update cache
+            // Update cache - let the cache service handle ID generation
             await semesterCache.addSemester(user.id, {
-                id: tempId,
                 user_id: user.id,
                 name: semesterData.name,
                 type: semesterData.type,
                 start_date: startDateISO,
                 end_date: endDateISO,
                 status: semesterData.status || 'inactive',
-                created_at: new Date().toISOString(),
             });
             
             console.log('Successfully created semester with cache');

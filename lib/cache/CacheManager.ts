@@ -69,18 +69,22 @@ class CacheManager {
    * Warmup profile data
    */
   private async warmupProfile(userId: string): Promise<void> {
-    const status = await profileCache.getStatus(userId);
-    
-    if (status === 'expired') {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
+    try {
+      const status = await profileCache.getStatus(userId);
+      
+      if (status === 'expired') {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
 
-      if (!error && data) {
-        await profileCache.setProfile(userId, data);
+        if (!error && data) {
+          await profileCache.setProfile(userId, data);
+        }
       }
+    } catch (error) {
+      console.warn('[CacheManager] Error warming up profile:', error);
     }
   }
 
@@ -88,20 +92,24 @@ class CacheManager {
    * Warmup routines data
    */
   private async warmupRoutines(userId: string): Promise<void> {
-    const status = await routineCache.getStatus(userId);
-    
-    if (status === 'expired') {
-      const [routinesRes, completionsRes] = await Promise.all([
-        supabase.from('routines').select('*').eq('user_id', userId),
-        supabase.from('routine_completions').select('*').eq('user_id', userId),
-      ]);
+    try {
+      const status = await routineCache.getStatus(userId);
+      
+      if (status === 'expired') {
+        const [routinesRes, eventsRes] = await Promise.all([
+          supabase.from('routines').select('*').eq('user_id', userId),
+          supabase.from('routine_events').select('*').eq('user_id', userId),
+        ]);
 
-      if (!routinesRes.error && !completionsRes.error) {
-        await routineCache.setRoutines(userId, {
-          routines: routinesRes.data || [],
-          completions: completionsRes.data || [],
-        });
+        if (routinesRes && eventsRes && !routinesRes.error && !eventsRes.error) {
+          await routineCache.setRoutines(userId, {
+            routines: routinesRes.data || [],
+            events: eventsRes.data || [],
+          });
+        }
       }
+    } catch (error) {
+      console.warn('[CacheManager] Error warming up routines:', error);
     }
   }
 
@@ -109,21 +117,25 @@ class CacheManager {
    * Warmup semesters data
    */
   private async warmupSemesters(userId: string): Promise<void> {
-    const status = await semesterCache.getStatus(userId);
-    
-    if (status === 'expired') {
-      const [semestersRes, classesRes] = await Promise.all([
-        supabase.from('semesters').select('*').eq('user_id', userId),
-        supabase.from('class_schedules').select('*').eq('user_id', userId),
-      ]);
+    try {
+      const status = await semesterCache.getStatus(userId);
+      
+      if (status === 'expired') {
+        const [semestersRes, classesRes] = await Promise.all([
+          supabase.from('semesters').select('*').eq('user_id', userId),
+          supabase.from('class_schedules').select('*').eq('user_id', userId),
+        ]);
 
-      if (!semestersRes.error && !classesRes.error) {
-        await semesterCache.setSemesterData(userId, {
-          semesters: semestersRes.data || [],
-          classSchedules: classesRes.data || [],
-          attendance: [],
-        });
+        if (semestersRes && classesRes && !semestersRes.error && !classesRes.error) {
+          await semesterCache.setSemesterData(userId, {
+            semesters: semestersRes.data || [],
+            classSchedules: classesRes.data || [],
+            attendance: [],
+          });
+        }
       }
+    } catch (error) {
+      console.warn('[CacheManager] Error warming up semesters:', error);
     }
   }
 
@@ -131,19 +143,23 @@ class CacheManager {
    * Warmup journals data
    */
   private async warmupJournals(userId: string): Promise<void> {
-    const status = await journalCache.getStatus(userId);
-    
-    if (status === 'expired') {
-      const { data, error } = await supabase
-        .from('journal_entries')
-        .select('*')
-        .eq('user_id', userId)
-        .order('entry_date', { ascending: false })
-        .limit(90); // Last 90 days
+    try {
+      const status = await journalCache.getStatus(userId);
+      
+      if (status === 'expired') {
+        const { data, error } = await supabase
+          .from('journal_entries')
+          .select('*')
+          .eq('user_id', userId)
+          .order('entry_date', { ascending: false })
+          .limit(90); // Last 90 days
 
-      if (!error && data) {
-        await journalCache.setJournals(userId, { entries: data });
+        if (!error && data) {
+          await journalCache.setJournals(userId, { entries: data });
+        }
       }
+    } catch (error) {
+      console.warn('[CacheManager] Error warming up journals:', error);
     }
   }
 
@@ -151,25 +167,29 @@ class CacheManager {
    * Warmup sleep data
    */
   private async warmupSleep(userId: string): Promise<void> {
-    const status = await sleepCache.getStatus(userId);
-    
-    if (status === 'expired') {
-      const [entriesRes, goalsRes] = await Promise.all([
-        supabase
-          .from('sleep_data')
-          .select('*')
-          .eq('user_id', userId)
-          .order('sleep_date', { ascending: false })
-          .limit(90),
-        supabase.from('sleep_goals').select('*').eq('user_id', userId),
-      ]);
+    try {
+      const status = await sleepCache.getStatus(userId);
+      
+      if (status === 'expired') {
+        const [entriesRes, goalsRes] = await Promise.all([
+          supabase
+            .from('sleep_data')
+            .select('*')
+            .eq('user_id', userId)
+            .order('sleep_date', { ascending: false })
+            .limit(90),
+          supabase.from('sleep_goals').select('*').eq('user_id', userId),
+        ]);
 
-      if (!entriesRes.error && !goalsRes.error) {
-        await sleepCache.setSleepData(userId, {
-          entries: entriesRes.data || [],
-          goals: goalsRes.data || [],
-        });
+        if (entriesRes && goalsRes && !entriesRes.error && !goalsRes.error) {
+          await sleepCache.setSleepData(userId, {
+            entries: entriesRes.data || [],
+            goals: goalsRes.data || [],
+          });
+        }
       }
+    } catch (error) {
+      console.warn('[CacheManager] Error warming up sleep:', error);
     }
   }
 
@@ -177,30 +197,34 @@ class CacheManager {
    * Warmup mood data
    */
   private async warmupMood(userId: string): Promise<void> {
-    const status = await moodCache.getStatus(userId);
-    
-    if (status === 'expired') {
-      const [entriesRes, summariesRes] = await Promise.all([
-        supabase
-          .from('mood_entries')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(60),
-        supabase
-          .from('mood_summaries')
-          .select('*')
-          .eq('user_id', userId)
-          .order('week_start_date', { ascending: false })
-          .limit(12),
-      ]);
+    try {
+      const status = await moodCache.getStatus(userId);
+      
+      if (status === 'expired') {
+        const [entriesRes, summariesRes] = await Promise.all([
+          supabase
+            .from('mood_entries')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(60),
+          supabase
+            .from('mood_summaries')
+            .select('*')
+            .eq('user_id', userId)
+            .order('week_start_date', { ascending: false })
+            .limit(12),
+        ]);
 
-      if (!entriesRes.error && !summariesRes.error) {
-        await moodCache.setMoodData(userId, {
-          entries: entriesRes.data || [],
-          summaries: summariesRes.data || [],
-        });
+        if (entriesRes && summariesRes && !entriesRes.error && !summariesRes.error) {
+          await moodCache.setMoodData(userId, {
+            entries: entriesRes.data || [],
+            summaries: summariesRes.data || [],
+          });
+        }
       }
+    } catch (error) {
+      console.warn('[CacheManager] Error warming up mood:', error);
     }
   }
 
@@ -208,17 +232,21 @@ class CacheManager {
    * Warmup streaks data
    */
   private async warmupStreaks(userId: string): Promise<void> {
-    const status = await streakCache.getStatus(userId);
-    
-    if (status === 'expired') {
-      const { data, error } = await supabase
-        .from('streaks')
-        .select('*')
-        .eq('user_id', userId);
+    try {
+      const status = await streakCache.getStatus(userId);
+      
+      if (status === 'expired') {
+        const { data, error } = await supabase
+          .from('streaks')
+          .select('*')
+          .eq('user_id', userId);
 
-      if (!error && data) {
-        await streakCache.setStreaks(userId, { streaks: data });
+        if (!error && data) {
+          await streakCache.setStreaks(userId, { streaks: data });
+        }
       }
+    } catch (error) {
+      console.warn('[CacheManager] Error warming up streaks:', error);
     }
   }
 

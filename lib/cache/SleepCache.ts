@@ -8,12 +8,15 @@ import { BaseCacheService } from './BaseCacheService';
 import { CACHE_CONFIGS } from './types';
 import { syncQueue } from './SyncQueue';
 
+export type SleepPeriod = 'night' | 'nap' | 'other';
+
 export interface CachedSleepEntry {
   id: string;
   user_id: string;
   sleep_date: string;
   sleep_time: string;
   wake_time: string;
+  period: SleepPeriod; // New: categorize sleep type
   total_hours: number;
   quality_rating: number;
   deep_sleep_minutes: number | null;

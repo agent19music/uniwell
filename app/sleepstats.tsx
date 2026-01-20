@@ -1,11 +1,10 @@
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions, Modal, Share, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { format, subDays, addDays, parseISO } from 'date-fns';
 import { useFocusEffect } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
 import FloatingActionButton from '../components/FloatingActionButton';
 import SleepEntryModal from '../modals/SleepEntryModal';
 import { SleepGoal, SleepData, SleepStats, WeeklySleepData } from '../lib/services/sleepService';
@@ -21,6 +20,19 @@ import {
 import { LoadingIndicator } from '@rn-nui/loading-indicator';
 import { Colors } from '@/constants/Colors';
 import { GlowingSleepChart } from '@/components/charts';
+
+// Bento detail configurations
+interface BentoDetail {
+  id: string;
+  title: string;
+  value: string;
+  subtitle: string;
+  description: string;
+  icon: string;
+  iconColor: string;
+  tip: string;
+  shareText: string;
+}
 
 // Dummy data for aesthetic testing
 const DUMMY_WEEKLY_DATA: WeeklySleepData[] = [
@@ -143,6 +155,8 @@ export default function SleepStatsScreen() {
   const [sleepStats, setSleepStats] = useState<SleepStats | null>(null);
   const [sleepGoal, setSleepGoalState] = useState<SleepGoal | null>(null);
   const [insights, setInsights] = useState<string[]>([]);
+  const [selectedBento, setSelectedBento] = useState<BentoDetail | null>(null);
+  const [bentoModalVisible, setBentoModalVisible] = useState(false);
   
   // Screen dimensions for responsive design
   const screenWidth = Dimensions.get('window').width;
@@ -319,54 +333,313 @@ export default function SleepStatsScreen() {
     );
   };
 
-  const renderSleepAnalytics = () => {
+  // Generate bento details based on current stats
+  const getBentoDetails = useCallback((): Record<string, BentoDetail> => {
+    if (!sleepStats) return {};
+    
+    return {
+      avgSleep: {
+        id: 'avgSleep',
+        title: 'Average Sleep',
+        value: `${sleepStats.averageHours.toFixed(1)}h`,
+        subtitle: 'per night this week',
+        description: `You've been averaging ${sleepStats.averageHours.toFixed(1)} hours of sleep per night. ${sleepStats.averageHours >= 7 ? 'This is within the recommended 7-9 hours for adults.' : 'Adults typically need 7-9 hours for optimal health.'}`,
+        icon: 'sleep',
+        iconColor: '#A8B896',
+        tip: sleepStats.averageHours < 7 ? 'Try going to bed 30 minutes earlier tonight.' : 'Keep up the great sleep schedule!',
+        shareText: `🌙 My weekly sleep average: ${sleepStats.averageHours.toFixed(1)} hours/night #UniWell #SleepHealth`,
+      },
+      quality: {
+        id: 'quality',
+        title: 'Sleep Quality',
+        value: `${sleepStats.averageQuality.toFixed(1)}/10`,
+        subtitle: 'average quality score',
+        description: `Your sleep quality score is ${sleepStats.averageQuality.toFixed(1)} out of 10. ${sleepStats.averageQuality >= 7 ? 'Excellent! You\'re getting restorative sleep.' : 'There\'s room for improvement in your sleep quality.'}`,
+        icon: 'star',
+        iconColor: '#B8A3C8',
+        tip: 'Avoid screens 1 hour before bed to improve sleep quality.',
+        shareText: `⭐ My sleep quality score: ${sleepStats.averageQuality.toFixed(1)}/10 #UniWell #SleepHealth`,
+      },
+      goalMet: {
+        id: 'goalMet',
+        title: 'Goal Achievement',
+        value: `${sleepStats.goalAchievement.toFixed(0)}%`,
+        subtitle: 'of nights hit target',
+        description: `You met your sleep goal on ${sleepStats.goalAchievement.toFixed(0)}% of nights this week. ${sleepStats.goalAchievement >= 70 ? 'Great consistency!' : 'Let\'s work on hitting that target more often.'}`,
+        icon: 'target',
+        iconColor: '#6b8e5e',
+        tip: 'Set a bedtime alarm to remind you when it\'s time to wind down.',
+        shareText: `🎯 Hit my sleep goal ${sleepStats.goalAchievement.toFixed(0)}% of the week! #UniWell #SleepGoals`,
+      },
+      trend: {
+        id: 'trend',
+        title: 'Sleep Trend',
+        value: sleepStats.trend.charAt(0).toUpperCase() + sleepStats.trend.slice(1),
+        subtitle: 'compared to last week',
+        description: `Your sleep pattern is ${sleepStats.trend}. ${sleepStats.trend === 'improving' ? 'Your healthy habits are paying off!' : sleepStats.trend === 'declining' ? 'Consider what might be affecting your sleep recently.' : 'Your sleep has been steady.'}`,
+        icon: sleepStats.trend === 'improving' ? 'trending-up' : sleepStats.trend === 'declining' ? 'trending-down' : 'minus',
+        iconColor: sleepStats.trend === 'improving' ? '#6b8e5e' : sleepStats.trend === 'declining' ? '#E89B8E' : '#9E9289',
+        tip: 'Consistency is key - try to sleep and wake at the same time daily.',
+        shareText: `📈 My sleep trend is ${sleepStats.trend}! #UniWell #SleepHealth`,
+      },
+      consistency: {
+        id: 'consistency',
+        title: 'Consistency Score',
+        value: `${sleepStats.consistencyScore.toFixed(0)}`,
+        subtitle: 'out of 100',
+        description: `Your sleep consistency score is ${sleepStats.consistencyScore.toFixed(0)}/100. ${sleepStats.consistencyScore >= 80 ? 'Your circadian rhythm loves you!' : 'A more regular schedule would benefit your body clock.'}`,
+        icon: 'calendar-check',
+        iconColor: '#A8B896',
+        tip: 'Even on weekends, try to stay within 1 hour of your weekday schedule.',
+        shareText: `📅 Sleep consistency: ${sleepStats.consistencyScore.toFixed(0)}/100 #UniWell #SleepHealth`,
+      },
+      debt: {
+        id: 'debt',
+        title: 'Sleep Debt',
+        value: `${sleepStats.sleepDebt.toFixed(1)}h`,
+        subtitle: 'accumulated this week',
+        description: `You have ${sleepStats.sleepDebt.toFixed(1)} hours of sleep debt. ${sleepStats.sleepDebt <= 2 ? 'This is manageable!' : 'Consider catching up with an earlier bedtime rather than sleeping in.'}`,
+        icon: 'clock-alert-outline',
+        iconColor: sleepStats.sleepDebt > 5 ? '#E89B8E' : '#9E9289',
+        tip: 'Repay sleep debt gradually - add 15-30 minutes per night.',
+        shareText: `😴 Working on reducing my ${sleepStats.sleepDebt.toFixed(1)}h sleep debt #UniWell #SleepHealth`,
+      },
+    };
+  }, [sleepStats]);
+
+  const handleBentoPress = (bentoId: string) => {
+    const details = getBentoDetails();
+    if (details[bentoId]) {
+      setSelectedBento(details[bentoId]);
+      setBentoModalVisible(true);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!selectedBento) return;
+    try {
+      await Share.share({
+        message: selectedBento.shareText,
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  const handleShareWeekly = async () => {
+    if (!sleepStats) return;
+    try {
+      const weeklyMessage = `🌙 My UniWell Sleep Report\n\n` +
+        `⏰ Average: ${sleepStats.averageHours.toFixed(1)}h/night\n` +
+        `⭐ Quality: ${sleepStats.averageQuality.toFixed(1)}/10\n` +
+        `🎯 Goal Met: ${sleepStats.goalAchievement.toFixed(0)}%\n` +
+        `📈 Trend: ${sleepStats.trend}\n` +
+        `📅 Consistency: ${sleepStats.consistencyScore.toFixed(0)}/100\n\n` +
+        `#UniWell #SleepHealth #Wellness`;
+      
+      await Share.share({ message: weeklyMessage });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  const renderBentoModal = () => (
+    <Modal
+      visible={bentoModalVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setBentoModalVisible(false)}
+    >
+      <Pressable 
+        style={styles.modalOverlay} 
+        onPress={() => setBentoModalVisible(false)}
+      >
+        <Pressable style={[styles.modalContent, isDark && styles.darkCard]}>
+          {selectedBento && (
+            <>
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <View style={[styles.modalIconContainer, { backgroundColor: `${selectedBento.iconColor}20` }]}>
+                  <MaterialCommunityIcons 
+                    name={selectedBento.icon as any} 
+                    size={28} 
+                    color={selectedBento.iconColor} 
+                  />
+                </View>
+                <TouchableOpacity 
+                  onPress={() => setBentoModalVisible(false)}
+                  style={styles.modalClose}
+                >
+                  <Ionicons name="close" size={24} color={isDark ? '#aaa' : '#666'} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Value */}
+              <Text style={[styles.modalTitle, isDark && styles.darkText]}>
+                {selectedBento.title}
+              </Text>
+              <Text style={[styles.modalValue, { color: selectedBento.iconColor }]}>
+                {selectedBento.value}
+              </Text>
+              <Text style={[styles.modalSubtitle, isDark && styles.darkSubText]}>
+                {selectedBento.subtitle}
+              </Text>
+
+              {/* Description */}
+              <Text style={[styles.modalDescription, isDark && styles.darkSubText]}>
+                {selectedBento.description}
+              </Text>
+
+              {/* Tip */}
+              <View style={[styles.tipContainer, { backgroundColor: `${selectedBento.iconColor}15` }]}>
+                <Ionicons name="bulb-outline" size={18} color={selectedBento.iconColor} />
+                <Text style={[styles.tipText, { color: selectedBento.iconColor }]}>
+                  {selectedBento.tip}
+                </Text>
+              </View>
+
+              {/* Actions */}
+              <View style={styles.modalActions}>
+                <TouchableOpacity 
+                  style={[styles.shareButton, { backgroundColor: selectedBento.iconColor }]}
+                  onPress={handleShare}
+                >
+                  <Ionicons name="share-outline" size={18} color="#fff" />
+                  <Text style={styles.shareButtonText}>Share Stat</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.shareWeeklyButton}
+                  onPress={handleShareWeekly}
+                >
+                  <Ionicons name="calendar-outline" size={18} color={isDark ? '#fff' : '#333'} />
+                  <Text style={[styles.shareWeeklyText, isDark && styles.darkText]}>Weekly Report</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
+  const renderQuickStats = () => {
     if (!sleepStats) return null;
 
     return (
-      <View style={styles.analyticsContainer}>
-        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Sleep Analytics</Text>
-        <View style={styles.analyticsGrid}>
-          <View style={[styles.analyticsCard, isDark && styles.darkCard]}>
-            <MaterialCommunityIcons name="sleep" size={22} color="#3F70F4" />
-            <Text style={[styles.analyticsLabel, isDark && styles.darkSubText]}>Avg Hours</Text>
-            <Text style={[styles.analyticsValue, isDark && styles.darkText]}>
+      <View style={styles.bentoGrid}>
+        {/* Hero bento - Average Sleep */}
+        <TouchableOpacity 
+          style={[
+            styles.bentoHero, 
+            isDark && styles.darkCard,
+            { borderWidth: 1, borderColor: 'rgba(168, 184, 150, 0.2)' }
+          ]}
+          onPress={() => handleBentoPress('avgSleep')}
+          activeOpacity={0.8}
+        >
+          {/* Static glow accent */}
+          <View style={[styles.glowAccent, { backgroundColor: 'rgba(168, 184, 150, 0.06)' }]} />
+          <View style={styles.bentoHeroContent}>
+            <View style={styles.bentoHeroHeader}>
+              <MaterialCommunityIcons name="sleep" size={22} color="#A8B896" />
+              <Text style={[styles.bentoHeroLabel, isDark && styles.darkSubText]}>AVG SLEEP</Text>
+            </View>
+            <Text style={[styles.bentoHeroValue, isDark && styles.darkText]}>
               {sleepStats.averageHours.toFixed(1)}
             </Text>
+            <Text style={[styles.bentoHeroUnit, isDark && styles.darkSubText]}>hours/night</Text>
           </View>
-          
-          <View style={[styles.analyticsCard, isDark && styles.darkCard]}>
-            <MaterialCommunityIcons name="star" size={22} color="#9C27B0" />
-            <Text style={[styles.analyticsLabel, isDark && styles.darkSubText]}>Avg Quality</Text>
-            <Text style={[styles.analyticsValue, isDark && styles.darkText]}>
-              {sleepStats.averageQuality.toFixed(1)}/10
-            </Text>
-          </View>
-          
-          <View style={[styles.analyticsCard, isDark && styles.darkCard]}>
-            <MaterialCommunityIcons 
-              name={sleepStats.trend === 'improving' ? "trending-up" : 
-                   sleepStats.trend === 'declining' ? "trending-down" : "trending-neutral"} 
-              size={22} 
-              color={sleepStats.trend === 'improving' ? "#4CAF50" : 
-                    sleepStats.trend === 'declining' ? "#F44336" : "#FF9800"} 
-            />
-            <Text style={[styles.analyticsLabel, isDark && styles.darkSubText]}>Trend</Text>
-            <Text style={[styles.analyticsValue, isDark && styles.darkText, {
-              color: sleepStats.trend === 'improving' ? "#4CAF50" : 
-                    sleepStats.trend === 'declining' ? "#F44336" : "#FF9800"
-            }]}>
-              {sleepStats.trend.charAt(0).toUpperCase() + sleepStats.trend.slice(1)}
-            </Text>
-          </View>
-          
-          <View style={[styles.analyticsCard, isDark && styles.darkCard]}>
-            <MaterialCommunityIcons name="check-circle" size={22} color="#FF9800" />
-            <Text style={[styles.analyticsLabel, isDark && styles.darkSubText]}>Goal Met</Text>
-            <Text style={[styles.analyticsValue, isDark && styles.darkText]}>
-              {sleepStats.goalAchievement.toFixed(0)}%
-            </Text>
-          </View>
-        </View>
+        </TouchableOpacity>
+
+        {/* Quality bento */}
+        <TouchableOpacity 
+          style={[
+            styles.bentoMedium, 
+            isDark && styles.darkCard,
+            { borderWidth: 1, borderColor: 'rgba(184, 163, 200, 0.2)' }
+          ]}
+          onPress={() => handleBentoPress('quality')}
+          activeOpacity={0.8}
+        >
+          {/* Static glow accent */}
+          <View style={[styles.glowAccent, { backgroundColor: 'rgba(184, 163, 200, 0.06)' }]} />
+          <MaterialCommunityIcons name="star" size={20} color="#B8A3C8" />
+          <Text style={[styles.bentoMediumValue, isDark && styles.darkText]}>
+            {sleepStats.averageQuality.toFixed(1)}
+          </Text>
+          <Text style={[styles.bentoMediumLabel, isDark && styles.darkSubText]}>QUALITY</Text>
+        </TouchableOpacity>
+
+        {/* Goal bento */}
+        <TouchableOpacity 
+          style={[
+            styles.bentoMedium, 
+            isDark && styles.darkCard,
+            { borderWidth: 1, borderColor: 'rgba(107, 142, 94, 0.2)' }
+          ]}
+          onPress={() => handleBentoPress('goalMet')}
+          activeOpacity={0.8}
+        >
+          {/* Static glow accent */}
+          <View style={[styles.glowAccent, { backgroundColor: 'rgba(107, 142, 94, 0.06)' }]} />
+          <MaterialCommunityIcons name="target" size={20} color="#6b8e5e" />
+          <Text style={[styles.bentoMediumValue, isDark && styles.darkText]}>
+            {sleepStats.goalAchievement.toFixed(0)}%
+          </Text>
+          <Text style={[styles.bentoMediumLabel, isDark && styles.darkSubText]}>GOAL MET</Text>
+        </TouchableOpacity>
+
+        {/* Trend bento */}
+        <TouchableOpacity 
+          style={[styles.bentoSmall, isDark && styles.darkCard]}
+          onPress={() => handleBentoPress('trend')}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons 
+            name={sleepStats.trend === 'improving' ? "trending-up" : 
+                 sleepStats.trend === 'declining' ? "trending-down" : "minus"} 
+            size={20} 
+            color={sleepStats.trend === 'improving' ? "#6b8e5e" : 
+                  sleepStats.trend === 'declining' ? "#E89B8E" : "#9E9289"} 
+          />
+          <Text style={[styles.bentoSmallValue, isDark && styles.darkText, {
+            color: sleepStats.trend === 'improving' ? "#6b8e5e" : 
+                  sleepStats.trend === 'declining' ? "#E89B8E" : isDark ? '#fff' : '#333'
+          }]}>
+            {sleepStats.trend.charAt(0).toUpperCase() + sleepStats.trend.slice(1)}
+          </Text>
+          <Text style={[styles.bentoSmallLabel, isDark && styles.darkSubText]}>TREND</Text>
+        </TouchableOpacity>
+
+        {/* Consistency bento */}
+        <TouchableOpacity 
+          style={[styles.bentoSmall, isDark && styles.darkCard]}
+          onPress={() => handleBentoPress('consistency')}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="calendar-check" size={20} color="#A8B896" />
+          <Text style={[styles.bentoSmallValue, isDark && styles.darkText]}>
+            {sleepStats.consistencyScore.toFixed(0)}
+          </Text>
+          <Text style={[styles.bentoSmallLabel, isDark && styles.darkSubText]}>CONSISTENCY</Text>
+        </TouchableOpacity>
+
+        {/* Debt bento */}
+        <TouchableOpacity 
+          style={[styles.bentoSmall, isDark && styles.darkCard]}
+          onPress={() => handleBentoPress('debt')}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons 
+            name="clock-alert-outline" 
+            size={20} 
+            color={sleepStats.sleepDebt > 5 ? "#E89B8E" : "#9E9289"} 
+          />
+          <Text style={[styles.bentoSmallValue, isDark && styles.darkText, sleepStats.sleepDebt > 5 && { color: "#E89B8E" }]}>
+            {sleepStats.sleepDebt.toFixed(1)}h
+          </Text>
+          <Text style={[styles.bentoSmallLabel, isDark && styles.darkSubText]}>DEBT</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -377,36 +650,18 @@ export default function SleepStatsScreen() {
     return (
       <View style={[styles.insightsCard, isDark && styles.darkCard]}>
         <View style={styles.insightsHeader}>
-          <View style={styles.insightIcon}>
-            <Ionicons name={sleepAdvice.icon as any} size={24} color={sleepAdvice.color} />
-          </View>
-          <View>
-            <Text style={[styles.insightsTitle, isDark && styles.darkText]}>Sleep Insights</Text>
-            <Text style={[styles.insightsStatus, {color: sleepAdvice.color}]}>
-              {sleepAdvice.status}
-            </Text>
-          </View>
+          <Ionicons name={sleepAdvice.icon as any} size={20} color={sleepAdvice.color} />
+          <Text style={[styles.insightsStatus, {color: sleepAdvice.color}]}>
+            {sleepAdvice.status}
+          </Text>
         </View>
         
         <Text style={[styles.insightsMessage, isDark && styles.darkSubText]}>
           {sleepAdvice.message}
         </Text>
-        
-        {sleepStats.sleepDebt > 0 && (
-          <View style={styles.sleepDebtContainer}>
-            <Text style={[styles.sleepDebtTitle, isDark && styles.darkText]}>Sleep Debt</Text>
-            <Text style={[styles.sleepDebtValue, isDark && styles.darkText]}>
-              {sleepStats.sleepDebt.toFixed(1)} hours
-            </Text>
-            <Text style={[styles.sleepDebtMessage, isDark && styles.darkSubText]}>
-              You have a sleep deficit. Consider getting extra rest to recover.
-            </Text>
-          </View>
-        )}
 
         {insights.length > 0 && (
           <View style={styles.weeklyInsightsContainer}>
-            <Text style={[styles.weeklyInsightsTitle, isDark && styles.darkText]}>Weekly Insights</Text>
             {insights.map((insight, index) => (
               <Text key={index} style={[styles.weeklyInsightItem, isDark && styles.darkSubText]}>
                 • {insight}
@@ -420,6 +675,7 @@ export default function SleepStatsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+      {renderBentoModal()}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#000000'} />
@@ -437,8 +693,8 @@ export default function SleepStatsScreen() {
         </View>
       ) : (
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Sleep Insights Card */}
-          {renderInsightsCard()}
+          {/* Quick Stats Bento Grid */}
+          {renderQuickStats()}
           
           {/* Sleep Duration Chart */}
           <View style={styles.chartContainer}>
@@ -491,9 +747,6 @@ export default function SleepStatsScreen() {
             {renderWeeklyChart()}
           </View>
           
-          {/* Sleep Analytics */}
-          {renderSleepAnalytics()}
-          
           {/* Sleep Quality Chart */}
           <View style={styles.chartContainer}>
             <Text style={[styles.chartTitle, isDark && styles.darkText]}>
@@ -501,41 +754,9 @@ export default function SleepStatsScreen() {
             </Text>
             {renderSleepQualityChart()}
           </View>
-          
-          {/* Consistency Score */}
-          {sleepStats && (
-            <View style={[styles.consistencyCard, isDark && styles.darkCard]}>
-              <View style={styles.consistencyHeader}>
-                <MaterialCommunityIcons name="calendar-check" size={24} color="#4CAF50" />
-                <Text style={[styles.consistencyTitle, isDark && styles.darkText]}>Sleep Consistency</Text>
-              </View>
-              
-              <View style={styles.consistencyScoreContainer}>
-                <View style={styles.consistencyScoreWrapper}>
-                  <View style={[styles.consistencyScoreRing, { 
-                    borderColor: sleepStats.consistencyScore >= 80 ? '#4CAF50' : 
-                                sleepStats.consistencyScore >= 60 ? '#FF9800' : '#F44336' 
-                  }]}>
-                    <Text style={styles.consistencyScoreText}>
-                      {sleepStats.consistencyScore.toFixed(0)}
-                    </Text>
-                  </View>
-                  <Text style={[styles.consistencyScoreLabel, isDark && styles.darkSubText]}>Score</Text>
-                </View>
-                
-                <View style={styles.consistencyDescription}>
-                  <Text style={[styles.consistencyDescriptionText, isDark && styles.darkSubText]}>
-                    {sleepStats.consistencyScore >= 80 
-                      ? "Excellent sleep consistency! Your regular sleep schedule promotes optimal health." 
-                      : sleepStats.consistencyScore >= 60
-                        ? "Your sleep schedule is somewhat variable. Try to maintain more consistent sleep and wake times."
-                        : "Your sleep times are inconsistent. A regular sleep schedule is important for quality rest and health."
-                    }
-                  </Text>
-                </View>
-              </View>
-            </View>
-          )}
+
+          {/* Insights & Long Text - Bottom */}
+          {renderInsightsCard()}
         </ScrollView>
       )}
 
@@ -605,90 +826,275 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
-  insightsCard: {
-    padding: 20,
+  // Bento Grid Styles
+  bentoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  // Hero bento - large featured card
+  bentoHero: {
+    width: '100%',
     backgroundColor: 'white',
-    borderRadius: 16,
-    marginBottom: 16,
+    borderRadius: 20,
+    padding: 20,
+    overflow: 'hidden',
+    position: 'relative',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     elevation: 3,
+  },
+  // Static glow accent - muted background fill
+  glowAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 18,
+  },
+  bentoHeroContent: {
+    zIndex: 1,
+  },
+  bentoHeroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  bentoHeroLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: '#9E9289',
+    fontFamily: 'Vercetti-Regular',
+  },
+  bentoHeroValue: {
+    fontSize: 56,
+    fontWeight: '800',
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+    marginVertical: 4,
+  },
+  bentoHeroUnit: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#9E9289',
+    fontFamily: 'Vercetti-Regular',
+  },
+  // Medium bento
+  bentoMedium: {
+    width: '48%',
+    backgroundColor: 'white',
+    borderRadius: 18,
+    padding: 18,
+    alignItems: 'flex-start',
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  bentoMediumValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+    marginTop: 12,
+  },
+  bentoMediumLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    color: '#9E9289',
+    fontFamily: 'Vercetti-Regular',
+    marginTop: 4,
+  },
+  // Small bento
+  bentoSmall: {
+    width: '31%',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  bentoSmallValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+    marginTop: 8,
+  },
+  bentoSmallLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    color: '#9E9289',
+    fontFamily: 'Vercetti-Regular',
+    marginTop: 4,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  modalIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalClose: {
+    padding: 4,
+  },
+  modalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9E9289',
+    fontFamily: 'Vercetti-Regular',
+    letterSpacing: 0.5,
+  },
+  modalValue: {
+    fontSize: 48,
+    fontWeight: '800',
+    fontFamily: 'Vercetti-Regular',
+    marginVertical: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#9E9289',
+    fontFamily: 'Vercetti-Regular',
+    marginBottom: 16,
+  },
+  modalDescription: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#666',
+    fontFamily: 'Vercetti-Regular',
+    marginBottom: 16,
+  },
+  tipContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 14,
+    borderRadius: 14,
+    gap: 10,
+    marginBottom: 20,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+    fontFamily: 'Vercetti-Regular',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  shareButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 8,
+  },
+  shareButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'Vercetti-Regular',
+  },
+  shareWeeklyButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    gap: 8,
+  },
+  shareWeeklyText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    fontFamily: 'Vercetti-Regular',
+  },
+  // Insights card - now simplified for bottom section
+  insightsCard: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   insightsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  insightIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  insightsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    fontFamily: 'Vercetti-Regular',
+    gap: 8,
+    marginBottom: 10,
   },
   insightsStatus: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
   },
   insightsMessage: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#666',
-    fontFamily: 'Vercetti-Regular',
-    marginBottom: 16,
-  },
-  sleepDebtContainer: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  sleepDebtTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#F44336',
-    marginBottom: 4,
-    fontFamily: 'Vercetti-Regular',
-  },
-  sleepDebtValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#F44336',
-    marginBottom: 4,
-    fontFamily: 'Vercetti-Regular',
-  },
-  sleepDebtMessage: {
     fontSize: 14,
+    lineHeight: 21,
     color: '#666',
     fontFamily: 'Vercetti-Regular',
   },
   weeklyInsightsContainer: {
-    marginTop: 8,
-  },
-  weeklyInsightsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    fontFamily: 'Vercetti-Regular',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   weeklyInsightItem: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
     lineHeight: 20,
-    marginBottom: 6,
+    marginBottom: 4,
     fontFamily: 'Vercetti-Regular',
   },
   chartContainer: {

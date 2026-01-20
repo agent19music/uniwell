@@ -19,6 +19,21 @@ export interface CachedSemester {
   created_at: string;
 }
 
+/**
+ * JSONB structure for days array
+ * Example: ["Monday", "Wednesday", "Friday"]
+ */
+export type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
+
+/**
+ * JSONB structure for time slot
+ * Example: { start: "09:00", end: "10:30" }
+ */
+export interface TimeSlot {
+  start: string;
+  end: string;
+}
+
 export interface CachedClassSchedule {
   id: string;
   user_id: string;
@@ -27,13 +42,16 @@ export interface CachedClassSchedule {
   course_code: string;
   room: string | null;
   instructor: string | null;
+  days: DayOfWeek[]; // New: JSONB array of days
+  time_slot: TimeSlot; // New: JSONB object with start/end times
   frequency: string;
-  start_time: string;
-  end_time: string;
-  days_of_week: string;
   type: string | null;
   notification_preference: string | null;
   created_at: string;
+  // Legacy fields for backward compatibility
+  start_time?: string;
+  end_time?: string;
+  days_of_week?: string;
 }
 
 export interface CachedAttendance {
