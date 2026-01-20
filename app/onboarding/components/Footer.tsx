@@ -39,10 +39,6 @@ const Footer: React.FC = () => {
   const router = useRouter();
   const { skipOnboarding } = useOnboarding();
 
-  const handleTherapistLogin = async () => {
-    skipOnboarding('/therapist/loginscreen');
-  };
-
   const aboutLinks = [
     { title: 'Principles', onPress: () => console.log('Principles pressed') },
     { title: 'The Team', onPress: () => console.log('The Team pressed') },
@@ -57,7 +53,6 @@ const Footer: React.FC = () => {
     { title: 'Creators', onPress: () => console.log('Creators pressed') },
     { title: 'The future', onPress: () => console.log('The future pressed') },
     { title: 'Pricing', onPress: () => console.log('Pricing pressed') },
-    { title: 'Therapist Login', onPress: handleTherapistLogin },
   ];
 
   const legalLinks = [

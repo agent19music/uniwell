@@ -47,19 +47,19 @@ export default function SignUpScreen() {
   async function requestNotificationPermissions() {
     try {
       const { status } = await Notifications.requestPermissionsAsync();
-      
+
       if (status === 'granted') {
         // Get the push token with the project ID from environment
         const token = await Notifications.getExpoPushTokenAsync({
           projectId: process.env.EXPO_PUBLIC_PROJECT_ID || '577b2274-9c11-4801-af8d-a12055a11673',
         });
-        
+
         console.log('Push token:', token);
-        
+
         // You can store this token in your database if needed
         return true;
       }
-      
+
       return false;
     } catch (error) {
       console.warn('Error requesting notification permissions:', error);
@@ -72,11 +72,11 @@ export default function SignUpScreen() {
       toast.error('Please fill in all fields including gender');
       return;
     }
-  
+
     setLoading(true);
     try {
       await requestNotificationPermissions();
-  
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -84,22 +84,22 @@ export default function SignUpScreen() {
           data: { full_name: name, gender }
         }
       });
-  
+
       if (error) throw error;
-  
+
       if (data.user) {
-        const avatarUrl = gender === 'male' 
+        const avatarUrl = gender === 'male'
           ? 'https://www.tapback.co/api/avatar/user55?color=3'
           : 'https://www.tapback.co/api/avatar/Ccd8b9';
-  
+
         const { data: existingProfile, error: profileError } = await supabase
           .from('profiles')
           .select('id')
           .eq('id', data.user.id)
           .maybeSingle();
-  
+
         if (profileError) throw profileError;
-  
+
         const { error: upsertError } = await supabase
           .from('profiles')
           .upsert({
@@ -110,9 +110,9 @@ export default function SignUpScreen() {
             full_name: name,
             updated_at: new Date()
           });
-  
+
         if (upsertError) throw upsertError;
-  
+
         await supabase
           .from('notifications')
           .insert({
@@ -122,9 +122,10 @@ export default function SignUpScreen() {
             category: 'profile',
             is_read: false
           });
-  
+
         if (data.session) {
-          router.push('/profile-completion');
+          // Always route to onboarding after successful signup
+          router.push('/onboarding');
         } else {
           setShowVerificationDialog(true);
         }
@@ -157,12 +158,12 @@ export default function SignUpScreen() {
         style={StyleSheet.absoluteFillObject}
         resizeMode="cover"
       >
-        <View style={[styles.overlay, { 
-          backgroundColor: isDark ? 'rgba(28, 24, 21, 0.85)' : 'rgba(254, 253, 251, 0.85)' 
+        <View style={[styles.overlay, {
+          backgroundColor: isDark ? 'rgba(28, 24, 21, 0.85)' : 'rgba(254, 253, 251, 0.85)'
         }]} />
       </ImageBackground>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
@@ -176,8 +177,8 @@ export default function SignUpScreen() {
             styles.backButtonContainer,
             { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
           ]}>
-            <TouchableOpacity 
-              style={[styles.backButton, { backgroundColor: colors.surface }]} 
+            <TouchableOpacity
+              style={[styles.backButton, { backgroundColor: colors.surface }]}
               onPress={() => router.back()}
             >
               <ArrowLeft size={24} color={colors.textPrimary} />
@@ -205,9 +206,9 @@ export default function SignUpScreen() {
             {/* Full Name Input */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Full Name</Text>
-              <View style={[styles.inputContainer, { 
+              <View style={[styles.inputContainer, {
                 backgroundColor: colors.surface,
-                borderColor: colors.border 
+                borderColor: colors.border
               }]}>
                 <User size={20} color={colors.textSecondary} />
                 <TextInput
@@ -224,9 +225,9 @@ export default function SignUpScreen() {
             {/* Email Input */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Email</Text>
-              <View style={[styles.inputContainer, { 
+              <View style={[styles.inputContainer, {
                 backgroundColor: colors.surface,
-                borderColor: colors.border 
+                borderColor: colors.border
               }]}>
                 <Envelope size={20} color={colors.textSecondary} />
                 <TextInput
@@ -245,9 +246,9 @@ export default function SignUpScreen() {
             {/* Password Input */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Password</Text>
-              <View style={[styles.inputContainer, { 
+              <View style={[styles.inputContainer, {
                 backgroundColor: colors.surface,
-                borderColor: colors.border 
+                borderColor: colors.border
               }]}>
                 <LockSimple size={20} color={colors.textSecondary} />
                 <TextInput
@@ -273,10 +274,10 @@ export default function SignUpScreen() {
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Gender</Text>
               <View style={styles.genderOptions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[
                     styles.genderOption,
-                    { 
+                    {
                       backgroundColor: colors.surface,
                       borderColor: gender === 'male' ? colors.primary : colors.border
                     },
@@ -285,9 +286,9 @@ export default function SignUpScreen() {
                   onPress={() => setGender('male')}
                   disabled={loading}
                 >
-                  <GenderMale 
-                    size={24} 
-                    color={gender === 'male' ? colors.primary : colors.textSecondary} 
+                  <GenderMale
+                    size={24}
+                    color={gender === 'male' ? colors.primary : colors.textSecondary}
                     weight={gender === 'male' ? 'fill' : 'regular'}
                   />
                   <Text style={[
@@ -296,11 +297,11 @@ export default function SignUpScreen() {
                     gender === 'male' && styles.selectedGenderText
                   ]}>Male</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={[
                     styles.genderOption,
-                    { 
+                    {
                       backgroundColor: colors.surface,
                       borderColor: gender === 'female' ? colors.primary : colors.border
                     },
@@ -309,9 +310,9 @@ export default function SignUpScreen() {
                   onPress={() => setGender('female')}
                   disabled={loading}
                 >
-                  <GenderFemale 
-                    size={24} 
-                    color={gender === 'female' ? colors.primary : colors.textSecondary} 
+                  <GenderFemale
+                    size={24}
+                    color={gender === 'female' ? colors.primary : colors.textSecondary}
                     weight={gender === 'female' ? 'fill' : 'regular'}
                   />
                   <Text style={[
@@ -320,11 +321,11 @@ export default function SignUpScreen() {
                     gender === 'female' && styles.selectedGenderText
                   ]}>Female</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={[
                     styles.genderOption,
-                    { 
+                    {
                       backgroundColor: colors.surface,
                       borderColor: gender === 'other' ? colors.primary : colors.border
                     },
@@ -333,9 +334,9 @@ export default function SignUpScreen() {
                   onPress={() => setGender('other')}
                   disabled={loading}
                 >
-                  <GenderNeuter 
-                    size={24} 
-                    color={gender === 'other' ? colors.primary : colors.textSecondary} 
+                  <GenderNeuter
+                    size={24}
+                    color={gender === 'other' ? colors.primary : colors.textSecondary}
                     weight={gender === 'other' ? 'fill' : 'regular'}
                   />
                   <Text style={[
@@ -348,7 +349,7 @@ export default function SignUpScreen() {
             </View>
 
             {/* Create Account Button */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.primaryButton, { backgroundColor: colors.primary }]}
               onPress={handleSignUp}
               disabled={loading}
@@ -367,7 +368,7 @@ export default function SignUpScreen() {
 
             {/* Google Button */}
             <TouchableOpacity
-              style={[styles.googleButton, { 
+              style={[styles.googleButton, {
                 backgroundColor: colors.surface,
                 borderColor: colors.border
               }]}

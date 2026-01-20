@@ -20,7 +20,7 @@ export default function HomeScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [reflectionText, setReflectionText] = useState('');
   const [savingReflection, setSavingReflection] = useState(false);
-  
+
   // Menu states
   const [progressMenuVisible, setProgressMenuVisible] = useState(false);
   const [journalMenuVisible, setJournalMenuVisible] = useState(false);
@@ -34,10 +34,10 @@ export default function HomeScreen() {
     { label: 'Record Voice Journal', icon: 'mic-outline', onPress: () => router.push('/journals') },
     { label: 'View All Journals', icon: 'book-outline', onPress: () => router.push('/journals') },
   ];
-  
+
   // Get wellness score
   const { score: wellnessScore, loading: wellnessLoading } = useWellnessScore();
-  
+
   // Safely get mood context with null check
   let moodContext;
   try {
@@ -48,23 +48,23 @@ export default function HomeScreen() {
       currentMood: null,
       todaysMoodRecorded: false,
       shouldPromptForMood: false,
-      recordMood: async () => {},
+      recordMood: async () => { },
       loading: true
     };
   }
-  
-  const { 
+
+  const {
     recordMood,
     currentMood,
     todaysMoodRecorded,
-    loading: moodLoading 
+    loading: moodLoading
   } = moodContext;
 
   const handleMoodSelection = async (moodId: MoodType, moodLabel: string) => {
     try {
       // Record the mood in our database
       await recordMood(moodId);
-      
+
       // Show success toast
       toast.success('Mood Recorded', {
         message: `You're feeling ${moodLabel.toLowerCase()} today`,
@@ -85,7 +85,7 @@ export default function HomeScreen() {
 
     try {
       setSavingReflection(true);
-      
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
@@ -123,7 +123,7 @@ export default function HomeScreen() {
   const handlePreferencesPress = () => {
     router.push('/preferences');
   };
-  
+
   const handleNotificationsPress = () => {
     router.push('/notifications');
   };
@@ -152,14 +152,14 @@ export default function HomeScreen() {
         if (user.user_metadata?.full_name) {
           setUserName(user.user_metadata.full_name.split(' ')[0]);
         }
-        
+
         // Get profile data including avatar
         const { data: profileData, error } = await supabase
           .from('profiles')
           .select('avatar_url')
           .eq('id', user.id)
           .single();
-          
+
         if (!error && profileData) {
           setAvatarUrl(profileData.avatar_url);
         }
@@ -173,9 +173,9 @@ export default function HomeScreen() {
     <View style={styles.reflectionSection}>
       <View style={styles.sectionHeader}>
         <Text style={[styles.greeting, { color: colors.textPrimary, marginBottom: 0, fontSize: 24 }]}>
-          Hello, {userName || 'Guest'} 
+          Hello, {userName || 'Guest'}
         </Text>
-        <Menu 
+        <Menu
           visible={journalMenuVisible}
           onDismiss={() => setJournalMenuVisible(false)}
           items={journalMenuItems}
@@ -198,17 +198,17 @@ export default function HomeScreen() {
           onChangeText={setReflectionText}
           multiline={false}
         />
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleReflectionSubmit}
           disabled={savingReflection || !reflectionText.trim()}
         >
           {savingReflection ? (
             <LoadingIndicator size="small" />
           ) : (
-            <Ionicons 
-              name="arrow-forward" 
-              size={24} 
-              color={colors.textPrimary} 
+            <Ionicons
+              name="arrow-forward"
+              size={24}
+              color={colors.textPrimary}
             />
           )}
         </TouchableOpacity>
@@ -233,7 +233,7 @@ export default function HomeScreen() {
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
           Your progress
         </Text>
-        <Menu 
+        <Menu
           visible={progressMenuVisible}
           onDismiss={() => setProgressMenuVisible(false)}
           items={progressMenuItems}
@@ -265,8 +265,8 @@ export default function HomeScreen() {
   const renderHomeCards = () => (
     <View style={styles.cardsContainer}>
       {/* Sleep Card */}
-      <TouchableOpacity 
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
         onPress={handleSleepCardPress}
       >
         <View style={styles.cardHeader}>
@@ -279,8 +279,8 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {/*Library Card */}
-      <TouchableOpacity 
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
         onPress={handleLibraryPress}
       >
         <View style={styles.cardHeader}>
@@ -293,8 +293,8 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {/* Chat Card */}
-      <TouchableOpacity 
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
         onPress={handleChatCardPress}
       >
         <View style={styles.cardHeader}>
@@ -302,13 +302,13 @@ export default function HomeScreen() {
           <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Chat</Text>
         </View>
         <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-          Chat with your AI therapist
+          Chat with your wellness companion
         </Text>
       </TouchableOpacity>
 
       {/* Streaks Card */}
-      <TouchableOpacity 
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
         onPress={handleStreakCardPress}
       >
         <View style={styles.cardHeader}>
@@ -337,8 +337,8 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
@@ -347,8 +347,8 @@ export default function HomeScreen() {
           <View style={styles.profileRow}>
             <TouchableOpacity onPress={handlePreferencesPress}>
               <Image
-                source={{ 
-                  uri: avatarUrl || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' 
+                source={{
+                  uri: avatarUrl || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png'
                 }}
                 style={styles.avatar}
               />
@@ -361,16 +361,16 @@ export default function HomeScreen() {
 
         {/* Daily Reflection Section */}
         {renderDailyReflection()}
-        
+
         {/* Daily Mood Log */}
         {renderMoodLog()}
-        
+
         {/* Wellness Progress */}
         {renderWellnessProgress()}
-        
+
         {/* Cards Section */}
         {renderHomeCards()}
-        
+
         {/* Decorative Circles */}
         {renderDecorativeCircles()}
       </ScrollView>

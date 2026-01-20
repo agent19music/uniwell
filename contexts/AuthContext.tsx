@@ -83,24 +83,24 @@ export const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   profileLoading: true,
-  signOut: async () => {},
+  signOut: async () => { },
   profile: {
     username: '',
     full_name: '',
     avatar_url: null,
   },
-  setProfile: () => {},
+  setProfile: () => { },
   storedUsers: [],
-  addStoredUser: async () => {},
-  removeStoredUser: async () => {},
-  clearStoredUsers: async () => {},
+  addStoredUser: async () => { },
+  removeStoredUser: async () => { },
+  clearStoredUsers: async () => { },
   currentUser: null,
-  fetchProfile: async () => {},
+  fetchProfile: async () => { },
   userRole: null,
   userWithRole: null,
   checkUserRole: async () => null,
-  signInWithGoogle: async () => {},
-  handleAuthCallback: async () => {},
+  signInWithGoogle: async () => { },
+  handleAuthCallback: async () => { },
 });
 
 // This hook can be used to access the user info.
@@ -132,9 +132,8 @@ function useProtectedRoute(session: Session | null) {
 
   useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)';
-    const isAuthScreen = ['loginscreen', 'signupscreen', 'index', 'login-callback', 'reset-password', 'therapist/loginscreen'].includes(segments[0] || '');
+    const isAuthScreen = ['loginscreen', 'signupscreen', 'index', 'login-callback', 'reset-password', 'StartScreen'].includes(segments[0] || '');
     const isOnboardingScreen = segments[0] === 'onboarding';
-    const isTherapistScreen = segments[0] === 'therapist';
 
     if (
       // If the user is not signed in and the initial segment is not anything in the auth group.
@@ -143,15 +142,14 @@ function useProtectedRoute(session: Session | null) {
       !isAuthScreen &&
       !isOnboardingScreen &&
       segments[0] !== 'profile-completion' &&
-      segments[0] !== 'user-selection' &&
-      !isTherapistScreen
+      segments[0] !== 'user-selection'
     ) {
       // If we have stored users, redirect to user selection instead of login
       if (storedUsers.length > 0) {
         router.replace('/user-selection');
       } else {
-        // Otherwise go to login screen
-        router.replace('/loginscreen');
+        // Otherwise go to StartScreen
+        router.replace('/StartScreen');
       }
     } else if (session && (inAuthGroup || isAuthScreen || segments[0] === 'user-selection')) {
       // Redirect away from auth screens when signed in
@@ -177,9 +175,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+    if (!webClientId) {
+      console.warn('[Auth] Missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID environment variable');
+    }
     GoogleSignin.configure({
-      // scopes: ['https://www.googleapis.com/auth/drive.readonly'], // Remove if not needed
-      webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com', // TODO: Replace with your actual web client ID from Google Cloud Console
+      webClientId: webClientId || '',
+      offlineAccess: false,
+      scopes: ['openid', 'email', 'profile'],
     });
   }, []);
 
@@ -246,7 +249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Try cache first
       let data = await profileCache.getProfile(user.id);
-      
+
       if (!data) {
         // Not in cache, fetch from server
         const { data: serverData, error: profileError } = await supabase
@@ -256,7 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .maybeSingle();
 
         if (profileError && profileError.code !== 'PGRST116') throw profileError;
-        
+
         if (serverData) {
           // Cache the fetched data
           await profileCache.setProfile(user.id, serverData as CachedProfile);
@@ -352,7 +355,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event: string, newSession: Session | null) => {
       console.log(`Supabase auth event: ${event}`);
       setSession(newSession);
-      
+
       if (newSession) {
         // Register for push notifications (wrapped in try-catch to handle Firebase not being initialized)
         try {
@@ -360,14 +363,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           console.warn('Push notification registration failed:', error);
         }
-        
+
         // Check user role on sign in
         try {
           await checkUserRole();
         } catch (error) {
           console.warn('Error checking user role:', error);
         }
-        
+
         // Warmup cache with user data
         if (newSession.user) {
           try {
@@ -389,7 +392,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Clear all caches on logout
         cacheManager.clearAllCaches();
       }
-      
+
       setLoading(false);
     });
 
@@ -449,44 +452,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
-      await GoogleSignin.hasPlayServices();
+      // Check if webClientId is configured
+      const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+      if (!webClientId) {
+        console.error('[Auth] Google Sign-In not configured - missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
+        Burnt.toast({
+          title: 'Configuration Error',
+          message: 'Google Sign-In is not properly configured',
+          preset: 'error',
+        });
+        throw new Error('Google Sign-In not configured');
+      }
+
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      console.log('[Auth] Starting Google Sign-In...');
       const userInfo = await GoogleSignin.signIn();
-      
+      console.log('[Auth] Google Sign-In returned user:', userInfo.data?.user?.email);
+
       if (userInfo.data?.idToken) {
+        console.log('[Auth] Got ID token, signing in to Supabase...');
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: 'google',
           token: userInfo.data.idToken,
         });
-        
-        if (error) throw error;
-        
+
+        if (error) {
+          console.error('[Auth] Supabase signInWithIdToken error:', error);
+          throw error;
+        }
+
+        console.log('[Auth] Supabase sign-in successful:', data.user?.email);
         // Session will be handled by onAuthStateChange
       } else {
-        throw new Error('No ID token present!');
+        console.error('[Auth] No ID token received from Google');
+        throw new Error('No ID token received from Google');
       }
     } catch (error: any) {
+      console.error('[Auth] Google Sign-In error:', error);
+
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        // user cancelled the login flow
-        console.log('User cancelled login');
+        // User cancelled - no toast needed
+        console.log('[Auth] User cancelled Google Sign-In');
       } else if (error.code === statusCodes.IN_PROGRESS) {
-        // operation (e.g. sign in) is in progress already
-        console.log('Sign in in progress');
+        console.log('[Auth] Sign-in already in progress');
+        Burnt.toast({
+          title: 'Please Wait',
+          message: 'Sign-in is already in progress',
+          preset: 'none',
+        });
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        // play services not available or outdated
         Burnt.toast({
           title: 'Error',
-          message: 'Google Play Services not available',
+          message: 'Google Play Services not available. Please update.',
           preset: 'error',
         });
       } else {
-        // some other error happened
-        console.error('Google Sign-In Error:', error);
+        // General error
+        const errorMessage = error.message || 'Failed to sign in with Google';
         Burnt.toast({
-          title: 'Error',
-          message: error.message || 'Failed to sign in with Google',
+          title: 'Sign-In Failed',
+          message: errorMessage,
           preset: 'error',
         });
       }
+
+      // Re-throw for caller to handle
+      throw error;
     }
   };
 
@@ -497,7 +529,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) throw error;
-      
+
       if (session) {
         setSession(session);
         await fetchProfile();

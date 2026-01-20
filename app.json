@@ -46,14 +46,13 @@
       "expo-router",
       "expo-image-picker",
       "expo-camera",
-        [
+      [
         "expo-video",
         {
           "supportsBackgroundPlayback": true,
           "supportsPictureInPicture": true
         }
       ],
-
       [
         "expo-build-properties",
         {
@@ -70,6 +69,7 @@
         }
       ],
       "./plugins/loading-indicator-plugin.js",
+      "@react-native-google-signin/google-signin",
       "expo-audio",
       "expo-font",
       "expo-web-browser"

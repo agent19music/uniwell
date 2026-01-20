@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme, Text, TextInput, Platform } from 'react-native';
+import { useColorScheme, Platform } from 'react-native';
 import * as Font from 'expo-font';
 import { AuthProvider } from '../contexts/AuthContext';
 import { Camera } from 'expo-camera';
@@ -11,19 +11,7 @@ import { CommunityProvider } from '@/contexts/CommunityContext';
 import { PostNavigationProvider } from '@/contexts/PostNavigationContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SemesterProvider } from '@/contexts/SemesterContext';
-import { BootstrapProvider } from '@/components/BootstrapProvider';
-import { Toaster as BurntToast } from 'burnt/web';
 import { cacheManager } from '@/lib/cache';
-
-// Import Toaster for web support
-let Toaster: any = null;
-if (Platform.OS === 'web') {
-  try {
-    Toaster = require('burnt/web').Toaster;
-  } catch (error) {
-    console.warn('burnt/web not available:', error);
-  }
-}
 
 declare global {
   interface Window {
@@ -52,7 +40,7 @@ export default function RootLayout() {
         setIsFontsLoaded(true);
       }
     }
-    
+
     loadFonts();
   }, []);
 
@@ -68,29 +56,7 @@ export default function RootLayout() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isFontsLoaded) return;
 
-    // Only attempt to set defaultProps on web, where it's supported
-    if (Platform.OS === 'web') {
-      // @ts-ignore
-      Text.defaultProps = Text.defaultProps || {};
-      // @ts-ignore
-      Text.defaultProps.style = { 
-        // @ts-ignore
-        ...(Text.defaultProps?.style || {}),
-        fontFamily: 'Vercetti-Regular'
-      };
-      // @ts-ignore
-      TextInput.defaultProps = TextInput.defaultProps || {};
-      // @ts-ignore
-      TextInput.defaultProps.style = { 
-        // @ts-ignore
-        ...(TextInput.defaultProps?.style || {}),
-        fontFamily: 'Vercetti-Regular'
-      };
-    }
-  }, [isFontsLoaded]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -98,22 +64,7 @@ export default function RootLayout() {
     }
   }, []);
 
-  // In web dev, ensure no stale Service Workers interfere with dev server requests
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
-      if (isDev && 'serviceWorker' in navigator) {
-        navigator.serviceWorker
-          .getRegistrations()
-          .then((regs) => {
-            regs.forEach((reg) => reg.unregister());
-          })
-          .catch(() => {
-            // noop
-          });
-      }
-    }
-  }, []);
+
 
   // If assets not loaded, show nothing (native splash screen remains visible)
   if (!isFontsLoaded) {
@@ -122,50 +73,29 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {/* Add burnt Toaster for web support */}
-      {Platform.OS === 'web' && Toaster && (
-        <Toaster 
-          position="bottom-center"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: isDark ? '#333' : '#fff',
-              color: isDark ? '#fff' : '#333',
-            },
-          }}
-        />
-      )}
-      <BurntToast  position='bottom-right'/>
       <AuthProvider>
         <CommunityProvider>
           <PostNavigationProvider>
             <MoodProvider>
               <RoutineProvider>
                 <SemesterProvider>
-                  {/* Temporarily disabled BootstrapProvider to debug spinner issue */}
-                  {/* <BootstrapProvider> */}
-                    <Stack
-                      screenOptions={{
-                        headerShown: false,
-                        contentStyle: {
-                          backgroundColor: isDark ? '#121212' : '#f5f5f5',
-                        },
-                      }}
-                    >
-                      <Stack.Screen name="index" />
-                      <Stack.Screen name="loginscreen" />
-                      <Stack.Screen name="signupscreen" />
-                      <Stack.Screen name="onboarding" />
-                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                      <Stack.Screen name="therapist/availability" />
-                      <Stack.Screen name="therapist/appointments" />
-                      <Stack.Screen name="therapist/reviews" />
-                      <Stack.Screen name="therapist/profile-completion" />
-                      <Stack.Screen name="therapist/profile-editor" />
-                      <Stack.Screen name="therapist/quick-actions" />
-                    </Stack>
-                    <StatusBar style={isDark ? 'light' : 'dark'} />
-                  {/* </BootstrapProvider> */}
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: {
+                        backgroundColor: isDark ? '#1A1A1A' : '#F5EDE8',
+                      },
+                    }}
+                  >
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="StartScreen" />
+                    <Stack.Screen name="loginscreen" />
+                    <Stack.Screen name="signupscreen" />
+                    <Stack.Screen name="onboarding" />
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  </Stack>
+                  <StatusBar style={isDark ? 'light' : 'dark'} />
+
                 </SemesterProvider>
               </RoutineProvider>
             </MoodProvider>
