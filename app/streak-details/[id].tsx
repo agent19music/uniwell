@@ -7,20 +7,18 @@ import {
   TouchableOpacity, 
   Dimensions, 
   Animated,
-  Easing,
-  Platform,
   Alert,
   Modal
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRoutine } from '@/contexts/RoutineContext';
-import { ArrowLeft, ShareFat, DotsThree, Trophy, Flame, Rocket, Calendar, TrendUp } from 'phosphor-react-native';
-import { format, subDays, isSameDay, parseISO, differenceInDays } from 'date-fns';
-import { BlurView } from 'expo-blur';
+import { ArrowLeft, ShareFat, DotsThree, Trophy, Flame, Rocket, Calendar } from 'phosphor-react-native';
+import { format, parseISO } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Svg, Circle, Path } from 'react-native-svg';
 import StreakTimer from '@/components/StreakTimer';
 import StreakShareWidget from '@/components/StreakShareWidget';
+import UrgeSupportModal from '@/components/streaks/UrgeSupportModal';
 import { useTheme } from '@/hooks/useTheme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -32,7 +30,7 @@ export default function StreakDetailsScreen() {
   const params = useLocalSearchParams();
   const id = params.id as string;
   const router = useRouter();
-  const { getStreak, deleteStreak, updateStreak, breakStreak } = useRoutine();
+  const { getStreak, breakStreak } = useRoutine();
   const [streak, setStreak] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +41,7 @@ export default function StreakDetailsScreen() {
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [urgeModalVisible, setUrgeModalVisible] = useState(false);
 
   useEffect(() => {
     loadStreakData();
@@ -102,6 +101,11 @@ export default function StreakDetailsScreen() {
 
   const handleEditStreak = () => {
     router.push(`/edit-streak/${id}`);
+  };
+
+  const handleRelapseFromUrge = async () => {
+    await breakStreak(id);
+    await loadStreakData();
   };
 
   if (loading) {
@@ -289,19 +293,36 @@ export default function StreakDetailsScreen() {
         </View>
 
         {streak?.status === 'active' && (
-          <View style={[styles.breakSection, { backgroundColor: colors.error + '10', borderColor: colors.error + '30' }]}>
-            <Text style={[styles.breakSectionTitle, { color: colors.error }]}>
-              Need to Break Your Streak?
-            </Text>
-            <Text style={[styles.breakSectionSubtitle, { color: colors.textSecondary }]}>
-              This action cannot be undone. Make sure you're certain.
-            </Text>
-            <TouchableOpacity 
-              style={[styles.breakButton, { backgroundColor: colors.error + '20' }]}
-              onPress={handleBreakStreak}
-            >
-              <Text style={[styles.breakButtonText, { color: colors.error }]}>Break Streak</Text>
-            </TouchableOpacity>
+          <View style={styles.supportStack}>
+            <View style={[styles.urgeSection, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '30' }]}>
+              <Text style={[styles.urgeSectionTitle, { color: colors.textPrimary }]}>
+                Feeling an urge?
+              </Text>
+              <Text style={[styles.urgeSectionSubtitle, { color: colors.textSecondary }]}>
+                Use a quick reset and log the moment before deciding what to do next.
+              </Text>
+              <TouchableOpacity
+                style={[styles.urgeButton, { backgroundColor: colors.warning }]}
+                onPress={() => setUrgeModalVisible(true)}
+              >
+                <Text style={styles.urgeButtonText}>Open Panic Support</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.breakSection, { backgroundColor: colors.error + '10', borderColor: colors.error + '30' }]}>
+              <Text style={[styles.breakSectionTitle, { color: colors.error }]}>
+                Need to Break Your Streak?
+              </Text>
+              <Text style={[styles.breakSectionSubtitle, { color: colors.textSecondary }]}>
+                This action cannot be undone. Make sure you're certain.
+              </Text>
+              <TouchableOpacity 
+                style={[styles.breakButton, { backgroundColor: colors.error + '20' }]}
+                onPress={handleBreakStreak}
+              >
+                <Text style={[styles.breakButtonText, { color: colors.error }]}>Break Streak</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -322,6 +343,13 @@ export default function StreakDetailsScreen() {
           </View>
         </View>
       </Modal>
+
+      <UrgeSupportModal
+        visible={urgeModalVisible}
+        streakId={id}
+        onClose={() => setUrgeModalVisible(false)}
+        onRelapseRequested={handleRelapseFromUrge}
+      />
     </ScrollView>
   );
 }
@@ -421,11 +449,43 @@ const styles = StyleSheet.create({
     fontFamily: 'Vercetti-Regular',
   },
   breakSection: {
-    marginTop: 32,
-    marginBottom: 24,
     padding: 20,
     borderRadius: 20,
     borderWidth: 1,
+  },
+  supportStack: {
+    marginTop: 32,
+    marginBottom: 24,
+    gap: 16,
+  },
+  urgeSection: {
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  urgeSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Vercetti-Regular',
+  },
+  urgeSectionSubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+    fontFamily: 'Vercetti-Regular',
+  },
+  urgeButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  urgeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Vercetti-Regular',
   },
   breakSectionTitle: {
     fontSize: 17,

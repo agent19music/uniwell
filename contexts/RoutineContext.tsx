@@ -64,6 +64,20 @@ interface CheckIn {
   createdAt: string;
 }
 
+export type UrgeLogOutcome = 'logged' | 'rode_out' | 'relapsed';
+
+export interface UrgeLogEntry {
+  id: string;
+  streakId: string;
+  intensity: number;
+  triggerTags: string[];
+  supportAction: string | null;
+  note: string | null;
+  outcome: UrgeLogOutcome;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
 interface Routine {
   id: string;
   userId: string;
@@ -133,6 +147,17 @@ interface RoutineContextType {
   resetStreak: (streakId: string) => Promise<void>;
   terminateStreak: (streakId: string) => Promise<void>;
   breakStreak: (streakId: string) => Promise<void>;
+  logUrge: (
+    streakId: string,
+    payload: {
+      intensity: number;
+      triggerTags: string[];
+      supportAction: string | null;
+      note?: string | null;
+    }
+  ) => Promise<UrgeLogEntry | null>;
+  updateUrgeOutcome: (urgeLogId: string, outcome: Exclude<UrgeLogOutcome, 'logged'>) => Promise<void>;
+  getRecentUrges: (streakId: string, days?: number) => Promise<UrgeLogEntry[]>;
   updateRoutine: (routineId: string, updates: Partial<Routine>) => Promise<void>;
   deleteRoutine: (routineId: string) => Promise<void>;
   getRoutine: (routineId: string) => Promise<Routine | null>;
@@ -789,6 +814,106 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const formatUrgeLog = (row: {
+    id: string;
+    streak_id: string;
+    intensity: number;
+    trigger_tags: string[] | null;
+    support_action: string | null;
+    note: string | null;
+    outcome: string;
+    created_at: string;
+    resolved_at: string | null;
+  }): UrgeLogEntry => ({
+    id: row.id,
+    streakId: row.streak_id,
+    intensity: row.intensity,
+    triggerTags: row.trigger_tags ?? [],
+    supportAction: row.support_action,
+    note: row.note,
+    outcome: row.outcome as UrgeLogOutcome,
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at,
+  });
+
+  const logUrge = async (
+    streakId: string,
+    payload: {
+      intensity: number;
+      triggerTags: string[];
+      supportAction: string | null;
+      note?: string | null;
+    }
+  ): Promise<UrgeLogEntry | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) {
+        setError('You must be signed in to log an urge.');
+        return null;
+      }
+
+      const { data, error } = await supabase
+        .from('urge_logs')
+        .insert({
+          user_id: user.id,
+          streak_id: streakId,
+          intensity: payload.intensity,
+          trigger_tags: payload.triggerTags,
+          support_action: payload.supportAction,
+          note: payload.note ?? null,
+          outcome: 'logged',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return formatUrgeLog(data as Parameters<typeof formatUrgeLog>[0]);
+    } catch (err) {
+      setError((err as Error).message);
+      return null;
+    }
+  };
+
+  const updateUrgeOutcome = async (
+    urgeLogId: string,
+    outcome: Exclude<UrgeLogOutcome, 'logged'>
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('urge_logs')
+        .update({
+          outcome,
+          resolved_at: new Date().toISOString(),
+        })
+        .eq('id', urgeLogId);
+
+      if (error) throw error;
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const getRecentUrges = async (streakId: string, days: number = 7): Promise<UrgeLogEntry[]> => {
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      const sinceIso = since.toISOString();
+
+      const { data, error } = await supabase
+        .from('urge_logs')
+        .select('*')
+        .eq('streak_id', streakId)
+        .gte('created_at', sinceIso)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return (data ?? []).map((row) => formatUrgeLog(row as Parameters<typeof formatUrgeLog>[0]));
+    } catch (err) {
+      setError((err as Error).message);
+      return [];
+    }
+  };
+
   const updateRoutine = async (routineId: string, updates: Partial<Routine>) => {
     try {
       const { data, error } = await supabase
@@ -1268,6 +1393,9 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     resetStreak,
     terminateStreak,
     breakStreak,
+    logUrge,
+    updateUrgeOutcome,
+    getRecentUrges,
     updateRoutine,
     deleteRoutine,
     getRoutine,

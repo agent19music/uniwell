@@ -728,6 +728,44 @@ export type Database = {
           created_at?: string | null
         }
       }
+      urge_logs: {
+        Row: {
+          id: string
+          user_id: string
+          streak_id: string
+          intensity: number
+          trigger_tags: string[]
+          support_action: string | null
+          note: string | null
+          outcome: 'logged' | 'rode_out' | 'relapsed'
+          created_at: string
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          streak_id: string
+          intensity: number
+          trigger_tags?: string[]
+          support_action?: string | null
+          note?: string | null
+          outcome?: 'logged' | 'rode_out' | 'relapsed'
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          streak_id?: string
+          intensity?: number
+          trigger_tags?: string[]
+          support_action?: string | null
+          note?: string | null
+          outcome?: 'logged' | 'rode_out' | 'relapsed'
+          created_at?: string
+          resolved_at?: string | null
+        }
+      }
       routines: {
         Row: {
           id: string
@@ -918,5 +956,6 @@ export type Semester = Tables<'semesters'>
 export type ClassSchedule = Tables<'class_schedules'>
 export type Streak = Tables<'streaks'>
 export type StreakEvent = Tables<'streak_events'>
+export type UrgeLog = Tables<'urge_logs'>
 export type Routine = Tables<'routines'>
 export type RoutineEvent = Tables<'routine_events'>
