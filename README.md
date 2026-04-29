@@ -1,3 +1,30 @@
+<em>UniWell app screenshots</em>
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/gh-readme/2-UniWell.png" width="240" alt="UniWell screenshot 1" />
+    </td>
+    <td align="center">
+      <img src="https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/gh-readme/6-UniWell.png" width="240" alt="UniWell screenshot 2" />
+    </td>
+    <td align="center">
+      <img src="https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/gh-readme/5-UniWell.png" width="240" alt="UniWell screenshot 3" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/gh-readme/1-UniWell.png" width="240" alt="UniWell screenshot 4" />
+    </td>
+    <td align="center">
+      <img src="https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/gh-readme/4-UniWell.png" width="240" alt="UniWell screenshot 5" />
+    </td>
+    <td align="center">
+      <img src="https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/gh-readme/3-UniWell.png" width="240" alt="UniWell screenshot 6" />
+    </td>
+  </tr>
+</table>
+
 # UniWell 🌟 - Your Personal Wellness Companion
 
 ## 🏆 Project Overview
