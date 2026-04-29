@@ -27,18 +27,17 @@
 
 # UniWell 🌟 - Your Personal Wellness Companion
 
-## 🏆 Project Overview
+UniWell is a student-first wellness app that combines mood check-ins, routines and streaks, journaling, an academic timetable, and a personalized resource library.
 
-UniWell is a comprehensive wellness tracking and self-improvement mobile application designed to help users enhance their daily routines, monitor personal growth, and maintain consistent healthy habits. Built with modern mobile development technologies, UniWell offers an intuitive and engaging platform for personal wellness management.
-
-## ✨ Key Features
-
-- 📅 **Smart Semester Planning**: Organize your academic life with intelligent semester tracking
-- 📚 **Study Resources**: Access curated educational content from YouTube, Spotify podcasts, and news articles  
-- 📝 **Digital Journaling**: Text and voice journaling with audio recording capabilities
-- 🧘 **Mindfulness Games**: Breathing exercises, nature sounds, and coloring activities
-- 📊 **Progress Tracking**: Visual analytics and streak monitoring for personal growth
-- 🔐 **Secure Data**: Safe authentication with Supabase backend
+## Core Features
+- Mood check-ins and daily reflection journaling
+- Routines, streaks, and streak-related progress tracking
+- Journals with text + voice/video entries
+- Academic timetable: semesters + class schedule (day/week view)
+- Mind games: breathing exercises and relaxing sound loops
+- Wellness dashboards: monthly progress + sleep stats
+- Community: a “Wellness Hub” feed with post creation
+- Personalized library: YouTube / Spotify / News content recommendations
 
 ## 🛠 Tech Stack
 
@@ -51,6 +50,23 @@ UniWell is a comprehensive wellness tracking and self-improvement mobile applica
 - **Reanimated** for smooth animations
 - **Async Storage** for local data persistence
 
+## Environment Variables
+
+Copy `.env.example` to `.env` and set the values below.
+
+Required:
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+- `EXPO_PUBLIC_PROJECT_ID`
+
+Optional (used by specific features):
+- `EXPO_PUBLIC_GOOGLE_GEMINI_API_KEY` (chat/AI features)
+- `EXPO_PUBLIC_YOUTUBE_API_KEY` (library resources)
+- `EXPO_PUBLIC_NEWS_API_KEY` (library resources)
+- `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` / `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` (library resources)
+- `EXPO_PUBLIC_SEGMENT_WRITE_KEY` (analytics)
+
 ## 📦 Prerequisites
 
 - Node.js (v16+)
@@ -62,7 +78,7 @@ UniWell is a comprehensive wellness tracking and self-improvement mobile applica
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/seanmotanya/uniwell.git
+git clone https://github.com/agent19music/uniwell.git
 cd uniwell
 ```
 
@@ -87,68 +103,19 @@ npx expo start
 ## 🧩 Project Structure
 
 ```
-uniwelll/
-├── app/                 # Expo Router screens
-│   └── (tabs)/          # Tab navigation screens
+uniwell/
+├── app/                 # Expo Router screens/routes
 ├── components/          # Reusable UI components
-├── assets/              # Images, sounds, and static files
-├── lib/                 # Utility functions (Supabase, resources)
-├── contexts/            # React contexts for state management
-├── types/               # TypeScript type definitions
-├── scripts/             # Build and utility scripts
-└── __tests__/           # Test files
+├── contexts/            # Global app state (Auth, Mood, Routine, Semester, Community)
+├── lib/                 # Supabase client + services, caching, toast helpers
+├── modals/              # Create/edit flows
+├── scripts/             # Resource + scheduler scripts
+└── __tests__/          # Jest tests
 ```
 
-## 🔔 Toast Notifications
-
-UniWell uses a unified toast notification system that works seamlessly across all platforms (iOS, Android, and Web).
-
-### Quick Usage
-
-```tsx
-// Always import from @/lib/toast - no platform-specific imports needed!
-import { toast } from '@/lib/toast';
-
-// Simple notifications
-toast('Hello World!');
-toast.success('Profile saved!');
-toast.error('Something went wrong');
-
-// With options
-toast('Operation complete', {
-  preset: 'done',
-  duration: 3000  // Web only
-});
-
-// Handle async operations
-await toast.promise(saveProfile(), {
-  loading: 'Saving...',
-  success: 'Profile saved!',
-  error: 'Failed to save'
-});
-```
-
-### Key Points
-
-- ✅ **Always import from `@/lib/toast`** - The module automatically handles platform differences
-- ✅ **No platform-specific code needed** - Write once, run everywhere
-- ✅ **Fully typed** - TypeScript support included
-- ✅ **Zero configuration** - Works out of the box
-
-### Customization
-
-Customize toast behavior with options:
-
-```tsx
-toast('Custom toast', {
-  preset: 'done',        // 'done' | 'error' | 'none' | 'custom' | 'heart'
-  duration: 5000,        // Duration in ms (Web only)
-  position: 'top-right', // Position (Web only)
-  haptic: 'success'      // Haptic feedback (Native only)
-});
-```
-
-For more details, see the [full toast documentation](./lib/toast/README.md).
+## Development Notes
+- Toasts: use `lib/toast` for cross-platform notifications.
+- Reads: prefer the caching layer in `lib/cache` before hitting Supabase.
 
 ## 🤝 Contributing
 
@@ -158,12 +125,10 @@ For more details, see the [full toast documentation](./lib/toast/README.md).
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📋 Todo List
+## Scripts
 
-- [ ] Implement more detailed analytics
-- [ ] Add more customization options
-- [ ] Develop cloud sync functionality
-- [ ] Create more comprehensive testing suite
+- `npm run update-resources`: refreshes/updates library resources content
+- `npm run start-scheduler`: starts scheduled background updates
 
 ## 📞 Support
 
@@ -175,5 +140,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-Made with ❤️ by the UniWell Team
+An Uzski Corp Product
 
