@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, useColorScheme, ScrollView } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, ScrollView } from 'react-native';
 import { useRoutine } from '@/contexts/RoutineContext';
 import { Ionicons } from '@expo/vector-icons';
 import { DayOfTheWeek } from '@/types/TimetableTypes';
+import { useTheme } from '@/hooks/useTheme';
 
 type Frequency = 'daily' | 'weekly' | 'custom';
 
@@ -19,8 +20,7 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
   const [selectedDays, setSelectedDays] = useState<DayOfTheWeek[]>([]);
   const [selectedWeekDay, setSelectedWeekDay] = useState<DayOfTheWeek | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     const fetchRoutine = async () => {
@@ -83,27 +83,31 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
     if (frequency === 'weekly') {
       return (
         <View style={styles.daysSection}>
-          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Day</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Day</Text>
           <View style={styles.daysGrid}>
-            {days.map((day) => (
-              <TouchableOpacity
-                key={day}
-                style={[
-                  styles.dayButton,
-                  isDark && styles.darkDayButton,
-                  selectedWeekDay === day && styles.selectedDayButton,
-                ]}
-                onPress={() => setSelectedWeekDay(day as DayOfTheWeek)}
-              >
-                <Text style={[
-                  styles.dayButtonText,
-                  isDark && styles.darkDayButtonText,
-                  selectedWeekDay === day && styles.selectedDayButtonText
-                ]}>
-                  {day.charAt(0).toUpperCase() + day.slice(1, 3)}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {days.map((day) => {
+              const isSelected = selectedWeekDay === day;
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[
+                    styles.dayButton,
+                    {
+                      backgroundColor: isSelected ? '#FF7F50' : colors.surface,
+                      borderColor: colors.border,
+                    }
+                  ]}
+                  onPress={() => setSelectedWeekDay(day as DayOfTheWeek)}
+                >
+                  <Text style={[
+                    styles.dayButtonText,
+                    { color: isSelected ? '#FFFFFF' : colors.textPrimary }
+                  ]}>
+                    {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       );
@@ -112,33 +116,37 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
     if (frequency === 'custom') {
       return (
         <View style={styles.daysSection}>
-          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Select Days</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Days</Text>
           <View style={styles.daysGrid}>
-            {days.map((day) => (
-              <TouchableOpacity
-                key={day}
-                style={[
-                  styles.dayButton,
-                  isDark && styles.darkDayButton,
-                  selectedDays.includes(day as DayOfTheWeek) && styles.selectedDayButton,
-                ]}
-                onPress={() => {
-                  if (selectedDays.includes(day as DayOfTheWeek)) {
-                    setSelectedDays(selectedDays.filter(d => d !== day));
-                  } else {
-                    setSelectedDays([...selectedDays, day as DayOfTheWeek]);
-                  }
-                }}
-              >
-                <Text style={[
-                  styles.dayButtonText,
-                  isDark && styles.darkDayButtonText,
-                  selectedDays.includes(day as DayOfTheWeek) && styles.selectedDayButtonText
-                ]}>
-                  {day.charAt(0).toUpperCase() + day.slice(1, 3)}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {days.map((day) => {
+              const isSelected = selectedDays.includes(day as DayOfTheWeek);
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[
+                    styles.dayButton,
+                    {
+                      backgroundColor: isSelected ? '#FF7F50' : colors.surface,
+                      borderColor: colors.border,
+                    }
+                  ]}
+                  onPress={() => {
+                    if (selectedDays.includes(day as DayOfTheWeek)) {
+                      setSelectedDays(selectedDays.filter(d => d !== day));
+                    } else {
+                      setSelectedDays([...selectedDays, day as DayOfTheWeek]);
+                    }
+                  }}
+                >
+                  <Text style={[
+                    styles.dayButtonText,
+                    { color: isSelected ? '#FFFFFF' : colors.textPrimary }
+                  ]}>
+                    {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       );
@@ -155,8 +163,8 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
         transparent={true}
         onRequestClose={onClose}
       >
-        <View style={[styles.modalOverlay, styles.loadingContainer]}>
-          <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading...</Text>
+        <View style={[styles.modalOverlay, styles.loadingContainer, { backgroundColor: colors.card }]}>
+          <Text style={[styles.loadingText, { color: colors.textPrimary }]}>Loading...</Text>
         </View>
       </Modal>
     );
@@ -169,12 +177,12 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
       transparent={true}
       onRequestClose={onClose}
     >
-      <ScrollView style={[styles.editFormScroll, isDark && styles.darkEditFormScroll]}>
-        <View style={[styles.header, isDark && styles.darkHeader]}>
+      <ScrollView style={[styles.editFormScroll, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { borderBottomColor: colors.divider }]}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={24} color="#FF7F50" />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, isDark && styles.darkText]}>Edit Routine</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Edit Routine</Text>
           <TouchableOpacity onPress={handleSave}>
             <Text style={styles.saveButton}>Save</Text>
           </TouchableOpacity>
@@ -182,62 +190,65 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
         
         <View style={styles.form}>
           <TextInput
-            style={[styles.input, isDark && styles.darkInput]}
+            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
             placeholder="Routine Title"
             value={title}
             onChangeText={setTitle}
-            placeholderTextColor={isDark ? '#8E8E93' : '#666'}
+            placeholderTextColor={colors.textSecondary}
           />
 
           <View style={styles.frequencySection}>
-            <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Frequency</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Frequency</Text>
             <TouchableOpacity 
               style={[
-                styles.frequencyButton, 
-                isDark && styles.darkFrequencyButton,
-                frequency === 'daily' && styles.selectedFrequency
+                styles.frequencyButton,
+                {
+                  backgroundColor: frequency === 'daily' ? '#FF7F50' : colors.surface,
+                  borderColor: colors.border,
+                }
               ]}
               onPress={() => setFrequency('daily')}
             >
               <Text style={[
-                styles.frequencyText, 
-                isDark && styles.darkFrequencyText,
-                frequency === 'daily' && styles.selectedText
+                styles.frequencyText,
+                { color: frequency === 'daily' ? '#FFFFFF' : colors.textPrimary }
               ]}>Daily</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[
-                styles.frequencyButton, 
-                isDark && styles.darkFrequencyButton,
-                frequency === 'weekly' && styles.selectedFrequency
+                styles.frequencyButton,
+                {
+                  backgroundColor: frequency === 'weekly' ? '#FF7F50' : colors.surface,
+                  borderColor: colors.border,
+                }
               ]}
               onPress={() => setFrequency('weekly')}
             >
               <Text style={[
-                styles.frequencyText, 
-                isDark && styles.darkFrequencyText,
-                frequency === 'weekly' && styles.selectedText
+                styles.frequencyText,
+                { color: frequency === 'weekly' ? '#FFFFFF' : colors.textPrimary }
               ]}>Weekly</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[
-                styles.frequencyButton, 
-                isDark && styles.darkFrequencyButton,
-                frequency === 'custom' && styles.selectedFrequency
+                styles.frequencyButton,
+                {
+                  backgroundColor: frequency === 'custom' ? '#FF7F50' : colors.surface,
+                  borderColor: colors.border,
+                }
               ]}
               onPress={() => setFrequency('custom')}
             >
               <Text style={[
-                styles.frequencyText, 
-                isDark && styles.darkFrequencyText,
-                frequency === 'custom' && styles.selectedText
+                styles.frequencyText,
+                { color: frequency === 'custom' ? '#FFFFFF' : colors.textPrimary }
               ]}>Custom</Text>
             </TouchableOpacity>
           </View>
 
           {renderDaySelector()}
 
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+          <TouchableOpacity style={[styles.deleteButton, { backgroundColor: colors.error }]} onPress={handleDelete}>
             <Text style={styles.deleteButtonText}>Delete Routine</Text>
           </TouchableOpacity>
         </View>
@@ -254,21 +265,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   loadingContainer: {
-    backgroundColor: 'white',
     padding: 20,
     borderRadius: 12,
   },
   loadingText: {
     fontSize: 16,
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
   },
   editFormScroll: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
-  },
-  darkEditFormScroll: {
-    backgroundColor: '#1C1C1E',
   },
   header: {
     flexDirection: 'row',
@@ -276,19 +281,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  darkHeader: {
-    borderBottomColor: '#3A3A3C',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
-  },
-  darkText: {
-    color: '#FFFFFF',
   },
   saveButton: {
     color: '#FF7F50',
@@ -300,20 +297,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   input: {
-    backgroundColor: 'white',
     padding: 16,
     borderRadius: 12,
     fontSize: 16,
     marginBottom: 20,
     fontFamily: 'Vercetti-Regular',
-    color: '#333',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-  },
-  darkInput: {
-    backgroundColor: '#2C2C2E',
-    color: '#FFFFFF',
-    borderColor: '#3A3A3C',
   },
   frequencySection: {
     marginBottom: 20,
@@ -322,35 +311,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
   },
   frequencyButton: {
     padding: 16,
     borderRadius: 12,
-    backgroundColor: 'white',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-  },
-  darkFrequencyButton: {
-    backgroundColor: '#2C2C2E',
-    borderColor: '#3A3A3C',
-  },
-  selectedFrequency: {
-    backgroundColor: '#FF7F50',
-    borderColor: '#FF7F50',
   },
   frequencyText: {
     fontSize: 16,
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
-  },
-  darkFrequencyText: {
-    color: '#FFFFFF',
-  },
-  selectedText: {
-    color: 'white',
   },
   daysSection: {
     marginTop: 20,
@@ -365,35 +336,17 @@ const styles = StyleSheet.create({
     width: '30%',
     padding: 12,
     borderRadius: 12,
-    backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-  },
-  darkDayButton: {
-    backgroundColor: '#2C2C2E',
-    borderColor: '#3A3A3C',
-  },
-  selectedDayButton: {
-    backgroundColor: '#FF7F50',
-    borderColor: '#FF7F50',
   },
   dayButtonText: {
     fontSize: 14,
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
-  },
-  darkDayButtonText: {
-    color: '#FFFFFF',
-  },
-  selectedDayButtonText: {
-    color: '#FFFFFF',
   },
   deleteButton: {
     marginTop: 20,
     padding: 16,
-    backgroundColor: '#FF3B30',
     borderRadius: 12,
     alignItems: 'center',
   },

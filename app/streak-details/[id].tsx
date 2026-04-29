@@ -6,39 +6,22 @@ import {
   ScrollView, 
   TouchableOpacity, 
   Dimensions, 
-  useColorScheme,
   Animated,
-  Easing,
-  Platform,
   Alert,
   Modal
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRoutine } from '@/contexts/RoutineContext';
-import { Ionicons, Octicons } from '@expo/vector-icons';
-import { format, subDays, isSameDay, parseISO, differenceInDays } from 'date-fns';
-import { BlurView } from 'expo-blur';
+import { ArrowLeft, ShareFat, DotsThree, Trophy, Flame, Rocket, Calendar } from 'phosphor-react-native';
+import { format, parseISO } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Svg, Circle, Path } from 'react-native-svg';
 import StreakTimer from '@/components/StreakTimer';
 import StreakShareWidget from '@/components/StreakShareWidget';
+import UrgeSupportModal from '@/components/streaks/UrgeSupportModal';
+import { useTheme } from '@/hooks/useTheme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const colors = {
-  primary: '#FF7F50',
-  secondary: '#FF6347',
-  ring: '#FF4500',
-  background: '#ffffff',
-  text: '#333333',
-  darkText: '#ffffff',
-  darkBackground: '#121212',
-  darkCard: '#1e1e1e',
-  darkSubText: '#aaaaaa',
-  lightText: '#666666',
-  lightBackground: '#ffffff',
-  lightCard: '#fff',
-  lightSubText: '#666666',
-};
 
 // Define milestone days
 const MILESTONE_DAYS = [7, 21, 30, 50, 100, 150, 200, 365];
@@ -47,18 +30,18 @@ export default function StreakDetailsScreen() {
   const params = useLocalSearchParams();
   const id = params.id as string;
   const router = useRouter();
-  const { getStreak, deleteStreak, updateStreak, breakStreak } = useRoutine();
+  const { getStreak, breakStreak } = useRoutine();
   const [streak, setStreak] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   
   // Animation values
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [urgeModalVisible, setUrgeModalVisible] = useState(false);
 
   useEffect(() => {
     loadStreakData();
@@ -120,23 +103,35 @@ export default function StreakDetailsScreen() {
     router.push(`/edit-streak/${id}`);
   };
 
+  const handleRelapseFromUrge = async () => {
+    await breakStreak(id);
+    await loadStreakData();
+  };
+
   if (loading) {
     return (
-      <View style={[styles.container, isDark && styles.darkContainer]}>
-        <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading streak details...</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading streak details...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, isDark && styles.darkContainer]}>
-        <Text style={styles.errorText}>{error}</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
         <TouchableOpacity 
-          style={styles.backButton}
+          style={{ 
+            backgroundColor: colors.card,
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            borderRadius: 12,
+            marginHorizontal: 24,
+            marginTop: 16,
+          }}
           onPress={() => router.back()}
         >
-          <Text style={styles.backButtonText}>Go Back</Text>
+          <Text style={[styles.backButtonText, { color: colors.textPrimary }]}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -151,30 +146,30 @@ export default function StreakDetailsScreen() {
 
   return (
     <ScrollView 
-      style={[styles.container, isDark && styles.darkContainer]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity 
-          style={styles.backButton}
+          style={styles.headerButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="chevron-back" size={24} color={isDark ? '#fff' : '#000'} />
+          <ArrowLeft size={24} color={colors.textPrimary} weight="regular" />
         </TouchableOpacity>
         
         <View style={styles.headerButtons}>
           <TouchableOpacity 
-            style={styles.shareButton}
+            style={styles.headerButton}
             onPress={() => setShareModalVisible(true)}
           >
-            <Ionicons name="share-social-outline" size={24} color={isDark ? '#fff' : '#000'} />
+            <ShareFat size={24} color={colors.textPrimary} weight="regular" />
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.editButton}
+            style={styles.headerButton}
             onPress={handleEditStreak}
           >
-            <Ionicons name="ellipsis-horizontal" size={24} color={isDark ? '#fff' : '#000'} />
+            <DotsThree size={24} color={colors.textPrimary} weight="bold" />
           </TouchableOpacity>
         </View>
       </View>
@@ -187,13 +182,13 @@ export default function StreakDetailsScreen() {
             onPress={() => setShareModalVisible(true)}
           >
             <LinearGradient
-              colors={['#FFA07A', '#FF4500']}
+              colors={[colors.success, colors.warning]}
               style={styles.milestoneBadgeGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
               <View style={styles.milestoneContent}>
-                <Ionicons name="trophy" size={24} color="#FFD700" />
+                <Trophy size={28} color="#FFD700" weight="fill" />
                 <View style={styles.milestoneTextContainer}>
                   <Text style={styles.milestoneTitle}>
                     {streak.currentStreak} Day Milestone!
@@ -202,20 +197,20 @@ export default function StreakDetailsScreen() {
                     {getMilestoneText(streak.currentStreak)} Tap to share!
                   </Text>
                 </View>
-                <Ionicons name="share-social" size={22} color="#fff" />
+                <ShareFat size={24} color="#fff" weight="fill" />
               </View>
             </LinearGradient>
           </TouchableOpacity>
         )}
 
         <View style={styles.titleContainer}>
-          <Text style={[styles.title, isDark && styles.darkText]}>{streak?.title}</Text>
-          <View style={[styles.typeBadge, streak?.type === 'break' ? styles.breakBadge : styles.buildBadge]}>
-            <Octicons 
-              name={streak?.type === 'break' ? 'flame' : 'rocket'} 
-              size={16} 
-              color="#fff" 
-            />
+          <Text style={[styles.title, { color: colors.textPrimary }]}>{streak?.title}</Text>
+          <View style={[styles.typeBadge, { backgroundColor: streak?.type === 'break' ? colors.error : colors.success }]}>
+            {streak?.type === 'break' ? (
+              <Flame size={18} color="#fff" weight="fill" />
+            ) : (
+              <Rocket size={18} color="#fff" weight="fill" />
+            )}
             <Text style={styles.typeBadgeText}>
               {streak?.type === 'break' ? 'Breaking Habit' : 'Building Habit'}
             </Text>
@@ -223,13 +218,13 @@ export default function StreakDetailsScreen() {
         </View>
 
         <View style={styles.timerContainer}>
-          <View style={[styles.timerCard, isDark && styles.darkTimerCard]}>
-            <Text style={[styles.timerLabel, isDark && styles.darkText]}>Time Elapsed</Text>
+          <View style={[styles.timerCard, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
+            <Text style={[styles.timerLabel, { color: colors.textSecondary }]}>Time Elapsed</Text>
             <StreakTimer 
               startDate={streak?.startDate || ''} 
               startTime={streak?.startTime || ''} 
             />
-            <Text style={[styles.streakCount, isDark && styles.darkText]}>
+            <Text style={[styles.streakCount, { color: colors.success }]}>
               {progress} days
             </Text>
           </View>
@@ -239,13 +234,13 @@ export default function StreakDetailsScreen() {
           <Svg width={SCREEN_WIDTH - 48} height={200} viewBox="0 0 300 200">
             <Path
               d="M 50,100 Q 150,0 250,100"
-              stroke={isDark ? '#333' : '#eee'}
+              stroke={colors.border}
               strokeWidth="2"
               fill="none"
             />
             <Path
               d="M 50,100 Q 150,0 250,100"
-              stroke={colors.primary}
+              stroke={colors.success}
               strokeWidth="4"
               fill="none"
               strokeDasharray={`${percentage * 3} 300`}
@@ -254,58 +249,80 @@ export default function StreakDetailsScreen() {
               cx={50 + (percentage * 2)}
               cy={100 - (percentage * 0.8)}
               r="8"
-              fill={colors.primary}
+              fill={colors.success}
             />
           </Svg>
           
           <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, isDark && styles.darkText]}>{progress}</Text>
-              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Current</Text>
+            <View style={[styles.statItem, { backgroundColor: colors.card }]}>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{progress}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Current</Text>
             </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, isDark && styles.darkText]}>{streak?.longestStreak || 0}</Text>
-              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Longest</Text>
+            <View style={[styles.statItem, { backgroundColor: colors.card }]}>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{streak?.longestStreak || 0}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Longest</Text>
             </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, isDark && styles.darkText]}>{target}</Text>
-              <Text style={[styles.statLabel, isDark && styles.darkSubText]}>Target</Text>
+            <View style={[styles.statItem, { backgroundColor: colors.card }]}>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{target}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Target</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.infoSection}>
-          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>About This Streak</Text>
-          <View style={[styles.infoCard, isDark && styles.darkCard]}>
-            <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, isDark && styles.darkSubText]}>Started</Text>
-              <Text style={[styles.infoValue, isDark && styles.darkText]}>
+          <View style={styles.sectionTitleRow}>
+            <Calendar size={24} color={colors.success} weight="fill" />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>About This Streak</Text>
+          </View>
+          <View style={[styles.infoCard, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
+            <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Started</Text>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
                 {format(parseISO(streak?.startDate), 'MMMM d, yyyy')}
               </Text>
             </View>
-            <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, isDark && styles.darkSubText]}>Status</Text>
-              <Text style={[styles.infoValue, isDark && styles.darkText]}>
-                {streak?.status || 'Active'}
-              </Text>
+            <View style={[styles.infoRow, { borderBottomColor: 'transparent' }]}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Status</Text>
+              <View style={[styles.statusBadge, { backgroundColor: colors.success + '20' }]}>
+                <Text style={[styles.infoValue, { color: colors.success }]}>
+                  {streak?.status || 'Active'}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
 
         {streak?.status === 'active' && (
-          <View style={styles.breakSection}>
-            <Text style={[styles.breakSectionTitle, isDark && styles.darkText]}>
-              Need to Break Your Streak?
-            </Text>
-            <Text style={[styles.breakSectionSubtitle, isDark && styles.darkSubText]}>
-              This action cannot be undone. Make sure you're certain.
-            </Text>
-            <TouchableOpacity 
-              style={[styles.breakButton, isDark && styles.darkBreakButton]}
-              onPress={handleBreakStreak}
-            >
-              <Text style={styles.breakButtonText}>Break Streak</Text>
-            </TouchableOpacity>
+          <View style={styles.supportStack}>
+            <View style={[styles.urgeSection, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '30' }]}>
+              <Text style={[styles.urgeSectionTitle, { color: colors.textPrimary }]}>
+                Feeling an urge?
+              </Text>
+              <Text style={[styles.urgeSectionSubtitle, { color: colors.textSecondary }]}>
+                Use a quick reset and log the moment before deciding what to do next.
+              </Text>
+              <TouchableOpacity
+                style={[styles.urgeButton, { backgroundColor: colors.warning }]}
+                onPress={() => setUrgeModalVisible(true)}
+              >
+                <Text style={styles.urgeButtonText}>Open Panic Support</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.breakSection, { backgroundColor: colors.error + '10', borderColor: colors.error + '30' }]}>
+              <Text style={[styles.breakSectionTitle, { color: colors.error }]}>
+                Need to Break Your Streak?
+              </Text>
+              <Text style={[styles.breakSectionSubtitle, { color: colors.textSecondary }]}>
+                This action cannot be undone. Make sure you're certain.
+              </Text>
+              <TouchableOpacity 
+                style={[styles.breakButton, { backgroundColor: colors.error + '20' }]}
+                onPress={handleBreakStreak}
+              >
+                <Text style={[styles.breakButtonText, { color: colors.error }]}>Break Streak</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -318,7 +335,7 @@ export default function StreakDetailsScreen() {
         onRequestClose={() => setShareModalVisible(false)}
       >
         <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, isDark && styles.darkModalContent]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <StreakShareWidget 
               streak={streak}
               onClose={() => setShareModalVisible(false)}
@@ -326,6 +343,13 @@ export default function StreakDetailsScreen() {
           </View>
         </View>
       </Modal>
+
+      <UrgeSupportModal
+        visible={urgeModalVisible}
+        streakId={id}
+        onClose={() => setUrgeModalVisible(false)}
+        onRelapseRequested={handleRelapseFromUrge}
+      />
     </ScrollView>
   );
 }
@@ -348,16 +372,22 @@ function getMilestoneText(days: number): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-  },
-  darkContainer: {
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  headerButton: {
+    padding: 8,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   content: {
     padding: 24,
@@ -366,26 +396,19 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '700',
-    color: '#000',
-    marginBottom: 8,
+    marginBottom: 12,
     fontFamily: 'Vercetti-Regular',
   },
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 20,
-    gap: 6,
-  },
-  buildBadge: {
-    backgroundColor: '#FF7F50',
-  },
-  breakBadge: {
-    backgroundColor: '#FF4500',
+    gap: 8,
   },
   typeBadgeText: {
     color: '#fff',
@@ -395,171 +418,181 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     width: '100%',
-    marginTop: 24,
+    marginTop: 32,
+    gap: 12,
   },
   statItem: {
+    flex: 1,
     alignItems: 'center',
+    padding: 20,
+    borderRadius: 16,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#000',
     fontFamily: 'Vercetti-Regular',
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
     marginTop: 4,
     fontFamily: 'Vercetti-Regular',
   },
   breakSection: {
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  supportStack: {
     marginTop: 32,
     marginBottom: 24,
-    padding: 16,
-    backgroundColor: 'rgba(255, 59, 48, 0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.1)',
+    gap: 16,
   },
-  breakSectionTitle: {
+  urgeSection: {
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  urgeSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Vercetti-Regular',
+  },
+  urgeSectionSubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+    fontFamily: 'Vercetti-Regular',
+  },
+  urgeButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  urgeButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF3B30',
+    fontFamily: 'Vercetti-Regular',
+  },
+  breakSectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
     marginBottom: 8,
     textAlign: 'center',
     fontFamily: 'Vercetti-Regular',
   },
   breakSectionSubtitle: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
+    marginBottom: 20,
     textAlign: 'center',
     fontFamily: 'Vercetti-Regular',
   },
   breakButton: {
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
   },
-  darkBreakButton: {
-    backgroundColor: 'rgba(255, 59, 48, 0.15)',
-  },
   breakButtonText: {
-    color: '#FF3B30',
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
   },
   infoSection: {
-    marginBottom: 24,
+    marginBottom: 32,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
-    color: '#000',
-    marginBottom: 16,
     fontFamily: 'Vercetti-Regular',
   },
   infoCard: {
-    backgroundColor: '#f8f8f8',
-    borderRadius: 16,
-    padding: 16,
-  },
-  darkCard: {
-    backgroundColor: '#1c1c1e',
+    borderRadius: 20,
+    padding: 20,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    alignItems: 'center',
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   infoLabel: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 15,
     fontFamily: 'Vercetti-Regular',
   },
   infoValue: {
     fontSize: 16,
-    color: '#000',
     fontWeight: '500',
     fontFamily: 'Vercetti-Regular',
   },
-  darkText: {
-    color: '#fff',
-  },
-  darkSubText: {
-    color: '#aaa',
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: 100,
     fontFamily: 'Vercetti-Regular',
   },
   errorText: {
     fontSize: 16,
-    color: '#ff3b30',
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: 100,
     fontFamily: 'Vercetti-Regular',
   },
-  backButton: {
-    padding: 8,
-  },
   backButtonText: {
-    color: '#FF7F50',
     fontSize: 16,
+    fontWeight: '600',
     fontFamily: 'Vercetti-Regular',
   },
   timerContainer: {
-    marginBottom: 24,
+    marginBottom: 32,
   },
   timerCard: {
-    backgroundColor: 'rgba(255, 127, 80, 0.05)',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 127, 80, 0.1)',
-  },
-  darkTimerCard: {
-    backgroundColor: 'rgba(255, 127, 80, 0.1)',
-    borderColor: 'rgba(255, 127, 80, 0.2)',
+    borderRadius: 20,
+    padding: 24,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   timerLabel: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    marginBottom: 12,
     textAlign: 'center',
     fontFamily: 'Vercetti-Regular',
-  },
-  editButton: {
-    padding: 8,
   },
   streakCount: {
-    fontSize: 16,
-    color: '#FF7F50',
+    fontSize: 18,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 12,
     fontFamily: 'Vercetti-Regular',
     fontWeight: '600',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  shareButton: {
-    padding: 8,
-    marginRight: 8,
   },
   modalContainer: {
     flex: 1,
@@ -567,49 +600,46 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingTop: 20,
     paddingBottom: 40,
     maxHeight: '90%',
   },
-  darkModalContent: {
-    backgroundColor: '#121212',
-  },
   milestoneBadge: {
-    marginBottom: 20,
-    borderRadius: 16,
+    marginBottom: 24,
+    borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
     elevation: 5,
   },
   milestoneBadgeGradient: {
-    borderRadius: 16,
-    padding: 2,
+    borderRadius: 20,
+    padding: 3,
   },
   milestoneContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    borderRadius: 14,
-    padding: 12,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    borderRadius: 17,
+    padding: 16,
+    gap: 12,
   },
   milestoneTextContainer: {
     flex: 1,
-    marginHorizontal: 12,
   },
   milestoneTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: '#fff',
     fontFamily: 'Vercetti-Regular',
+    marginBottom: 4,
   },
   milestoneSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.9)',
     fontFamily: 'Vercetti-Regular',
   },

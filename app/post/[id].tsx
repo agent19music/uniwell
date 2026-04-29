@@ -9,7 +9,9 @@ import {
   TextInput,
   useColorScheme,
   ActivityIndicator,
-  Alert
+  Alert,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -329,60 +331,70 @@ export default function PostScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
-        {post && (
-          <View style={[styles.postContainer, isDark && styles.postContainerDark]}>
-            <View style={styles.postHeader}>
-              <Image 
-                source={{ uri: post.profiles?.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }} 
-                style={styles.avatar} 
-              />
-              <View style={styles.postHeaderText}>
-                <Text style={[styles.username, isDark && styles.usernameDark]}>
-                  {post.profiles?.username}
-                </Text>
-                <Text style={[styles.timestamp, isDark && styles.timestampDark]}>
-                  {format(new Date(post.created_at), 'MMM d, yyyy')}
-                </Text>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
+          {post && (
+            <View style={[styles.postContainer, isDark && styles.postContainerDark]}>
+              <View style={styles.postHeader}>
+                <Image 
+                  source={{ uri: post.profiles?.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }} 
+                  style={styles.avatar} 
+                />
+                <View style={styles.postHeaderText}>
+                  <Text style={[styles.username, isDark && styles.usernameDark]}>
+                    {post.profiles?.username}
+                  </Text>
+                  <Text style={[styles.timestamp, isDark && styles.timestampDark]}>
+                    {format(new Date(post.created_at), 'MMM d, yyyy')}
+                  </Text>
+                </View>
               </View>
-            </View>
 
-            {post.title && (
-              <Text style={[styles.postTitle, isDark && styles.postTitleDark]}>
-                {post.title}
-              </Text>
-            )}
+              {post.title && (
+                <Text style={[styles.postTitle, isDark && styles.postTitleDark]}>
+                  {post.title}
+                </Text>
+              )}
             
-            <Text style={[styles.postContent, isDark && styles.postContentDark]}>
-              {post.content}
-            </Text>
+              <Text style={[styles.postContent, isDark && styles.postContentDark]}>
+                {post.content}
+              </Text>
 
-            {post.media_url?.map((url, index) => (
-              <Image 
-                key={index}
-                source={{ uri: url }} 
-                style={styles.postMedia} 
+              {post.media_url?.map((url, index) => (
+                <Image 
+                  key={index}
+                  source={{ uri: url }} 
+                  style={styles.postMedia} 
+                />
+              ))}
+            </View>
+          )}
+
+          <View style={styles.repliesContainer}>
+            <Text style={[styles.repliesTitle, isDark && styles.textDark]}>
+              Replies ({replies.length})
+            </Text>
+            {replies.map(reply => (
+              <ThreadedReply
+                key={reply.id}
+                reply={reply}
+                depth={0}
+                onReply={(parentId) => setReplyingTo(parentId)}
+                onLike={(replyId) => {/* Handle reply like */}}
               />
             ))}
           </View>
-        )}
+        </ScrollView>
 
-        <View style={styles.repliesContainer}>
-          <Text style={[styles.repliesTitle, isDark && styles.textDark]}>
-            Replies ({replies.length})
-          </Text>
-          {replies.map(reply => (
-            <ThreadedReply
-              key={reply.id}
-              reply={reply}
-              depth={0}
-              onReply={(parentId) => setReplyingTo(parentId)}
-              onLike={(replyId) => {/* Handle reply like */}}
-            />
-          ))}
-        </View>
-
-        <View style={styles.replySection}>
+        <View style={[styles.replySection, isDark && styles.replySectionDark]}>
           {replyingTo && (
             <View style={[styles.replyingToContainer, isDark && styles.replyingToContainerDark]}>
               <Text style={[styles.replyingToText, isDark && styles.replyingToTextDark]}>
@@ -415,7 +427,7 @@ export default function PostScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -448,8 +460,14 @@ const styles = StyleSheet.create({
   headerDark: {
     borderBottomColor: '#2a2a2a',
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   content: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   postContainer: {
     backgroundColor: '#fff',
@@ -538,6 +556,13 @@ const styles = StyleSheet.create({
   },
   replySection: {
     padding: 16,
+    backgroundColor: '#f8f8f8',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  replySectionDark: {
+    backgroundColor: '#121212',
+    borderTopColor: '#2a2a2a',
   },
   replyingToContainer: {
     flexDirection: 'row',

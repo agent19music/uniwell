@@ -20,8 +20,8 @@ const FluidTabBar = ({ state, navigation, descriptors }: BottomTabBarProps) => {
 
   React.useEffect(() => {
     translateX.value = withSpring(state.index * (width / state.routes.length), {
-      damping: 15,
-      stiffness: 120,
+      damping: 80,
+      stiffness: 400,
     });
   }, [state.index]);
 
@@ -46,8 +46,8 @@ const FluidTabBar = ({ state, navigation, descriptors }: BottomTabBarProps) => {
         navigation.navigate(state.routes[newIndex].name);
       } else {
         translateX.value = withSpring(state.index * (width / state.routes.length), {
-          damping: 15,
-          stiffness: 120,
+          damping: 20,
+          stiffness: 180,
         });
       }
     });

@@ -1,31 +1,43 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, useWindowDimensions, Animated } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Entypo, Octicons } from '@expo/vector-icons';
+import { Ionicons, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useMood, MoodType } from '../../contexts/MoodContext';
-import * as Burnt from 'burnt';
+import { toast } from '../../lib/toast/toast';
 import { useTheme } from '../../hooks/useTheme';
+import { useWellnessScore } from '../../hooks/useWellnessScore';
+import { LoadingIndicator } from '@rn-nui/loading-indicator';
+import { Menu } from '../../components/Menu';
+import { MoodCard } from '../../components/mood';
 
-
-const MOOD_OPTIONS = [
-  { id: 'happy', icon: '😊', label: 'Happy', color: '#FF69B4' },
-  { id: 'calm', icon: '😌', label: 'Calm', color: '#8A8AFF' },
-  { id: 'stressed', icon: '😵‍💫', label: 'Stressed', color: '#7FFFD4' },
-  { id: 'angry', icon: '😠', label: 'Angry', color: '#FFA07A' },
-  { id: 'sad', icon: '😢', label: 'Sad', color: '#98FB98' },
-];
 
 export default function HomeScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { height } = useWindowDimensions();
   const [userName, setUserName] = useState('');
-  const [scaleValue] = useState(new Animated.Value(1));
-  const [colorValue] = useState(new Animated.Value(0));
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  
+  const [reflectionText, setReflectionText] = useState('');
+  const [savingReflection, setSavingReflection] = useState(false);
+
+  // Menu states
+  const [progressMenuVisible, setProgressMenuVisible] = useState(false);
+  const [journalMenuVisible, setJournalMenuVisible] = useState(false);
+
+  // Menu items
+  const progressMenuItems = [
+    { label: 'View Monthly Progress', icon: 'calendar-outline', onPress: () => router.push('/wellness-report') },
+  ];
+
+  const journalMenuItems = [
+    { label: 'Record Voice Journal', icon: 'mic-outline', onPress: () => router.push('/journals') },
+    { label: 'View All Journals', icon: 'book-outline', onPress: () => router.push('/journals') },
+  ];
+
+  // Get wellness score
+  const { score: wellnessScore, loading: wellnessLoading } = useWellnessScore();
+
   // Safely get mood context with null check
   let moodContext;
   try {
@@ -36,68 +48,82 @@ export default function HomeScreen() {
       currentMood: null,
       todaysMoodRecorded: false,
       shouldPromptForMood: false,
-      recordMood: async () => {},
+      recordMood: async () => { },
       loading: true
     };
   }
-  
-  const { 
-    currentMood, 
-    todaysMoodRecorded, 
-    shouldPromptForMood, 
+
+  const {
     recordMood,
-    loading: moodLoading 
+    currentMood,
+    todaysMoodRecorded,
+    loading: moodLoading
   } = moodContext;
 
-  const handleMoodSelection = async (mood: typeof MOOD_OPTIONS[0]) => {
-    // Animated selection logic
-    Animated.parallel([
-      Animated.spring(scaleValue, {
-        toValue: 1.1,
-        friction: 3,
-        useNativeDriver: true
-      }),
-      Animated.timing(colorValue, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: false
-      })
-    ]).start(async () => {
-      try {
-        // Record the mood in our database
-        await recordMood(mood.id as MoodType);
-        
-        // Show success toast
-        Burnt.toast({
-          title: 'Success',
-          message: `You're feeling ${mood.label.toLowerCase()} today`,
-          preset: 'done',
-          duration: 2000,
-          from: 'top',
-          shouldDismissByDrag: true 
-        });
-        
-        // Navigate to mood visualization
-        router.push(`/mood-detail?mood=${mood.id}`);
-      } catch (error) {
-        Burnt.toast({
-          title: 'Error',
-          message: 'Failed to record your mood',
-          preset: 'error',
-          duration: 2000,
-        });
-      }
-    });
+  const handleMoodSelection = async (moodId: MoodType, moodLabel: string) => {
+    try {
+      // Record the mood in our database
+      await recordMood(moodId);
+
+      // Show success toast
+      toast.success('Mood Recorded', {
+        message: `You're feeling ${moodLabel.toLowerCase()} today`,
+        duration: 2000,
+      });
+    } catch (error) {
+      toast.error('Error', {
+        message: 'Failed to record your mood',
+        duration: 2000,
+      });
+    }
   };
 
-  const handleJournalPress = () => {
-    router.push('/journals');
+  const handleReflectionSubmit = async () => {
+    if (!reflectionText.trim()) {
+      return;
+    }
+
+    try {
+      setSavingReflection(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      // Save reflection as journal entry
+      const { error } = await supabase
+        .from('journal_entries')
+        .insert({
+          user_id: user.id,
+          entry_date: new Date().toISOString().split('T')[0],
+          content: reflectionText,
+          created_at: new Date().toISOString(),
+        });
+
+      if (error) throw error;
+
+      // Show success toast
+      toast.success('Reflection Saved', {
+        message: 'Your daily reflection has been recorded',
+        duration: 2000,
+      });
+
+      // Clear the input
+      setReflectionText('');
+    } catch (error) {
+      console.error('Error saving reflection:', error);
+      toast.error('Error', {
+        message: 'Failed to save your reflection',
+        duration: 2000,
+      });
+    } finally {
+      setSavingReflection(false);
+    }
   };
-  
+
   const handlePreferencesPress = () => {
     router.push('/preferences');
   };
-  
+
   const handleNotificationsPress = () => {
     router.push('/notifications');
   };
@@ -105,36 +131,17 @@ export default function HomeScreen() {
   const handleLibraryPress = () => {
     router.push('/library');
   };
-  
-  const handleViewMoodHistory = () => {
-    router.push('/mood-detail?view=history');
-  };
 
   const handleSleepCardPress = () => {
     router.push('/sleepstats');
   };
 
-  const handleTimetableCardPress = () => {
-    router.push('/schedule');
-  };
-
-  const handleAddRoutine = () => {
-    router.push('/AddRoutineScreen');
-  };
-
-  const handleAddStreak = () => {
-    router.push('/AddStreakScreen');
-  };
   const handleStreakCardPress = () => {
     router.push('/streak-visualization');
   };
 
   const handleChatCardPress = () => {
-    router.push('/chatUI');
-  };
-
-  const handleTherapistDashboardPress = () => {
-    router.push('/therapist/loginscreen');
+    router.push('/ChatUI');
   };
 
   useEffect(() => {
@@ -145,14 +152,14 @@ export default function HomeScreen() {
         if (user.user_metadata?.full_name) {
           setUserName(user.user_metadata.full_name.split(' ')[0]);
         }
-        
+
         // Get profile data including avatar
         const { data: profileData, error } = await supabase
           .from('profiles')
           .select('avatar_url')
           .eq('id', user.id)
           .single();
-          
+
         if (!error && profileData) {
           setAvatarUrl(profileData.avatar_url);
         }
@@ -161,103 +168,105 @@ export default function HomeScreen() {
     getUserData();
   }, []);
 
-  const renderMoodPrompt = () => (
-    <>
-      <Text style={[styles.question, { color: colors.textSecondary }]}>
-        How are you feeling today?
+  // Render daily reflection section
+  const renderDailyReflection = () => (
+    <View style={styles.reflectionSection}>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.greeting, { color: colors.textPrimary, marginBottom: 0, fontSize: 24 }]}>
+          Hello, {userName || 'Guest'}
+        </Text>
+        <Menu
+          visible={journalMenuVisible}
+          onDismiss={() => setJournalMenuVisible(false)}
+          items={journalMenuItems}
+          trigger={
+            <TouchableOpacity onPress={() => setJournalMenuVisible(true)}>
+              <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+          }
+        />
+      </View>
+      <Text style={[styles.reflectionHeading, { color: colors.textPrimary }]}>
+        How do you feel{'\n'}about your <Text style={styles.boldText}>current{'\n'}emotions</Text>?
       </Text>
-      <View style={styles.moodContainer}>
-        {MOOD_OPTIONS.map((mood) => (
-          <TouchableOpacity 
-            key={mood.id} 
-            style={[styles.moodOption, { backgroundColor: mood.color + '20' }]} 
-            onPress={() => handleMoodSelection(mood)}
-          >
-            <Text style={styles.moodEmoji}>{mood.icon}</Text>
-            <Text style={[styles.moodLabel, { color: colors.textPrimary }]}>{mood.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </>
-  );
-
-  const renderCurrentMood = () => {
-    if (!currentMood) return null;
-    
-    const selectedMood = MOOD_OPTIONS.find(m => m.id === currentMood.moodType);
-    if (!selectedMood) return null;
-    
-    return (
-      <View style={styles.currentMoodContainer}>
-        <View style={styles.currentMoodHeader}>
-          <Text style={[styles.currentMoodTitle, { color: colors.textPrimary }]}>
-            Today's Mood
-          </Text>
-          <TouchableOpacity onPress={handleViewMoodHistory}>
-            <Text style={[styles.viewHistoryText, { color: colors.primary }]}>View History</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={[
-          styles.currentMoodCard, 
-          { backgroundColor: selectedMood.color + '30' }
-        ]}>
-          <Text style={styles.currentMoodEmoji}>{selectedMood.icon}</Text>
-          <View style={styles.currentMoodContent}>
-            <Text style={[styles.currentMoodLabel, { color: colors.textPrimary }]}>
-              {selectedMood.label}
-            </Text>
-            <Text style={[styles.currentMoodTime, { color: colors.textSecondary }]}>
-              Recorded at {new Date(currentMood.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-            </Text>
-          </View>
-        </View>
-        
-        {renderMoodMessage(currentMood.moodType)}
-      </View>
-    );
-  };
-  
-  const renderMoodMessage = (moodType: MoodType) => {
-    let message = '';
-    
-    switch(moodType) {
-      case 'happy':
-        message = "That's wonderful! Your positive energy can brighten everyone's day. What made you happy today?";
-        break;
-      case 'calm':
-        message = "It's great that you're feeling balanced. This is a perfect state for reflection and mindfulness.";
-        break;
-      case 'stressed':
-        message = "I notice you're feeling stressed. Remember to take deep breaths and consider what you can control right now.";
-        break;
-      case 'angry':
-        message = "It's okay to feel angry sometimes. Consider journaling about what triggered this feeling.";
-        break;
-      case 'sad':
-        message = "I'm sorry you're feeling down today. Remember that all emotions are temporary and it's okay to not be okay.";
-        break;
-    }
-    
-    return (
-      <View style={[styles.moodMessageCard, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
-        <Text style={[styles.moodMessage, { color: colors.textPrimary }]}>{message}</Text>
-        <TouchableOpacity 
-          style={[styles.journalButton, { backgroundColor: colors.primary }]}
-          onPress={handleJournalPress}
+      <View style={[styles.reflectionInputContainer, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
+        <TextInput
+          style={[styles.reflectionInput, { color: colors.textPrimary }]}
+          placeholder="Your reflection.."
+          placeholderTextColor={colors.textSecondary}
+          value={reflectionText}
+          onChangeText={setReflectionText}
+          multiline={false}
+        />
+        <TouchableOpacity
+          onPress={handleReflectionSubmit}
+          disabled={savingReflection || !reflectionText.trim()}
         >
-          <Text style={styles.journalButtonText}>Write in Journal</Text>
+          {savingReflection ? (
+            <LoadingIndicator size="small" />
+          ) : (
+            <Ionicons
+              name="arrow-forward"
+              size={24}
+              color={colors.textPrimary}
+            />
+          )}
         </TouchableOpacity>
       </View>
-    );
-  };
+    </View>
+  );
+
+  // Render mood log section - now using MoodCard
+  const renderMoodLog = () => (
+    <MoodCard
+      onMoodSelect={handleMoodSelection}
+      onViewWeeklyReport={() => router.push('/mood-detail')}
+      currentMood={currentMood}
+      todaysMoodRecorded={todaysMoodRecorded}
+    />
+  );
+
+  // Render wellness progress section
+  const renderWellnessProgress = () => (
+    <View style={styles.progressSection}>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+          Your progress
+        </Text>
+        <Menu
+          visible={progressMenuVisible}
+          onDismiss={() => setProgressMenuVisible(false)}
+          items={progressMenuItems}
+          trigger={
+            <TouchableOpacity onPress={() => setProgressMenuVisible(true)}>
+              <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+          }
+        />
+      </View>
+      <View style={styles.progressContent}>
+        {wellnessLoading ? (
+          <LoadingIndicator size="large" />
+        ) : (
+          <>
+            <Text style={[styles.progressPercentage, { color: colors.textPrimary }]}>
+              {wellnessScore}%
+            </Text>
+            <Text style={[styles.progressSubtitle, { color: colors.textSecondary }]}>
+              Of the weekly{'\n'}plan completed
+            </Text>
+          </>
+        )}
+      </View>
+    </View>
+  );
 
   // Render home screen cards
   const renderHomeCards = () => (
     <View style={styles.cardsContainer}>
       {/* Sleep Card */}
-      <TouchableOpacity 
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
         onPress={handleSleepCardPress}
       >
         <View style={styles.cardHeader}>
@@ -270,8 +279,8 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {/*Library Card */}
-      <TouchableOpacity 
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
         onPress={handleLibraryPress}
       >
         <View style={styles.cardHeader}>
@@ -284,8 +293,8 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {/* Chat Card */}
-      <TouchableOpacity 
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
         onPress={handleChatCardPress}
       >
         <View style={styles.cardHeader}>
@@ -293,27 +302,13 @@ export default function HomeScreen() {
           <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Chat</Text>
         </View>
         <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-          Chat with your AI therapist
+          Chat with your wellness companion
         </Text>
       </TouchableOpacity>
 
-      {/* Therapist Dashboard Card */}
-      {/* <TouchableOpacity 
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
-        onPress={handleTherapistDashboardPress}
-      >
-        <View style={styles.cardHeader}>
-          <Ionicons name="calendar-outline" size={24} color={colors.primary} />
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Therapist</Text>
-        </View>
-        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-          Open therapist dashboard
-        </Text>
-      </TouchableOpacity> */}
-
       {/* Streaks Card */}
-      <TouchableOpacity 
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]} 
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
         onPress={handleStreakCardPress}
       >
         <View style={styles.cardHeader}>
@@ -327,47 +322,57 @@ export default function HomeScreen() {
     </View>
   );
 
-  const getTimeOfDay = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Morning';
-    if (hour < 18) return 'Afternoon';
-    return 'Evening';
-  };
+  // Render decorative floating circles
+  const renderDecorativeCircles = () => (
+    <View style={styles.decorativeCircles}>
+      <View style={[styles.circle, { bottom: 32, left: 32, width: 64, height: 64, backgroundColor: 'rgba(168, 184, 150, 0.3)' }]} />
+      <View style={[styles.circle, { bottom: 96, left: 80, width: 48, height: 48, backgroundColor: 'rgba(255, 255, 255, 0.4)' }]} />
+      <View style={[styles.circle, { bottom: 48, left: 128, width: 56, height: 56, backgroundColor: 'rgba(168, 184, 150, 0.2)' }]} />
+      <View style={[styles.circle, { bottom: 80, left: 192, width: 40, height: 40, backgroundColor: 'rgba(255, 255, 255, 0.3)' }]} />
+      <View style={[styles.circle, { bottom: 32, right: 128, width: 80, height: 80, backgroundColor: 'rgba(255, 255, 255, 0.5)' }]} />
+      <View style={[styles.circle, { bottom: 64, right: 64, width: 56, height: 56, backgroundColor: 'rgba(168, 184, 150, 0.25)' }]} />
+      <View style={[styles.circle, { bottom: 16, right: 32, width: 48, height: 48, backgroundColor: 'rgba(255, 255, 255, 0.4)' }]} />
+    </View>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { minHeight: height - 60 } // Subtract tab bar height
-        ]}>
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Header with profile and notifications */}
         <View style={styles.header}>
           <View style={styles.profileRow}>
             <TouchableOpacity onPress={handlePreferencesPress}>
               <Image
-                source={{ 
-                  uri: avatarUrl || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' 
+                source={{
+                  uri: avatarUrl || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png'
                 }}
                 style={styles.avatar}
               />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleNotificationsPress}>
-              <View style={styles.notificationIcon}>
-                <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
-                <View style={[styles.notificationBadge, { backgroundColor: colors.primary }]} />
-              </View>
+              <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.greeting, { color: colors.textPrimary }]}>
-            Good {getTimeOfDay()},{'\n'}{userName || 'Guest'}
-          </Text>
-          
-          {shouldPromptForMood ? renderMoodPrompt() : renderCurrentMood()}
-          
-          {renderHomeCards()}
         </View>
+
+        {/* Daily Reflection Section */}
+        {renderDailyReflection()}
+
+        {/* Daily Mood Log */}
+        {renderMoodLog()}
+
+        {/* Wellness Progress */}
+        {renderWellnessProgress()}
+
+        {/* Cards Section */}
+        {renderHomeCards()}
+
+        {/* Decorative Circles */}
+        {renderDecorativeCircles()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -382,142 +387,110 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 20,
+    paddingBottom: 200,
   },
   header: {
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   profileRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
   },
-  notificationIcon: {
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  // Daily Reflection Section
+  reflectionSection: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    marginBottom: 32,
   },
   greeting: {
+    fontSize: 38,
+    fontWeight: '400',
+    marginBottom: 8,
+    fontFamily: 'Vercetti-Regular',
+  },
+  reflectionHeading: {
     fontSize: 28,
+    lineHeight: 36,
+    marginBottom: 24,
+    fontFamily: 'Vercetti-Regular',
+  },
+  boldText: {
     fontWeight: 'bold',
-    marginVertical: 16,
-    fontFamily: 'Vercetti-Regular',
   },
-  question: {
-    fontSize: 16,
-    marginBottom: 16,
-    fontFamily: 'Vercetti-Regular',
-  },
-  moodContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  moodOption: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 63,
-    height: 63,
-    borderRadius: 16,
-  },
-  moodEmoji: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  moodLabel: {
-    fontSize: 14,
-    marginTop: 4,
-    fontFamily: 'Vercetti-Regular',
-  },
-  currentMoodContainer: {
-    marginBottom: 24,
-  },
-  currentMoodHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  currentMoodTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
-  },
-  viewHistoryText: {
-    fontSize: 14,
-    fontFamily: 'Vercetti-Regular',
-  },
-  currentMoodCard: {
+  reflectionInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderRadius: 24,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  currentMoodEmoji: {
-    fontSize: 36,
-    marginRight: 16,
-  },
-  currentMoodContent: {
+  reflectionInput: {
     flex: 1,
+    fontSize: 16,
+    fontFamily: 'Vercetti-Regular',
   },
-  currentMoodLabel: {
+  // Section styles (shared)
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: 'Vercetti-Regular',
   },
-  currentMoodTime: {
+  // Wellness Progress Section
+  progressSection: {
+    paddingHorizontal: 24,
+    marginBottom: 32,
+  },
+  progressContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  progressPercentage: {
+    fontSize: 72,
+    fontWeight: 'bold',
+    fontFamily: 'Vercetti-Regular',
+  },
+  progressSubtitle: {
     fontSize: 14,
+    textAlign: 'right',
+    marginTop: 16,
+    fontFamily: 'Vercetti-Regular',
   },
-  moodMessageCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  moodMessage: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  journalButton: {
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  journalButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'white',
-  },
+  // Cards Section
   cardsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    marginBottom: 100,
   },
   card: {
     width: '48%',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 24,
+    padding: 20,
     marginBottom: 16,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -531,8 +504,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Vercetti-Regular',
   },
   cardSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Vercetti-Regular',
-  }
+  },
+  // Decorative Circles
+  decorativeCircles: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 192,
+    pointerEvents: 'none',
+  },
+  circle: {
+    position: 'absolute',
+    borderRadius: 999,
+  },
 });
+
 

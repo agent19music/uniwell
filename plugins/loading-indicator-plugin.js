@@ -2,18 +2,26 @@ const { withAndroidStyles, withPlugins, AndroidConfig } = require('@expo/config-
 
 const withLoadingIndicatorAndroid = (config) => {
   return withAndroidStyles(config, (config) => {
-    const { styles } = config.modResults;
+    // Ensure modResults and resources structure exists
+    if (!config.modResults) {
+      config.modResults = {};
+    }
+    if (!config.modResults.resources) {
+      config.modResults.resources = {};
+    }
+    if (!config.modResults.resources.style) {
+      config.modResults.resources.style = [];
+    }
+    
+    const styles = config.modResults;
     
     // Find the AppTheme or create it
-    let appTheme = styles?.resources?.style?.find(style => 
+    let appTheme = styles.resources?.style?.find(style => 
       style.$?.name === 'AppTheme'
     );
     
     if (!appTheme) {
       // Create AppTheme if it doesn't exist
-      if (!styles.resources) styles.resources = {};
-      if (!styles.resources.style) styles.resources.style = [];
-      
       appTheme = {
         $: { name: 'AppTheme', parent: 'Theme.Material3Expressive.DayNight.NoActionBar' },
         item: []

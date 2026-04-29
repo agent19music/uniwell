@@ -1,18 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, FlatList, ActivityIndicator, Keyboard, Image, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, FlatList, Keyboard, Image, Alert, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, ChatCircleDots, ClockCounterClockwise, PaperPlaneRight, X, Plus, DotsThree } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { format } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Burnt from 'burnt';
+import { LoadingIndicator } from '@rn-nui/loading-indicator';
 
 import { ChatService } from '../lib/services/chatservice';
 import { ChatSessionManager } from '@/lib/ChatSessionHandler';
 import { useMood, MoodType } from '../contexts/MoodContext';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../hooks/useTheme';
 
 // Define message types
 interface Message {
@@ -37,8 +40,7 @@ const AI_PERSONA = {
 
 const ChatUI = () => {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const { currentMood } = useMood();
   
   const [messages, setMessages] = useState<Message[]>([]);
@@ -199,12 +201,15 @@ const ChatUI = () => {
 
   const handleNewChat = async () => {
     Alert.alert(
-      "New Chat",
-      "Start a new conversation?",
+      "New Conversation",
+      "Start a fresh chat with Aria?",
       [
-        { text: "Cancel", style: "cancel" },
         { 
-          text: "New Chat", 
+          text: "Cancel", 
+          style: "cancel" 
+        },
+        { 
+          text: "Start New Chat", 
           onPress: async () => {
             try {
               setIsLoading(true);
@@ -223,14 +228,21 @@ const ChatUI = () => {
               const sessions = await ChatSessionManager.getUserSessions(user.id);
               setUserSessions(sessions);
 
-              // Scroll to bottom and focus input
               scrollToBottom();
               inputRef.current?.focus();
 
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Burnt.toast({ 
+                title: 'New chat started', 
+                preset: 'done' 
+              });
             } catch (error) {
               console.error('New chat error:', error);
-              Alert.alert('Error', 'Failed to start new chat');
+              Burnt.toast({ 
+                title: 'Error', 
+                message: 'Failed to start new chat',
+                preset: 'error' 
+              });
             } finally {
               setIsLoading(false);
             }
@@ -243,11 +255,11 @@ const ChatUI = () => {
   const renderMessage = ({ item }: { item: Message }) => {
     if (item.thinking) {
       return (
-        <View style={styles.thinkingBubble}>
+        <View style={[styles.thinkingBubble, { backgroundColor: colors.card }]}>
           <View style={styles.typingIndicator}>
-            <View style={[styles.typingDot, { opacity: 0.4 }]} />
-            <View style={[styles.typingDot, { opacity: 0.6 }]} />
-            <View style={[styles.typingDot, { opacity: 0.8 }]} />
+            <View style={[styles.typingDot, { backgroundColor: colors.textSecondary, opacity: 0.4 }]} />
+            <View style={[styles.typingDot, { backgroundColor: colors.textSecondary, opacity: 0.6 }]} />
+            <View style={[styles.typingDot, { backgroundColor: colors.textSecondary, opacity: 0.8 }]} />
           </View>
         </View>
       );
@@ -259,27 +271,32 @@ const ChatUI = () => {
         item.isAI ? styles.aiContainer : styles.userContainer
       ]}>
         {item.isAI && (
-          <Image 
-            source={{ uri: AI_PERSONA.avatar || AI_PERSONA.defaultAvatar }}
-            style={styles.avatar}
-          />
+          <View style={styles.avatarContainer}>
+            <Image 
+              source={{ uri: AI_PERSONA.avatar || AI_PERSONA.defaultAvatar }}
+              style={styles.avatar}
+            />
+            <View style={[styles.aiIndicator, { backgroundColor: colors.success }]}>
+            </View>
+          </View>
         )}
         <View style={[
           styles.bubble,
-          item.isAI ? styles.aiBubble : styles.userBubble,
-          isDark && (item.isAI ? styles.darkAiBubble : styles.darkUserBubble)
+          item.isAI ? [styles.aiBubble, { backgroundColor: colors.card }] : [styles.userBubble, { backgroundColor: isDark ? colors.success : colors.textPrimary }]
         ]}>
           <Text style={[
             styles.messageText,
-            item.isAI ? styles.aiText : styles.userText,
-            isDark && (item.isAI ? styles.darkAiText : styles.darkUserText)
+            item.isAI 
+              ? { color: colors.textPrimary } 
+              : { color: '#FFFFFF' }
           ]}>
             {item.content}
           </Text>
           <Text style={[
             styles.timestamp,
-            item.isAI ? styles.aiTimestamp : styles.userTimestamp,
-            isDark && styles.darkTimestamp
+            item.isAI 
+              ? { color: colors.textSecondary } 
+              : { color: 'rgba(255, 255, 255, 0.7)' }
           ]}>
             {format(item.timestamp, 'h:mm a')}
           </Text>
@@ -289,42 +306,50 @@ const ChatUI = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <BlurView intensity={90} tint={isDark ? 'dark' : 'light'} style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <TouchableOpacity 
           onPress={() => router.back()}
-          style={styles.headerButton}
+          style={styles.backButton}
         >
-          <Ionicons name="chevron-back" size={24} color={isDark ? '#fff' : '#000'} />
+          <ArrowLeft size={24} color={colors.textPrimary} weight="regular" />
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, isDark && styles.darkText]}>{AI_PERSONA.name}</Text>
-          <Text style={[styles.headerSubtitle, isDark && styles.darkSubText]}>{AI_PERSONA.role}</Text>
+          <View style={styles.titleRow}>
+            <ChatCircleDots size={20} color={colors.success} weight="fill" />
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{AI_PERSONA.name}</Text>
+          </View>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>{AI_PERSONA.role}</Text>
         </View>
         
         <View style={styles.headerRight}>
           <TouchableOpacity 
             onPress={() => setShowSessionsModal(true)}
-            style={styles.headerButton}
+            style={styles.iconButton}
           >
-            <Ionicons name="time-outline" size={24} color={isDark ? '#fff' : '#000'} />
+            <ClockCounterClockwise size={24} color={colors.textPrimary} weight="regular" />
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={handleNewChat} 
-            style={[styles.headerButton, styles.newChatButton]}
+            style={styles.iconButton}
           >
-            <Ionicons name="add" size={24} color={isDark ? '#fff' : '#000'} />
+            <Plus size={24} color={colors.textPrimary} weight="bold" />
           </TouchableOpacity>
         </View>
-      </BlurView>
+      </View>
 
       {/* Chat Messages */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF7F50" />
-          <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading...</Text>
+          <LoadingIndicator 
+            containerSize={50} 
+            containerColor={colors.success} 
+            animating={true} 
+            color={colors.background} 
+          />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading chat...</Text>
         </View>
       ) : (
         <KeyboardAvoidingView
@@ -344,17 +369,16 @@ const ChatUI = () => {
           />
 
           {/* Input Area */}
-          <BlurView intensity={90} tint={isDark ? 'dark' : 'light'} style={[styles.inputContainer, isDark && styles.darkInputContainer]}>
-            <View style={styles.inputWrapper}>
+          <View style={[styles.inputContainer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
               <TextInput
                 ref={inputRef}
                 style={[
                   styles.input,
-                  isDark && styles.darkInput,
-                  inputText.length > 0 && styles.inputActive
+                  { color: colors.textPrimary }
                 ]}
                 placeholder="Message Aria..."
-                placeholderTextColor={isDark ? '#888' : '#999'}
+                placeholderTextColor={colors.textSecondary}
                 value={inputText}
                 onChangeText={setInputText}
                 multiline
@@ -377,40 +401,40 @@ const ChatUI = () => {
                   style={styles.clearButton}
                   onPress={() => setInputText('')}
                 >
-                  <Ionicons 
-                    name="close-circle" 
+                  <X 
                     size={20} 
-                    color={isDark ? '#888' : '#999'} 
+                    color={colors.textSecondary} 
+                    weight="bold"
                   />
                 </TouchableOpacity>
               )}
               <TouchableOpacity
                 style={[
                   styles.sendButton,
-                  !inputText && styles.disabledButton
+                  !inputText.trim() && styles.disabledButton
                 ]}
                 onPress={handleSendMessage}
-                disabled={!inputText}
+                disabled={!inputText.trim()}
               >
-                <LinearGradient
-                  colors={!inputText ? ['#ccc', '#ccc'] : ['#FF7F50', '#FF6347']}
-                  style={styles.sendButtonGradient}
-                >
-                  <Ionicons 
-                    name="send" 
+                <View style={[
+                  styles.sendButtonGradient,
+                  { backgroundColor: inputText.trim() ? (isDark ? colors.success : colors.textPrimary) : colors.border }
+                ]}>
+                  <PaperPlaneRight 
                     size={20} 
                     color="#fff"
+                    weight="fill"
                   />
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
             </View>
             {inputText.length > 0 && (
-              <Text style={[styles.charCount, isDark && styles.darkCharCount]}>
+              <Text style={[styles.charCount, { color: colors.textSecondary }]}>
                 {inputText.length}/500
               </Text>
             )}
-          </BlurView>
-          <Text style={[styles.disclaimer, isDark && styles.darkSubText]}>
+          </View>
+          <Text style={[styles.disclaimer, { color: colors.textTertiary }]}>
             Not a replacement for professional help
           </Text>
         </KeyboardAvoidingView>
@@ -423,43 +447,59 @@ const ChatUI = () => {
         animationType="slide"
         onRequestClose={() => setShowSessionsModal(false)}
       >
-        <View style={[styles.modalContainer, isDark && styles.darkModalContainer]}>
-          <BlurView intensity={90} tint={isDark ? 'dark' : 'light'} style={styles.modalContent}>
-            <Text style={[styles.modalTitle, isDark && styles.darkText]}>Your Chats</Text>
+        <View style={[styles.modalContainer, { backgroundColor: colors.modalBackground }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleRow}>
+                <ClockCounterClockwise size={24} color={colors.success} weight="fill" />
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Chat History</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowSessionsModal(false)}>
+                <X size={24} color={colors.textPrimary} weight="bold" />
+              </TouchableOpacity>
+            </View>
             
-            <ScrollView style={styles.sessionsList}>
-              {userSessions.map(session => (
-                <TouchableOpacity
-                  key={session.id}
-                  style={[
-                    styles.sessionItem,
-                    session.id === sessionId && styles.activeSession,
-                    isDark && styles.darkSessionItem
-                  ]}
-                  onPress={async () => {
-                    setSessionId(session.id);
-                    const history = await ChatSessionManager.loadChatHistory(session.id);
-                    setMessages(history);
-                    setShowSessionsModal(false);
-                  }}
-                >
-                  <Text style={[styles.sessionName, isDark && styles.darkText]}>
-                    {session.session_name}
+            <ScrollView style={styles.sessionsList} showsVerticalScrollIndicator={false}>
+              {userSessions.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <ChatCircleDots size={48} color={colors.textTertiary} weight="thin" />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                    No previous conversations
                   </Text>
-                  <Text style={[styles.sessionDate, isDark && styles.darkSubText]}>
-                    {new Date(session.created_at).toLocaleDateString()}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                </View>
+              ) : (
+                userSessions.map(session => (
+                  <TouchableOpacity
+                    key={session.id}
+                    style={[
+                      styles.sessionItem,
+                      { backgroundColor: colors.background },
+                      session.id === sessionId && [styles.activeSession, { backgroundColor: colors.success + '20', borderLeftColor: colors.success }]
+                    ]}
+                    onPress={async () => {
+                      setSessionId(session.id);
+                      const history = await ChatSessionManager.loadChatHistory(session.id);
+                      setMessages(history);
+                      setShowSessionsModal(false);
+                      Burnt.toast({ title: 'Chat loaded', preset: 'done' });
+                    }}
+                  >
+                    <View style={styles.sessionContent}>
+                      <Text style={[styles.sessionName, { color: colors.textPrimary }]}>
+                        {session.session_name}
+                      </Text>
+                      <Text style={[styles.sessionDate, { color: colors.textSecondary }]}>
+                        {format(new Date(session.created_at), 'MMM d, yyyy • h:mm a')}
+                      </Text>
+                    </View>
+                    {session.id === sessionId && (
+                      <View style={[styles.activeDot, { backgroundColor: colors.success }]} />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
             </ScrollView>
-            
-            <TouchableOpacity
-              style={[styles.modalButton, isDark && styles.darkModalButton]}
-              onPress={() => setShowSessionsModal(false)}
-            >
-              <Text style={styles.modalButtonText}>Close</Text>
-            </TouchableOpacity>
-          </BlurView>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -469,57 +509,56 @@ const ChatUI = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
-  },
-  darkContainer: {
-    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
-  headerButton: {
+  backButton: {
     padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    marginLeft: -8,
   },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
     marginHorizontal: 16,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
+  },
+  iconButton: {
+    padding: 4,
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    fontFamily: 'Vercetti-Regular',
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#666666',
-    marginTop: 2,
-  },
-  newChatButton: {
-    backgroundColor: 'rgba(255, 127, 80, 0.1)',
+    fontFamily: 'Vercetti-Regular',
   },
   messagesContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
   },
   messageContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
-    maxWidth: '80%',
+    marginBottom: 20,
+    maxWidth: '85%',
   },
   aiContainer: {
     alignSelf: 'flex-start',
@@ -528,175 +567,139 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     flexDirection: 'row-reverse',
   },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 10,
+    alignSelf: 'flex-end',
+    marginBottom: 20,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  aiIndicator: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
   bubble: {
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
     maxWidth: '100%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   aiBubble: {
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 6,
   },
   userBubble: {
-    backgroundColor: '#FF7F50',
-    borderBottomRightRadius: 4,
-  },
-  darkAiBubble: {
-    backgroundColor: '#1C1C1E',
-  },
-  darkUserBubble: {
-    backgroundColor: '#FF7F50',
+    borderBottomRightRadius: 6,
   },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-  },
-  aiText: {
-    color: '#000000',
-  },
-  userText: {
-    color: '#FFFFFF',
-  },
-  darkAiText: {
-    color: '#FFFFFF',
-  },
-  darkUserText: {
-    color: '#FFFFFF',
+    fontFamily: 'Vercetti-Regular',
   },
   timestamp: {
     fontSize: 10,
-    marginTop: 4,
+    marginTop: 6,
     alignSelf: 'flex-end',
-  },
-  aiTimestamp: {
-    color: '#888888',
-  },
-  userTimestamp: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  darkTimestamp: {
-    color: '#888888',
+    fontFamily: 'Vercetti-Regular',
   },
   thinkingBubble: {
     alignSelf: 'flex-start',
-    backgroundColor: '#f0f0f0',
     borderRadius: 20,
-    padding: 12,
-    marginBottom: 8,
-    maxWidth: '80%',
+    padding: 16,
+    marginBottom: 12,
+    marginLeft: 20,
+    maxWidth: '70%',
   },
   typingIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   typingDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#888',
   },
   inputContainer: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-  },
-  darkInputContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 12,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    position: 'relative',
-    paddingRight: 8,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   input: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    paddingRight: 56,
     fontSize: 16,
-    maxHeight: 120,
+    maxHeight: 100,
     minHeight: 40,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  inputActive: {
-    borderColor: '#FF7F50',
-    shadowColor: '#FF7F50',
-    shadowOpacity: 0.2,
-  },
-  darkInput: {
-    backgroundColor: '#1C1C1E',
-    color: '#FFFFFF',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingRight: 80,
+    fontFamily: 'Vercetti-Regular',
+    paddingVertical: 8,
   },
   clearButton: {
     position: 'absolute',
-    right: 48,
-    bottom: 10,
+    right: 60,
+    bottom: 14,
     padding: 4,
   },
   sendButton: {
     position: 'absolute',
-    right: 16,
-    bottom: 4,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    right: 12,
+    bottom: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
   sendButtonGradient: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 20,
   },
   disabledButton: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   charCount: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 11,
     textAlign: 'right',
-    marginTop: 4,
+    marginTop: 6,
     marginRight: 8,
-  },
-  darkCharCount: {
-    color: '#666',
+    fontFamily: 'Vercetti-Regular',
   },
   disclaimer: {
     fontSize: 11,
-    color: '#888888',
     textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  darkText: {
-    color: '#FFFFFF',
-  },
-  darkSubText: {
-    color: '#AAAAAA',
+    marginTop: 8,
+    fontFamily: 'Vercetti-Regular',
   },
   loadingContainer: {
     flex: 1,
@@ -705,103 +708,79 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    color: '#666666',
+    fontSize: 15,
+    fontFamily: 'Vercetti-Regular',
   },
   modalContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 20,
-  },
-  darkModalContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    borderRadius: 20,
-    padding: 20,
-    width: '100%',
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
-    color: '#000000',
-    marginBottom: 20,
-    textAlign: 'center',
+    fontFamily: 'Vercetti-Regular',
   },
   sessionsList: {
-    maxHeight: 400,
-    marginBottom: 20,
+    maxHeight: 450,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 15,
+    marginTop: 12,
+    fontFamily: 'Vercetti-Regular',
   },
   sessionItem: {
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-    backgroundColor: '#F5F5F5',
-    borderLeftWidth: 3,
-    borderLeftColor: '#DDD',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: 'transparent',
   },
   activeSession: {
-    backgroundColor: 'rgba(255, 127, 80, 0.2)',
-    borderLeftColor: '#FF7F50',
+    borderLeftWidth: 4,
   },
-  darkSessionItem: {
-    backgroundColor: '#2C2C2E',
-    borderLeftColor: '#444',
+  sessionContent: {
+    flex: 1,
   },
   sessionName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333333',
-    marginBottom: 4,
+    marginBottom: 6,
+    fontFamily: 'Vercetti-Regular',
   },
   sessionDate: {
-    fontSize: 12,
-    color: '#666666',
-    marginBottom: 6,
+    fontSize: 13,
+    fontFamily: 'Vercetti-Regular',
   },
-  modalButton: {
-    backgroundColor: '#FF7F50',
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  darkModalButton: {
-    backgroundColor: '#FF7F50',
-  },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
-    alignSelf: 'flex-end',
-    marginBottom: 16,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#FF7F50',
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 12,
   },
 });
 

@@ -1,13 +1,16 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { format, parseISO, differenceInDays, isYesterday, isToday, isFuture } from 'date-fns';
-import { ClassSchedule } from '../types/TimetableTypes'; // Adjust the import based on your types
+import { ClassSchedule } from '../types/TimetableTypes';
 import { useAuth } from './AuthContext';
 import * as Notifications from 'expo-notifications';
+import { routineCache, streakCache } from '../lib/cache';
+import type { RoutineCacheData } from '../lib/cache';
 
 type Frequency = 'daily' | 'weekly' | 'custom';
 type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 type CompletionStatus = 'completed' | 'missed' | 'pending' | 'warning' | 'urgent';
+type RoutineEventType = 'tick' | 'miss';
 
 interface WellnessPlan {
   id: string;
@@ -61,6 +64,20 @@ interface CheckIn {
   createdAt: string;
 }
 
+export type UrgeLogOutcome = 'logged' | 'rode_out' | 'relapsed';
+
+export interface UrgeLogEntry {
+  id: string;
+  streakId: string;
+  intensity: number;
+  triggerTags: string[];
+  supportAction: string | null;
+  note: string | null;
+  outcome: UrgeLogOutcome;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
 interface Routine {
   id: string;
   userId: string;
@@ -76,15 +93,18 @@ interface Routine {
   updatedAt: string;
 }
 
-interface RoutineCompletion {
+interface RoutineEvent {
   id: string;
   routineId: string;
   userId: string;
-  completionDate: string;
-  completedAt: string;
-  status: CompletionStatus;
+  eventType: RoutineEventType;
+  eventDate: string;
   notes?: string;
+  createdAt: string;
 }
+
+// Legacy type alias for backward compatibility
+type RoutineCompletion = RoutineEvent;
 
 interface ProgressArchive {
   id: string;
@@ -127,6 +147,17 @@ interface RoutineContextType {
   resetStreak: (streakId: string) => Promise<void>;
   terminateStreak: (streakId: string) => Promise<void>;
   breakStreak: (streakId: string) => Promise<void>;
+  logUrge: (
+    streakId: string,
+    payload: {
+      intensity: number;
+      triggerTags: string[];
+      supportAction: string | null;
+      note?: string | null;
+    }
+  ) => Promise<UrgeLogEntry | null>;
+  updateUrgeOutcome: (urgeLogId: string, outcome: Exclude<UrgeLogOutcome, 'logged'>) => Promise<void>;
+  getRecentUrges: (streakId: string, days?: number) => Promise<UrgeLogEntry[]>;
   updateRoutine: (routineId: string, updates: Partial<Routine>) => Promise<void>;
   deleteRoutine: (routineId: string) => Promise<void>;
   getRoutine: (routineId: string) => Promise<Routine | null>;
@@ -135,6 +166,7 @@ interface RoutineContextType {
   progressArchive: ProgressArchive[];
   completeRoutine: (routineId: string, date: Date, notes?: string) => Promise<void>;
   getRoutineCompletions: (date: Date) => Promise<RoutineCompletion[]>;
+  getRoutineCompletionsForRange: (startDate: Date, endDate: Date) => Promise<RoutineCompletion[]>;
   getProgressArchive: (startDate: Date, endDate: Date) => Promise<ProgressArchive[]>;
   isRoutineCompleted: (routineId: string, date: Date) => boolean;
   canCompleteRoutine: (routineId: string, date: Date) => boolean;
@@ -419,12 +451,68 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser?.id) return;
 
     try {
+      // Try cache first
+      let cachedData = await streakCache.getStreaks(currentUser.id);
+      
+      if (cachedData) {
+        const streaksData = cachedData.streaks.map((s): Streak => ({
+          id: s.id,
+          title: s.title,
+          type: s.type,
+          status: s.status,
+          startDate: s.start_date,
+          startTime: s.start_time,
+          currentStreak: s.current_streak,
+          longestStreak: s.longest_streak,
+          targetCount: s.target_count,
+          color: s.color,
+          icon: s.icon,
+        }));
+        setStreaks(streaksData);
+        
+        // Check if stale and refresh
+        const status = await streakCache.getStatus(currentUser.id);
+        if (status === 'stale') {
+          fetchStreaksFromServer();
+        }
+      } else {
+        await fetchStreaksFromServer();
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const fetchStreaksFromServer = async () => {
+    if (!currentUser?.id) return;
+
+    try {
       const { data, error } = await supabase
         .from('streaks')
         .select('*')
         .eq('user_id', currentUser.id);
 
       if (error) throw error;
+
+      // Update cache
+      await streakCache.setStreaks(currentUser.id, {
+        streaks: data.map((s: any) => ({
+          id: s.id,
+          user_id: s.user_id,
+          title: s.title,
+          type: s.type,
+          status: s.status,
+          start_date: s.start_date,
+          start_time: s.start_time,
+          current_streak: s.current_streak,
+          longest_streak: s.longest_streak,
+          target_count: s.target_count,
+          color: s.color,
+          icon: s.icon,
+          created_at: s.created_at,
+          updated_at: s.updated_at,
+        })),
+      });
 
       const streaksData = data.map(formatStreak);
       setStreaks(streaksData);
@@ -726,6 +814,106 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const formatUrgeLog = (row: {
+    id: string;
+    streak_id: string;
+    intensity: number;
+    trigger_tags: string[] | null;
+    support_action: string | null;
+    note: string | null;
+    outcome: string;
+    created_at: string;
+    resolved_at: string | null;
+  }): UrgeLogEntry => ({
+    id: row.id,
+    streakId: row.streak_id,
+    intensity: row.intensity,
+    triggerTags: row.trigger_tags ?? [],
+    supportAction: row.support_action,
+    note: row.note,
+    outcome: row.outcome as UrgeLogOutcome,
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at,
+  });
+
+  const logUrge = async (
+    streakId: string,
+    payload: {
+      intensity: number;
+      triggerTags: string[];
+      supportAction: string | null;
+      note?: string | null;
+    }
+  ): Promise<UrgeLogEntry | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) {
+        setError('You must be signed in to log an urge.');
+        return null;
+      }
+
+      const { data, error } = await supabase
+        .from('urge_logs')
+        .insert({
+          user_id: user.id,
+          streak_id: streakId,
+          intensity: payload.intensity,
+          trigger_tags: payload.triggerTags,
+          support_action: payload.supportAction,
+          note: payload.note ?? null,
+          outcome: 'logged',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return formatUrgeLog(data as Parameters<typeof formatUrgeLog>[0]);
+    } catch (err) {
+      setError((err as Error).message);
+      return null;
+    }
+  };
+
+  const updateUrgeOutcome = async (
+    urgeLogId: string,
+    outcome: Exclude<UrgeLogOutcome, 'logged'>
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('urge_logs')
+        .update({
+          outcome,
+          resolved_at: new Date().toISOString(),
+        })
+        .eq('id', urgeLogId);
+
+      if (error) throw error;
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const getRecentUrges = async (streakId: string, days: number = 7): Promise<UrgeLogEntry[]> => {
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      const sinceIso = since.toISOString();
+
+      const { data, error } = await supabase
+        .from('urge_logs')
+        .select('*')
+        .eq('streak_id', streakId)
+        .gte('created_at', sinceIso)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return (data ?? []).map((row) => formatUrgeLog(row as Parameters<typeof formatUrgeLog>[0]));
+    } catch (err) {
+      setError((err as Error).message);
+      return [];
+    }
+  };
+
   const updateRoutine = async (routineId: string, updates: Partial<Routine>) => {
     try {
       const { data, error } = await supabase
@@ -766,17 +954,125 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchRoutines = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('routines')
-        .select('*')
-        .eq('user_id', currentUser?.id);
+    if (!currentUser?.id) return;
 
-      if (error) throw error;
-      setRoutines(data || []);
+    try {
+      // Try cache first
+      let cachedData = await routineCache.getRoutines(currentUser.id);
       
-      // Fetch completions for each routine
-      await fetchRoutineCompletionsForUser();
+      if (cachedData) {
+        setRoutines(cachedData.routines.map((r: any) => ({
+          id: r.id,
+          userId: r.user_id,
+          title: r.title,
+          frequency: r.frequency,
+          customDays: r.custom_days || [],
+          color: r.color,
+          icon: r.icon,
+          isActive: r.is_active,
+          notificationTime: r.notification_time,
+          notificationEnabled: r.notification_enabled,
+          created_at: r.created_at,
+          updatedAt: r.updated_at,
+        })));
+        
+        // Group events by date
+        const eventsByDate: Record<string, RoutineEvent[]> = {};
+        (cachedData.events || []).forEach(event => {
+          if (!eventsByDate[event.event_date]) {
+            eventsByDate[event.event_date] = [];
+          }
+          eventsByDate[event.event_date].push({
+            id: event.id,
+            routineId: event.routine_id,
+            userId: event.user_id,
+            eventType: event.event_type as RoutineEventType,
+            eventDate: event.event_date,
+            notes: event.notes || undefined,
+            createdAt: event.created_at,
+          });
+        });
+        setRoutineCompletions(eventsByDate);
+        
+        // Check if cache is stale and refresh in background
+        const status = await routineCache.getStatus(currentUser.id);
+        if (status === 'stale') {
+          fetchRoutinesFromServer();
+        }
+      } else {
+        // Not in cache, fetch from server
+        await fetchRoutinesFromServer();
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const fetchRoutinesFromServer = async () => {
+    if (!currentUser?.id) return;
+
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      const [routinesRes, eventsRes] = await Promise.all([
+        supabase.from('routines').select('*').eq('user_id', currentUser.id),
+        supabase.from('routine_events').select('*')
+          .eq('user_id', currentUser.id)
+          .gte('event_date', format(startDate, 'yyyy-MM-dd'))
+      ]);
+
+      if (routinesRes.error) throw routinesRes.error;
+      if (eventsRes.error) throw eventsRes.error;
+
+      // Update cache
+      await routineCache.setRoutines(currentUser.id, {
+        routines: routinesRes.data.map((r: any) => ({
+          id: r.id,
+          user_id: r.user_id,
+          title: r.title,
+          frequency: r.frequency,
+          custom_days: r.custom_days || [],
+          days: r.days || [],
+          color: r.color,
+          icon: r.icon,
+          is_active: r.is_active,
+          notification_time: r.notification_time,
+          notification_enabled: r.notification_enabled,
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+        })),
+        events: eventsRes.data.map((e: any) => ({
+          id: e.id,
+          routine_id: e.routine_id,
+          user_id: e.user_id,
+          event_type: e.event_type,
+          event_date: e.event_date,
+          notes: e.notes,
+          created_at: e.created_at,
+        })),
+      });
+
+      setRoutines(routinesRes.data || []);
+      
+      // Group events by date
+      const eventsByDate: Record<string, RoutineEvent[]> = {};
+      eventsRes.data.forEach((item: any) => {
+        const dateStr = item.event_date;
+        if (!eventsByDate[dateStr]) {
+          eventsByDate[dateStr] = [];
+        }
+        eventsByDate[dateStr].push({
+          id: item.id,
+          routineId: item.routine_id,
+          userId: item.user_id,
+          eventType: item.event_type as RoutineEventType,
+          eventDate: item.event_date,
+          notes: item.notes,
+          createdAt: item.created_at,
+        });
+      });
+      setRoutineCompletions(eventsByDate);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -784,42 +1080,42 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
 
   const fetchRoutineCompletionsForUser = async () => {
     try {
-      // Get completions for the last 30 days
+      // Get events for the last 30 days
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 30);
       
       const { data, error } = await supabase
-        .from('routine_completions')
+        .from('routine_events')
         .select('*')
         .eq('user_id', currentUser?.id)
-        .gte('completion_date', format(startDate, 'yyyy-MM-dd'));
+        .gte('event_date', format(startDate, 'yyyy-MM-dd'));
 
       if (error) throw error;
       
-      // Group completions by date for easier lookup
-      const completionsByDate: Record<string, RoutineCompletion[]> = {};
+      // Group events by date for easier lookup
+      const eventsByDate: Record<string, RoutineEvent[]> = {};
       
-      data.forEach((item: { id: string; routine_id: string; user_id: string; completion_date: string; completed_at: string; status: string; notes: string }) => { 
-        const dateStr = item.completion_date;
-        if (!completionsByDate[dateStr]) {
-          completionsByDate[dateStr] = [];
+      data.forEach((item: { id: string; routine_id: string; user_id: string; event_type: string; event_date: string; notes: string | null; created_at: string }) => { 
+        const dateStr = item.event_date;
+        if (!eventsByDate[dateStr]) {
+          eventsByDate[dateStr] = [];
         }
         
-        // Format the completion to match the expected structure
-        const completion: RoutineCompletion = {
+        // Format the event to match the expected structure
+        const event: RoutineEvent = {
           id: item.id,
           routineId: item.routine_id,
           userId: item.user_id,
-          completionDate: item.completion_date,
-          completedAt: item.completed_at,
-          status: item.status as any,
-          notes: item.notes
+          eventType: item.event_type as RoutineEventType,
+          eventDate: item.event_date,
+          notes: item.notes || undefined,
+          createdAt: item.created_at,
         };
         
-        completionsByDate[dateStr].push(completion);
+        eventsByDate[dateStr].push(event);
       });
       
-      setRoutineCompletions(completionsByDate);
+      setRoutineCompletions(eventsByDate);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -909,82 +1205,25 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     if (!canCompleteRoutine(routineId, date)) {
       throw new Error('Cannot complete routines older than 2 days');
     }
+    if (!currentUser?.id) {
+      throw new Error('User not authenticated');
+    }
 
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
       
-      // First check if user has permission
-      const { data: userSession } = await supabase.auth.getSession();
-      console.log("Current session:", userSession);
+      // Complete routine in cache (optimistic update)
+      await routineCache.completeRoutine(currentUser.id, routineId, date);
       
-      if (!userSession?.session?.access_token) {
-        throw new Error("Authentication required to complete routines");
-      }
-      
-      // Add authorization headers explicitly to solve RLS issues
-      const { data, error } = await supabase
-        .from('routine_completions')
-        .insert({
-          routine_id: routineId,
-          user_id: currentUser?.id,
-          completion_date: formattedDate,
-          status: 'completed',
-          notes
-        })
-        .select();
-
-      if (error) {
-        
-        // If we hit an RLS policy error, try a direct RPC call instead
-        if (error.code === '42501') {
-          const { data: rpcData, error: rpcError } = await supabase.rpc(
-            'complete_routine',
-            { 
-              p_routine_id: routineId,
-              p_user_id: currentUser?.id,
-              p_completion_date: formattedDate,
-              p_notes: notes || null
-            }
-          );
-          
-          if (rpcError) throw rpcError;
-          
-          // Create a manual completion record for the state
-          const manualCompletion: RoutineCompletion = {
-            id: `temp-${Date.now()}`,  // Temporary ID
-            routineId: routineId,
-            userId: currentUser?.id || '',
-            completionDate: formattedDate,
-            completedAt: new Date().toISOString(),
-            status: 'completed',
-            notes: notes
-          };
-          
-          // Update local state manually
-          setRoutineCompletions(prev => {
-            const updated = { ...prev };
-            if (!updated[formattedDate]) {
-              updated[formattedDate] = [];
-            }
-            updated[formattedDate] = [...updated[formattedDate], manualCompletion];
-            return updated;
-          });
-          
-          return;
-        }
-        
-        throw error;
-      }
-
-      // Update local state with properly formatted data
-      const completion: RoutineCompletion = {
-        id: data[0].id,
-        routineId: data[0].routine_id,
-        userId: data[0].user_id,
-        completionDate: data[0].completion_date,
-        completedAt: data[0].completed_at,
-        status: data[0].status,
-        notes: data[0].notes
+      // Update local state immediately with new event structure
+      const tempEvent: RoutineEvent = {
+        id: `temp-${Date.now()}`,
+        routineId: routineId,
+        userId: currentUser.id,
+        eventType: 'tick',
+        eventDate: formattedDate,
+        notes: notes,
+        createdAt: new Date().toISOString(),
       };
       
       setRoutineCompletions(prev => {
@@ -992,7 +1231,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
         if (!updated[formattedDate]) {
           updated[formattedDate] = [];
         }
-        updated[formattedDate] = [...updated[formattedDate], completion];
+        updated[formattedDate] = [...updated[formattedDate], tempEvent];
         return updated;
       });
 
@@ -1000,17 +1239,18 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
       await fetchProgressArchive();
     } catch (err) {
       setError((err as Error).message);
-      throw err; // Re-throw to allow the UI to handle the error
+      throw err;
     }
   };
 
-  const getRoutineCompletions = async (date: Date) => {
+  const getRoutineCompletions = useCallback(async (date: Date) => {
     try {
       const { data, error } = await supabase
-        .from('routine_completions')
+        .from('routine_events')
         .select('*')
         .eq('user_id', currentUser?.id)
-        .eq('completion_date', format(date, 'yyyy-MM-dd'));
+        .eq('event_date', format(date, 'yyyy-MM-dd'))
+        .eq('event_type', 'tick'); // Only get completed routines
 
       if (error) throw error;
       return data || [];
@@ -1018,7 +1258,35 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
       setError((err as Error).message);
       return [];
     }
-  };
+  }, [currentUser?.id]);
+
+  const getRoutineCompletionsForRange = useCallback(async (startDate: Date, endDate: Date) => {
+    try {
+      const { data, error } = await supabase
+        .from('routine_events')
+        .select('*')
+        .eq('user_id', currentUser?.id)
+        .eq('event_type', 'tick') // Only get completed routines
+        .gte('event_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('event_date', format(endDate, 'yyyy-MM-dd'));
+
+      if (error) throw error;
+      
+      // Map to RoutineEvent type
+      return (data || []).map((item: any) => ({
+        id: item.id,
+        routineId: item.routine_id,
+        userId: item.user_id,
+        eventType: item.event_type as RoutineEventType,
+        eventDate: item.event_date,
+        notes: item.notes,
+        createdAt: item.created_at,
+      }));
+    } catch (err) {
+      setError((err as Error).message);
+      return [];
+    }
+  }, [currentUser?.id]);
 
   const getProgressArchive = async (startDate: Date, endDate: Date) => {
     try {
@@ -1038,20 +1306,20 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const isRoutineCompleted = (routineId: string, date: Date) => {
+  const isRoutineCompleted = useCallback((routineId: string, date: Date) => {
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       
-      // Check if we have completions for this date
-      const completionsForDate = routineCompletions[dateStr];
+      // Check if we have events for this date
+      const eventsForDate = routineCompletions[dateStr];
       
-      if (!completionsForDate || completionsForDate.length === 0) {
+      if (!eventsForDate || eventsForDate.length === 0) {
         return false;
       }
       
-      // Check if this specific routine is completed
-      const isCompleted = completionsForDate.some(
-        completion => completion.routineId === routineId && completion.status === 'completed'
+      // Check if this specific routine has a 'tick' event (completed)
+      const isCompleted = eventsForDate.some(
+        event => event.routineId === routineId && event.eventType === 'tick'
       );
       
       console.log(`Checking completion for routine ${routineId} on ${dateStr}: ${isCompleted ? 'Completed' : 'Not completed'}`);
@@ -1061,15 +1329,15 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
       console.error('Error checking routine completion:', error);
       return false;
     }
-  };
+  }, [routineCompletions]);
 
-  const canCompleteRoutine = (routineId: string, date: Date) => {
+  const canCompleteRoutine = useCallback((routineId: string, date: Date) => {
     if (isFuture(date)) return false;
     const daysDiff = differenceInDays(new Date(), date);
     return daysDiff <= 2;
-  };
+  }, []);
 
-  const getRoutineStatus = (routineId: string, date: Date): CompletionStatus => {
+  const getRoutineStatus = useCallback((routineId: string, date: Date): CompletionStatus => {
     if (isFuture(date)) return 'pending';
     if (!canCompleteRoutine(routineId, date)) return 'missed';
     
@@ -1093,7 +1361,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     }
 
     return 'pending';
-  };
+  }, [canCompleteRoutine, isRoutineCompleted]);
 
   const value = {
     plans,
@@ -1125,6 +1393,9 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     resetStreak,
     terminateStreak,
     breakStreak,
+    logUrge,
+    updateUrgeOutcome,
+    getRecentUrges,
     updateRoutine,
     deleteRoutine,
     getRoutine,
@@ -1133,6 +1404,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
     progressArchive,
     completeRoutine,
     getRoutineCompletions,
+    getRoutineCompletionsForRange,
     getProgressArchive,
     isRoutineCompleted,
     canCompleteRoutine,

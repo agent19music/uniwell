@@ -1,13 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
 import { useMood, MoodType } from '../contexts/MoodContext';
 import { format, startOfWeek, addDays } from 'date-fns';
+import { useTheme } from '../hooks/useTheme';
+import { GlowingMoodChart } from '../components/charts';
 
-const MOOD_CONFIG = {
+const MOOD_CONFIG: Record<MoodType, {
+  colors: string[];
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  value: number;
+  insights: string[];
+  suggestions: string[];
+}> = {
   happy: {
     colors: ['#FFE259', '#FFA751', '#FFD700'],
     icon: 'happy-outline',
@@ -93,8 +101,7 @@ const MOOD_CONFIG = {
 export default function MoodDetailScreen() {
   const { mood, view } = useLocalSearchParams();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const { width } = Dimensions.get('window');
   const { weeklyMoods, weeklySummary, fetchWeeklyMoods } = useMood();
   const [loading, setLoading] = useState(true);
@@ -130,30 +137,29 @@ export default function MoodDetailScreen() {
     return MOOD_CONFIG[moodType].value;
   };
 
-  // Prepare data for the mood chart
-  const prepareMoodChartData = () => {
+  // Prepare data for the new glowing chart
+  const prepareGlowingChartData = () => {
     const daysOfWeek = getDaysOfWeek();
-    const moodValues = Array(7).fill(null); // Start with null values for all days
     
-    // Fill in recorded moods
-    weeklyMoods.forEach(mood => {
-      const dayIndex = mood.dayOfWeek;
-      if (dayIndex >= 0 && dayIndex < 7) {
-        moodValues[dayIndex] = getMoodValue(mood.moodType);
+    // Create data points for each day
+    return daysOfWeek.map((label, index) => {
+      const moodEntry = weeklyMoods.find(m => m.dayOfWeek === index);
+      
+      if (moodEntry) {
+        const moodValue = getMoodValue(moodEntry.moodType);
+        const moodColor = MOOD_CONFIG[moodEntry.moodType].colors[1];
+        return {
+          label,
+          value: moodValue,
+          color: moodColor,
+        };
       }
+      
+      return {
+        label,
+        value: null,
+      };
     });
-    
-    return {
-      labels: daysOfWeek,
-      datasets: [
-        {
-          data: moodValues,
-          color: (opacity = 1) => `rgba(255, 127, 80, ${opacity})`, // Coral color
-          strokeWidth: 2
-        }
-      ],
-      legend: ["Your Mood"]
-    };
   };
 
   const renderMoodDetail = () => {
@@ -259,54 +265,45 @@ export default function MoodDetailScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.chartContainer, isDark && styles.darkCard]}>
-          <Text style={[styles.chartTitle, isDark && styles.darkText]}>
-            Your Week in Moods
-          </Text>
-          <Text style={[styles.chartSubtitle, isDark && styles.darkSubText]}>
-            Higher = More Positive
-          </Text>
+        <View style={[styles.chartContainer, { backgroundColor: colors.card }, isDark && styles.darkCard]}>
+          <View style={styles.chartHeader}>
+            <View>
+              <Text style={[styles.chartTitle, { color: colors.textPrimary }]}>
+                Your Week in Moods
+              </Text>
+              <Text style={[styles.chartSubtitle, { color: colors.textSecondary }]}>
+                Higher = More Positive
+              </Text>
+            </View>
+            {weeklyMoods.length > 0 && (
+              <View style={[styles.chartBadge, { backgroundColor: colors.success + '20' }]}>
+                <Text style={[styles.chartBadgeText, { color: colors.success }]}>
+                  {weeklyMoods.length} logged
+                </Text>
+              </View>
+            )}
+          </View>
           
-          {weeklyMoods.length > 0 ? (
-            <LineChart
-              data={prepareMoodChartData()}
-              width={width - 72} // Account for padding
+          <View style={styles.chartWrapper}>
+            <GlowingMoodChart
+              data={prepareGlowingChartData()}
+              width={width - 80}
               height={220}
-              chartConfig={{
-                backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
-                backgroundGradientFrom: isDark ? '#1e1e1e' : '#ffffff',
-                backgroundGradientTo: isDark ? '#1e1e1e' : '#ffffff',
-                decimalPlaces: 0,
-                color: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-                labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-                style: {
-                  borderRadius: 16
-                },
-                propsForDots: {
-                  r: "6",
-                  strokeWidth: "2",
-                  stroke: "#FF7F50"
-                }
-              }}
-              bezier
-              style={{
-                marginVertical: 8,
-                borderRadius: 16
-              }}
-              fromZero
-              yAxisSuffix=""
-              yAxisLabel=""
-              withInnerLines={false}
-              withOuterLines={true}
-              withVerticalLines={false}
-              withHorizontalLines={true}
-              yLabelsOffset={12}
-              hidePointsAtIndex={weeklyMoods.map((_, i) => i).filter(i => !weeklyMoods[i])}
+              accentColor={colors.success}
+              showDots={true}
+              showArea={true}
+              showGrid={true}
             />
-          ) : (
-            <View style={styles.noDataContainer}>
-              <Text style={[styles.noDataText, isDark && styles.darkSubText]}>
-                No mood data recorded this week.{'\n'}Start tracking your moods to see trends!
+          </View>
+
+          {weeklyMoods.length === 0 && (
+            <View style={styles.noDataOverlay}>
+              <Ionicons name="analytics-outline" size={48} color={colors.textTertiary} />
+              <Text style={[styles.noDataText, { color: colors.textSecondary }]}>
+                No mood data recorded this week.
+              </Text>
+              <Text style={[styles.noDataSubtext, { color: colors.textTertiary }]}>
+                Start tracking your moods to see trends!
               </Text>
             </View>
           )}
@@ -484,5 +481,44 @@ const styles = StyleSheet.create({
   dominantMoodDesc: {
     fontSize: 14,
     color: '#666',
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  chartBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(176, 197, 164, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  chartBadgeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6b8e5e',
+  },
+  chartWrapper: {
+    position: 'relative',
+  },
+  noDataOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: 12,
+  },
+  noDataSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 4,
   },
 });

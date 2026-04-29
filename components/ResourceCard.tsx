@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Article, Headphones, VideoCamera, BookOpen, BookmarkSimple } from 'phosphor-react-native';
+import { useTheme } from '../hooks/useTheme';
 
 interface ResourceCardProps {
   id: string;
@@ -29,14 +30,32 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
   onPress,
   onSave
 }) => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
+  
+  const getTypeIcon = () => {
+    switch (type) {
+      case 'article':
+        return <Article size={16} color={colors.textSecondary} weight="regular" />;
+      case 'podcast':
+        return <Headphones size={16} color={colors.textSecondary} weight="regular" />;
+      case 'video':
+        return <VideoCamera size={16} color={colors.textSecondary} weight="regular" />;
+      case 'book':
+        return <BookOpen size={16} color={colors.textSecondary} weight="regular" />;
+    }
+  };
   
   return (
     <TouchableOpacity 
-      style={[styles.resourceCard, isDark && styles.darkCard]} 
+      style={[
+        styles.resourceCard,
+        { 
+          backgroundColor: colors.card,
+          shadowColor: colors.shadow.medium
+        }
+      ]} 
       onPress={() => onPress(id)}
-      activeOpacity={0.9}
+      activeOpacity={0.8}
     >
       <Image 
         source={{ uri: imageUrl }} 
@@ -47,35 +66,35 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
       <View style={styles.resourceContent}>
         <View style={styles.resourceHeader}>
           <View style={styles.resourceTypeContainer}>
-            <Ionicons 
-              name={
-                type === 'article' ? 'document-text' : 
-                type === 'podcast' ? 'headset' : 
-                type === 'video' ? 'videocam' : 'book'
-              } 
-              size={14} 
-              color="#FF7F50" 
-            />
-            <Text style={styles.resourceType}>{type}</Text>
+            {getTypeIcon()}
+            <Text style={[styles.resourceType, { color: colors.textSecondary }]}>
+              {type}
+            </Text>
           </View>
           
           {isNew && (
-            <View style={styles.newBadge}>
-              <Text style={styles.newBadgeText}>NEW</Text>
+            <View style={[styles.newBadge, { backgroundColor: colors.success }]}>
+              <Text style={[styles.newBadgeText, { color: colors.background }]}>NEW</Text>
             </View>
           )}
         </View>
         
-        <Text style={[styles.resourceTitle, isDark && styles.darkText]} numberOfLines={2}>
+        <Text 
+          style={[styles.resourceTitle, { color: colors.textPrimary }]} 
+          numberOfLines={2}
+        >
           {title}
         </Text>
         
-        <Text style={[styles.resourceDescription, isDark && styles.darkSubText]} numberOfLines={2}>
+        <Text 
+          style={[styles.resourceDescription, { color: colors.textSecondary }]} 
+          numberOfLines={2}
+        >
           {description}
         </Text>
         
         <View style={styles.resourceFooter}>
-          <Text style={[styles.resourceDuration, isDark && styles.darkSubText]}>
+          <Text style={[styles.resourceDuration, { color: colors.textTertiary }]}>
             {duration}
           </Text>
           
@@ -83,10 +102,10 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
             style={styles.saveButton} 
             onPress={() => onSave(id)}
           >
-            <Ionicons 
-              name={isSaved ? "bookmark" : "bookmark-outline"} 
-              size={20} 
-              color={isSaved ? "#FF7F50" : isDark ? "#ffffff" : "#333333"} 
+            <BookmarkSimple 
+              size={22} 
+              color={isSaved ? colors.primary : colors.textSecondary} 
+              weight={isSaved ? "fill" : "regular"} 
             />
           </TouchableOpacity>
         </View>
@@ -97,82 +116,74 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
 
 const styles = StyleSheet.create({
   resourceCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginBottom: 16,
+    borderRadius: 16,
+    marginBottom: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
     elevation: 2,
-  },
-  darkCard: {
-    backgroundColor: '#1e1e1e',
   },
   resourceImage: {
     width: '100%',
-    height: 140,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    height: 160,
   },
   resourceContent: {
-    padding: 12,
+    padding: 14,
   },
   resourceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   resourceTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   resourceType: {
     fontSize: 12,
-    marginLeft: 4,
-    color: '#FF7F50',
-    textTransform: 'uppercase',
+    fontFamily: 'Vercetti-Regular',
+    fontWeight: '500',
+    textTransform: 'capitalize',
   },
   newBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    backgroundColor: '#4CAF50',
-    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   newBadgeText: {
-    color: '#ffffff',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Vercetti-Regular',
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   resourceTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontFamily: 'Vercetti-Regular',
+    fontWeight: '600',
     marginBottom: 6,
+    lineHeight: 22,
   },
   resourceDescription: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: 'Vercetti-Regular',
     marginBottom: 12,
+    lineHeight: 20,
   },
   resourceFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 4,
   },
   resourceDuration: {
-    fontSize: 12,
-    color: '#888888',
+    fontSize: 13,
+    fontFamily: 'Vercetti-Regular',
   },
   saveButton: {
     padding: 4,
-  },
-  darkText: {
-    color: '#ffffff',
-  },
-  darkSubText: {
-    color: '#aaaaaa',
   },
 });
 

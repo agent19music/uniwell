@@ -12,6 +12,7 @@ import {
 } from '../types/TimetableTypes';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
+import { semesterCache } from '../lib/cache';
 
 interface SemesterContextType {
     semesters: Semester[];
@@ -72,6 +73,71 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 return;
             }
             
+            // Try cache first
+            let cachedData = await semesterCache.getSemesterData(currentUser.id);
+            
+            if (cachedData) {
+                const formattedSemesters = cachedData.semesters.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    type: s.type as SemesterType,
+                    startDate: new Date(s.start_date),
+                    endDate: new Date(s.end_date),
+                    createdAt: new Date(s.created_at),
+                    status: s.status,
+                    userId: s.user_id,
+                }));
+                
+                setSemesters(formattedSemesters);
+                
+                // Set active semester
+                const activeSem = formattedSemesters.find(s => s.status === 'active');
+                const semesterToUse = activeSem || formattedSemesters[0];
+                if (semesterToUse) {
+                    setActiveSemester(semesterToUse);
+                    
+                    // Format class schedules
+                    const formatted = cachedData.classSchedules
+                        .filter(cs => cs.semester_id === semesterToUse.id)
+                        .map(schedule => ({
+                            id: schedule.id,
+                            userId: schedule.user_id,
+                            semesterId: schedule.semester_id,
+                            courseName: schedule.course_name,
+                            courseCode: schedule.course_code,
+                            room: schedule.room,
+                            instructor: schedule.instructor,
+                            type: schedule.type,
+                            startTime: schedule.start_time,
+                            endTime: schedule.end_time,
+                            daysOfWeek: JSON.parse(schedule.days_of_week || '[]'),
+                            notificationPreference: JSON.parse(schedule.notification_preference || '{"beforeClass":15}'),
+                            frequency: schedule.frequency,
+                        }));
+                    setClassSchedules(formatted);
+                }
+                
+                // Check if stale and refresh
+                const status = await semesterCache.getStatus(currentUser.id);
+                if (status === 'stale') {
+                    loadSemestersFromServer();
+                }
+            } else {
+                await loadSemestersFromServer();
+            }
+            
+            setIsLoading(false);
+        } catch (error) {
+            console.error('Error loading semesters:', error);
+            setError('Failed to load semesters');
+            setIsLoading(false);
+        }
+    };
+
+    const loadSemestersFromServer = async () => {
+        if (!currentUser) return;
+
+        try {
             const { data, error } = await supabase
                 .from('semesters')
                 .select('*')
@@ -80,7 +146,42 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 
             if (error) throw error;
             
-            const formattedSemesters = data.map((semester: { id: string; name: string; type: SemesterType; start_date: string; end_date: string; created_at: string; status: string; user_id: string }) => ({
+            const [classData] = await Promise.all([
+                supabase.from('class_schedules').select('*').eq('user_id', currentUser.id)
+            ]);
+
+            // Update cache
+            await semesterCache.setSemesterData(currentUser.id, {
+                semesters: data.map(s => ({
+                    id: s.id,
+                    user_id: s.user_id,
+                    name: s.name,
+                    type: s.type,
+                    start_date: s.start_date,
+                    end_date: s.end_date,
+                    status: s.status,
+                    created_at: s.created_at,
+                })),
+                classSchedules: classData.data?.map((c: any) => ({
+                    id: c.id,
+                    user_id: c.user_id,
+                    semester_id: c.semester_id,
+                    course_name: c.course_name,
+                    course_code: c.course_code,
+                    room: c.room,
+                    instructor: c.instructor,
+                    type: c.type,
+                    start_time: c.start_time,
+                    end_time: c.end_time,
+                    days_of_week: c.days_of_week,
+                    notification_preference: c.notification_preference,
+                    frequency: c.frequency,
+                    created_at: c.created_at,
+                })) || [],
+                attendance: [],
+            });
+
+            const formattedSemesters = data.map(semester => ({
                 id: semester.id,
                 name: semester.name,
                 type: semester.type as SemesterType,
@@ -94,17 +195,13 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setSemesters(formattedSemesters);
             
             if (formattedSemesters.length > 0 && !activeSemester) {
-                const activeSem = formattedSemesters.find((s: { status: string }) => s.status === 'active');
+                const activeSem = formattedSemesters.find(s => s.status === 'active');
                 const semesterToUse = activeSem || formattedSemesters[0];
                 setActiveSemester(semesterToUse);
                 await loadClassSchedulesForSemester(semesterToUse.id);
             }
-            
-            setIsLoading(false);
         } catch (error) {
-            console.error('Error loading semesters:', error);
-            setError('Failed to load semesters');
-            setIsLoading(false);
+            console.error('Error loading from server:', error);
         }
     };
 
@@ -204,51 +301,33 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 ? semesterData.endDate.toISOString().split('T')[0]
                 : new Date(semesterData.endDate).toISOString().split('T')[0];
             
-            // Transform camelCase to snake_case for Supabase
-            const newSemesterForSupabase = {
+            // Create temp formatted semester for local state
+            const tempId = uuidv4();
+            const formattedSemester: Semester = {
+                id: tempId,
+                name: semesterData.name,
+                type: semesterData.type,
+                startDate: semesterData.startDate instanceof Date ? semesterData.startDate : new Date(semesterData.startDate),
+                endDate: semesterData.endDate instanceof Date ? semesterData.endDate : new Date(semesterData.endDate),
+                createdAt: new Date(),
+                status: semesterData.status || 'inactive',
+                userId: user.id
+            };
+            
+            // Optimistic update
+            setSemesters(prev => [...prev, formattedSemester]);
+            
+            // Update cache - let the cache service handle ID generation
+            await semesterCache.addSemester(user.id, {
+                user_id: user.id,
                 name: semesterData.name,
                 type: semesterData.type,
                 start_date: startDateISO,
                 end_date: endDateISO,
                 status: semesterData.status || 'inactive',
-                user_id: user.id,
-            };
+            });
             
-            console.log('Sending to Supabase:', newSemesterForSupabase);
-            
-            // Insert into Supabase
-            const { data, error } = await supabase
-                .from('semesters')
-                .insert(newSemesterForSupabase)
-                .select()
-                .single();
-                
-            if (error) {
-                console.error('Supabase error:', error);
-                throw error;
-            }
-            
-            if (!data) {
-                console.error('No data returned from creation');
-                throw new Error('No data returned from semester creation');
-            }
-            
-            console.log('Successfully created semester:', data);
-            
-            // Transform the returned data from snake_case back to camelCase
-            const formattedSemester: Semester = {
-                id: data.id,
-                name: data.name,
-                type: data.type as SemesterType,
-                startDate: new Date(data.start_date),
-                endDate: new Date(data.end_date),
-                createdAt: new Date(data.created_at),
-                status: data.status as 'active' | 'inactive',
-                userId: data.user_id
-            };
-            
-            // Update local state with the new semester
-            setSemesters(prev => [...prev, formattedSemester]);
+            console.log('Successfully created semester with cache');
             
             return formattedSemester;
         } catch (error) {
@@ -259,7 +338,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
     
     /**
-     * Updates an existing semester in Supabase
+     * Updates an existing semester using cache
      * Transforms camelCase frontend data to snake_case for database storage
      */
     const updateSemester = async (id: string, semesterData: Partial<Semester>) => {
@@ -269,7 +348,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 return false;
             }
             
-            // Prepare data for Supabase (convert camelCase to snake_case)
+            // Prepare data for cache (convert camelCase to snake_case)
             const updateData: Record<string, any> = {};
             
             if (semesterData.name !== undefined) {
@@ -280,7 +359,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 updateData.type = semesterData.type;
             }
             
-            // Handle date conversions for Supabase
+            // Handle date conversions
             if (semesterData.startDate !== undefined) {
                 const startDateISO = semesterData.startDate instanceof Date 
                     ? semesterData.startDate.toISOString().split('T')[0]
@@ -295,49 +374,23 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 updateData.end_date = endDateISO;
             }
             
-            // If we're setting this semester to active, deactivate all other semesters
-            if (semesterData.status === 'active') {
-                // First deactivate all semesters for this user
-                const { error: updateError } = await supabase
-                    .from('semesters')
-                    .update({ status: 'inactive' })
-                    .eq('user_id', user.id)
-                    .neq('id', id); // Don't update the current semester
-                    
-                if (updateError) {
-                    console.error('Error deactivating other semesters:', updateError);
-                }
-                
-                // Set the status in the update data
-                updateData.status = 'active';
-            } else if (semesterData.status === 'inactive') {
-                // If explicitly setting to inactive
-                updateData.status = 'inactive';
+            if (semesterData.status !== undefined) {
+                updateData.status = semesterData.status;
             }
             
-            // Only update Supabase if we have data to update
-            if (Object.keys(updateData).length > 0) {
-                const { error } = await supabase
-                    .from('semesters')
-                    .update(updateData)
-                    .eq('id', id);
-                    
-                if (error) {
-                    console.error('Error updating semester in Supabase:', error);
-                    throw error;
-                }
-            }
-            
-            // Update local state with all changes including status
+            // Optimistic update
             setSemesters(prev => 
                 prev.map(semester => 
                     semester.id === id 
                         ? { ...semester, ...semesterData } 
                         : semesterData.status === 'active' 
-                            ? { ...semester, status: 'inactive' }
+                            ? { ...semester, status: 'inactive' as 'inactive' }
                             : semester
                 )
             );
+            
+            // Update cache
+            await semesterCache.updateSemester(user.id, id, updateData);
             
             // Update active semester if this is now the active one or if this was the active one
             if (semesterData.status === 'active') {
@@ -365,33 +418,16 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 return false;
             }
             
-            // First, delete all class schedules associated with this semester
-            const { error: scheduleError } = await supabase
-                .from('class_schedules')
-                .delete()
-                .eq('semester-id', id);
-                
-            if (scheduleError) {
-                throw scheduleError;
-            }
-            
-            // Then delete the semester
-            const { error } = await supabase
-                .from('semesters')
-                .delete()
-                .eq('id', id);
-                
-            if (error) {
-                throw error;
-            }
-            
-            // Update local state
+            // Optimistic update
             setSemesters(prev => prev.filter(semester => semester.id !== id));
             
             // Update active semester if needed
             if (activeSemester?.id === id) {
                 setActiveSemester(null);
             }
+            
+            // Update cache
+            await semesterCache.deleteSemester(user.id, id);
             
             return true;
         } catch (error) {
@@ -533,12 +569,31 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 return null;
             }
             
-            // Transform the data to match Supabase schema (camelCase to snake_case)
-            const newScheduleForSupabase = {
-                user_id: user.id,  // Ensure this matches the authenticated user's ID
-                semester_id: activeSemester?.id,
-                semester_start: activeSemester?.startDate,
-                semester_end: activeSemester?.endDate,
+            const tempId = uuidv4();
+            const formattedSchedule: ClassSchedule = {
+                id: tempId,
+                userId: user.id,
+                semesterId: activeSemester?.id || '',
+                courseName: schedule.courseName,
+                room: schedule.room,
+                courseCode: schedule.courseCode,
+                instructor: schedule.instructor,
+                frequency: schedule.frequency,
+                type: schedule.type,
+                startTime: schedule.startTime,
+                endTime: schedule.endTime,
+                daysOfWeek: schedule.daysOfWeek,
+                notificationPreference: schedule.notificationPreference
+            };
+            
+            // Optimistic update
+            setClassSchedules(prev => [...prev, formattedSchedule]);
+            
+            // Update cache
+            await semesterCache.addClassSchedule(user.id, {
+                id: tempId,
+                user_id: user.id,
+                semester_id: activeSemester?.id || '',
                 course_name: schedule.courseName,
                 room: schedule.room,
                 course_code: schedule.courseCode,
@@ -547,37 +602,11 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 type: schedule.type,
                 start_time: schedule.startTime,
                 end_time: schedule.endTime,
-                days_of_week: schedule.daysOfWeek,
-                notification_preference: JSON.stringify(schedule.notificationPreference)
-            };
-            console.log('Sending to Supabase:', newScheduleForSupabase);
+                days_of_week: JSON.stringify(schedule.daysOfWeek),
+                notification_preference: JSON.stringify(schedule.notificationPreference),
+                created_at: new Date().toISOString(),
+            });
             
-            const { data, error } = await supabase
-                .from('class_schedules')
-                .insert(newScheduleForSupabase)
-                .select()
-                .single();
-                
-            if (error) throw error;
-            
-            // Transform the returned data back to camelCase for frontend
-            const formattedSchedule: ClassSchedule = {
-                id: data.id,
-                userId: data.user_id,
-                semesterId: data.semester_id,
-                courseName: data.course_name,
-                room: data.room,
-                courseCode: data.course_code,
-                instructor: data.instructor,
-                frequency: data.frequency,
-                type: data.type,
-                startTime: data.start_time,
-                endTime: data.end_time,
-                daysOfWeek: data.days_of_week,
-                notificationPreference: JSON.parse(data.notification_preference)
-            };
-            
-            setClassSchedules(prev => [...prev, formattedSchedule]);
             return formattedSchedule;
         } catch (error) {
             console.error('Error adding class schedule:', error);
@@ -681,22 +710,12 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             if (updatedSchedule.type !== undefined) updateData.type = updatedSchedule.type;
             if (updatedSchedule.startTime !== undefined) updateData.start_time = updatedSchedule.startTime;
             if (updatedSchedule.endTime !== undefined) updateData.end_time = updatedSchedule.endTime;
-            if (updatedSchedule.daysOfWeek !== undefined) updateData.days_of_week = updatedSchedule.daysOfWeek;
+            if (updatedSchedule.daysOfWeek !== undefined) updateData.days_of_week = JSON.stringify(updatedSchedule.daysOfWeek);
             if (updatedSchedule.notificationPreference !== undefined) {
                 updateData.notification_preference = JSON.stringify(updatedSchedule.notificationPreference);
             }
             
-            // Update in Supabase
-            const { error } = await supabase
-                .from('class_schedules')
-                .update(updateData)
-                .eq('id', id);
-                
-            if (error) {
-                throw error;
-            }
-            
-            // Update local state
+            // Optimistic update
             setClassSchedules(prev => 
                 prev.map(schedule => 
                     schedule.id === id 
@@ -704,6 +723,9 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         : schedule
                 )
             );
+            
+            // Update cache
+            await semesterCache.updateClassSchedule(user.id, id, updateData);
             
             return true;
         } catch (error) {
@@ -720,19 +742,12 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 return false;
             }
             
-            // Delete from Supabase
-            const { error } = await supabase
-                .from('class_schedules')
-                .delete()
-                .eq('id', id);
-                
-            if (error) {
-                throw error;
-            }
-            
-            // Update local state
+            // Optimistic update
             const updatedSchedules = classSchedules.filter(schedule => schedule.id !== id);
             setClassSchedules(updatedSchedules);
+            
+            // Update cache
+            await semesterCache.deleteClassSchedule(user.id, id);
             
             return true;
         } catch (error) {

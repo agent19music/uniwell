@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions, Modal, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useRef } from 'react';
@@ -14,13 +14,14 @@ import { format, differenceInDays, isToday, isYesterday, isTomorrow, startOfDay,
 import { Streak } from '@/contexts/RoutineContext';
 import NextActivityWidget from '@/components/NextActivityWidget';
 import EditRoutineModal from '@/modals/EditRoutineModal';
+import { useTheme } from '../../hooks/useTheme';
+import RoutineActivityGraph from '@/components/RoutineActivityGraph';
 
 type RoutineStatus = 'completed' | 'upcoming' | 'warning' | 'urgent' | 'due' | 'missed';
 
 export default function RoutinesScreen() {
   const { currentUser } = useAuth();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const { width, height } = Dimensions.get('window');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const router = useRouter();
@@ -286,7 +287,7 @@ export default function RoutinesScreen() {
     
     return (
       <TouchableOpacity
-        style={[styles.minimalStreakCard, isDark && styles.darkMinimalStreakCard]}
+        style={[styles.minimalStreakCard, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
         onPress={() => handleStreakPress(streak.id)}
         onLongPress={(e) => handleStreakLongPress(streak.id, e)}
         delayLongPress={300}
@@ -301,23 +302,23 @@ export default function RoutinesScreen() {
           </View>
           <View style={[
             styles.statusDot, 
-            { backgroundColor: streak.status === 'active' ? '#34C759' : '#FF3B30' }
+            { backgroundColor: streak.status === 'active' ? colors.success : colors.error }
           ]} />
         </View>
         
-        <Text style={[styles.streakCardTitle, isDark && styles.darkText]} numberOfLines={1}>
+        <Text style={[styles.streakCardTitle, { color: colors.textPrimary }]} numberOfLines={1}>
           {streak.title}
         </Text>
         
         <View style={styles.streakCardCount}>
-          <Text style={[styles.streakCardNumber, isDark && styles.darkText]}>
+          <Text style={[styles.streakCardNumber, { color: colors.textPrimary }]}>
             {streak.currentStreak}
           </Text>
-          <Text style={[styles.streakCardUnit, isDark && styles.darkSubText]}>days</Text>
+          <Text style={[styles.streakCardUnit, { color: colors.textSecondary }]}>days</Text>
         </View>
         
-        <View style={[styles.miniProgressBar, isDark && styles.darkMiniProgressBar]}>
-          <View style={[styles.miniProgressFill, { width: `${progress}%` }]} />
+        <View style={[styles.miniProgressBar, { backgroundColor: colors.border }]}>
+          <View style={[styles.miniProgressFill, { width: `${progress}%`, backgroundColor: '#FF7F50' }]} />
         </View>
       </TouchableOpacity>
     );
@@ -374,20 +375,24 @@ export default function RoutinesScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, isDark && styles.darkText]}>My Progress</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>My Progress</Text>
         </View>
         
         <View style={styles.content}>
           <NextActivityWidget />
           
           <View style={styles.section}>
+            <RoutineActivityGraph />
+          </View>
+          
+          <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Streaks</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Streaks</Text>
               <TouchableOpacity onPress={handleAddStreak}>
-                <Ionicons name="add-circle-outline" size={20} color={isDark ? '#FFFFFF' : '#000000'} />
+                <Ionicons name="add-circle-outline" size={20} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             
@@ -402,11 +407,11 @@ export default function RoutinesScreen() {
                 ))
               ) : (
                 <TouchableOpacity 
-                  style={[styles.emptyStreakCard, isDark && styles.darkEmptyStreakCard]}
+                  style={[styles.emptyStreakCard, { backgroundColor: colors.card }]}
                   onPress={handleAddStreak}
                 >
-                  <Ionicons name="add" size={24} color={isDark ? '#8E8E93' : '#8E8E93'} />
-                  <Text style={[styles.emptyStreakText, isDark && styles.darkSubText]}>
+                  <Ionicons name="add" size={24} color={colors.textSecondary} />
+                  <Text style={[styles.emptyStreakText, { color: colors.textSecondary }]}>
                     Add streak
                   </Text>
                 </TouchableOpacity>
@@ -421,13 +426,22 @@ export default function RoutinesScreen() {
                 return (
                   <TouchableOpacity
                     key={date.toISOString()}
-                    style={[styles.dateButton, isSelected && styles.selectedDate]}
+                    style={[
+                      styles.dateButton,
+                      { backgroundColor: isSelected ? '#FF7F50' : 'transparent' }
+                    ]}
                     onPress={() => setSelectedDate(startOfDay(date))}
                   >
-                    <Text style={[styles.dayText, isSelected && styles.selectedDateText]}>
+                    <Text style={[
+                      styles.dayText,
+                      { color: isSelected ? '#FFFFFF' : colors.textSecondary }
+                    ]}>
                       {date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3)}
                     </Text>
-                    <Text style={[styles.dateText, isSelected && styles.selectedDateText]}>
+                    <Text style={[
+                      styles.dateText,
+                      { color: isSelected ? '#FFFFFF' : colors.textPrimary }
+                    ]}>
                       {date.getDate()}
                     </Text>
                   </TouchableOpacity>
@@ -438,9 +452,9 @@ export default function RoutinesScreen() {
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Daily Routines</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Daily Routines</Text>
               <TouchableOpacity onPress={handleAddRoutine}>
-                <Ionicons name="add-circle-outline" size={20} color={isDark ? '#FFFFFF' : '#000000'} />
+                <Ionicons name="add-circle-outline" size={20} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             
@@ -453,13 +467,13 @@ export default function RoutinesScreen() {
                 return (
                   <TouchableOpacity
                     key={routine.id}
-                    style={[styles.routineCard, isDark && styles.darkCard]}
+                    style={[styles.routineCard, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
                     onLongPress={(e) => handleRoutineLongPress(routine.id, e)}
                     delayLongPress={300}
                   >
                     <View style={styles.routineInfo}>
-                      <Text style={[styles.routineTitle, isDark && styles.darkText]}>{routine.title}</Text>
-                      <Text style={[styles.routineFrequency, isDark && styles.darkSubText]}>
+                      <Text style={[styles.routineTitle, { color: colors.textPrimary }]}>{routine.title}</Text>
+                      <Text style={[styles.routineFrequency, { color: colors.textSecondary }]}>
                         {routine.frequency === 'weekly' ? `Every ${routine.customDays?.[0]}` : 
                          routine.frequency === 'custom' ? routine.customDays?.join(', ') : 
                          'Daily'}
@@ -479,8 +493,8 @@ export default function RoutinesScreen() {
                 );
               })
             ) : (
-              <View style={[styles.emptyRoutineCard, isDark && styles.darkEmptyRoutineCard]}>
-                <Text style={[styles.emptyRoutineText, isDark && styles.darkSubText]}>
+              <View style={[styles.emptyRoutineCard, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
+                <Text style={[styles.emptyRoutineText, { color: colors.textSecondary }]}>
                   {routines.length === 0 
                     ? 'No routines yet' 
                     : startOfDay(selectedDate) < startOfDay(new Date())
@@ -513,8 +527,9 @@ export default function RoutinesScreen() {
           <Animated.View
             style={[
               styles.streakContextMenu,
-              isDark && styles.darkStreakContextMenu,
               {
+                backgroundColor: colors.card,
+                shadowColor: colors.shadow.dark,
                 left: streakMenuPosition.x,
                 top: streakMenuPosition.y,
                 opacity: fadeAnim,
@@ -529,11 +544,11 @@ export default function RoutinesScreen() {
                 router.push(`/streak-details/${selectedStreakId}`);
               }}
             >
-              <Feather name="eye" size={16} color={isDark ? '#FFFFFF' : '#333333'} />
-              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>View Details</Text>
+              <Feather name="eye" size={16} color={colors.textPrimary} />
+              <Text style={[styles.menuText, { color: colors.textPrimary }]}>View Details</Text>
             </TouchableOpacity>
 
-            <View style={[styles.menuDivider, isDark && styles.darkMenuDivider]} />
+            <View style={[styles.menuDivider, { backgroundColor: colors.divider }]} />
 
             <TouchableOpacity
               style={styles.menuItem}
@@ -542,11 +557,11 @@ export default function RoutinesScreen() {
                 router.push(`/edit-streak/${selectedStreakId}`);
               }}
             >
-              <Feather name="edit-2" size={16} color={isDark ? '#FFFFFF' : '#333333'} />
-              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Edit</Text>
+              <Feather name="edit-2" size={16} color={colors.textPrimary} />
+              <Text style={[styles.menuText, { color: colors.textPrimary }]}>Edit</Text>
             </TouchableOpacity>
 
-            <View style={[styles.menuDivider, isDark && styles.darkMenuDivider]} />
+            <View style={[styles.menuDivider, { backgroundColor: colors.divider }]} />
 
             <TouchableOpacity
               style={styles.menuItem}
@@ -557,8 +572,8 @@ export default function RoutinesScreen() {
                 }
               }}
             >
-              <Feather name="refresh-cw" size={16} color={isDark ? '#FF9500' : '#FF9500'} />
-              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Reset Streak</Text>
+              <Feather name="refresh-cw" size={16} color={colors.warning} />
+              <Text style={[styles.menuText, { color: colors.textPrimary }]}>Reset Streak</Text>
             </TouchableOpacity>
           </Animated.View>
         </Pressable>
@@ -578,8 +593,9 @@ export default function RoutinesScreen() {
           <Animated.View
             style={[
               styles.routineContextMenu,
-              isDark && styles.darkRoutineContextMenu,
               {
+                backgroundColor: colors.card,
+                shadowColor: colors.shadow.dark,
                 left: routineMenuPosition.x,
                 top: routineMenuPosition.y,
                 opacity: fadeAnim,
@@ -594,11 +610,11 @@ export default function RoutinesScreen() {
                 setShowEditRoutine(true);
               }}
             >
-              <Feather name="edit-2" size={16} color={isDark ? '#FFFFFF' : '#333333'} />
-              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Edit</Text>
+              <Feather name="edit-2" size={16} color={colors.textPrimary} />
+              <Text style={[styles.menuText, { color: colors.textPrimary }]}>Edit</Text>
             </TouchableOpacity>
 
-            <View style={[styles.menuDivider, isDark && styles.darkMenuDivider]} />
+            <View style={[styles.menuDivider, { backgroundColor: colors.divider }]} />
 
             <TouchableOpacity
               style={styles.menuItem}
@@ -609,11 +625,11 @@ export default function RoutinesScreen() {
                 }
               }}
             >
-              <Feather name="check-circle" size={16} color={isDark ? '#34C759' : '#34C759'} />
-              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Mark Completed</Text>
+              <Feather name="check-circle" size={16} color={colors.success} />
+              <Text style={[styles.menuText, { color: colors.textPrimary }]}>Mark Completed</Text>
             </TouchableOpacity>
 
-            <View style={[styles.menuDivider, isDark && styles.darkMenuDivider]} />
+            <View style={[styles.menuDivider, { backgroundColor: colors.divider }]} />
 
             <TouchableOpacity
               style={styles.menuItem}
@@ -624,8 +640,8 @@ export default function RoutinesScreen() {
                 }
               }}
             >
-              <Feather name="trash-2" size={16} color={isDark ? '#FF3B30' : '#FF3B30'} />
-              <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Delete</Text>
+              <Feather name="trash-2" size={16} color={colors.error} />
+              <Text style={[styles.menuText, { color: colors.textPrimary }]}>Delete</Text>
             </TouchableOpacity>
           </Animated.View>
         </Pressable>
@@ -651,10 +667,6 @@ export default function RoutinesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  darkContainer: {
-    backgroundColor: '#000000',
   },
   scrollView: {
     flex: 1,
@@ -667,7 +679,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#000000',
     fontFamily: 'Vercetti-Regular',
   },
   content: {
@@ -686,7 +697,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
     fontFamily: 'Vercetti-Regular',
   },
   streaksContainer: {
@@ -695,18 +705,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   minimalStreakCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 12,
     width: 110,
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
-  },
-  darkMinimalStreakCard: {
-    backgroundColor: '#1C1C1E',
   },
   streakCardTop: {
     flexDirection: 'row',
@@ -730,7 +735,6 @@ const styles = StyleSheet.create({
   streakCardTitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#000000',
     marginBottom: 10,
     fontFamily: 'Vercetti-Regular',
   },
@@ -742,43 +746,31 @@ const styles = StyleSheet.create({
   streakCardNumber: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000000',
     fontFamily: 'Vercetti-Regular',
   },
   streakCardUnit: {
     fontSize: 13,
-    color: '#8E8E93',
     marginLeft: 4,
     fontFamily: 'Vercetti-Regular',
   },
   miniProgressBar: {
     height: 4,
-    backgroundColor: '#F2F2F7',
     borderRadius: 2,
     overflow: 'hidden',
   },
-  darkMiniProgressBar: {
-    backgroundColor: '#2C2C2E',
-  },
   miniProgressFill: {
     height: '100%',
-    backgroundColor: '#FF7F50',
     borderRadius: 2,
   },
   emptyStreakCard: {
-    backgroundColor: '#F2F2F7',
     borderRadius: 16,
     padding: 12,
     width: 110,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  darkEmptyStreakCard: {
-    backgroundColor: '#1C1C1E',
-  },
   emptyStreakText: {
     fontSize: 12,
-    color: '#8E8E93',
     marginTop: 4,
     fontFamily: 'Vercetti-Regular',
   },
@@ -794,40 +786,27 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 18,
   },
-  selectedDate: {
-    backgroundColor: '#FF7F50',
-  },
   dayText: {
     fontSize: 12,
-    color: '#8E8E93',
     marginBottom: 4,
     fontFamily: 'Vercetti-Regular',
   },
   dateText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
     fontFamily: 'Vercetti-Regular',
-  },
-  selectedDateText: {
-    color: '#FFFFFF',
   },
   routineCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
-  },
-  darkCard: {
-    backgroundColor: '#1C1C1E',
   },
   routineInfo: {
     flex: 1,
@@ -835,13 +814,11 @@ const styles = StyleSheet.create({
   routineTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#000000',
     marginBottom: 4,
     fontFamily: 'Vercetti-Regular',
   },
   routineFrequency: {
     fontSize: 13,
-    color: '#8E8E93',
     fontFamily: 'Vercetti-Regular',
   },
   checkButton: {
@@ -851,22 +828,16 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   emptyRoutineCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
   },
-  darkEmptyRoutineCard: {
-    backgroundColor: '#1C1C1E',
-  },
   emptyRoutineText: {
     fontSize: 15,
-    color: '#8E8E93',
     marginBottom: 16,
     fontFamily: 'Vercetti-Regular',
   },
@@ -888,18 +859,13 @@ const styles = StyleSheet.create({
   },
   streakContextMenu: {
     position: 'absolute',
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 8,
     width: 160,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
-  },
-  darkStreakContextMenu: {
-    backgroundColor: '#2C2C2E',
   },
   menuItem: {
     flexDirection: 'row',
@@ -909,38 +875,19 @@ const styles = StyleSheet.create({
   },
   menuText: {
     fontSize: 14,
-    color: '#000000',
     fontFamily: 'Vercetti-Regular',
-  },
-  darkMenuText: {
-    color: '#FFFFFF',
   },
   menuDivider: {
     height: 1,
-    backgroundColor: '#E5E5EA',
-  },
-  darkMenuDivider: {
-    backgroundColor: '#3A3A3C',
-  },
-  darkText: {
-    color: '#FFFFFF',
-  },
-  darkSubText: {
-    color: '#8E8E93',
   },
   routineContextMenu: {
     position: 'absolute',
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 8,
     width: 160,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
-  },
-  darkRoutineContextMenu: {
-    backgroundColor: '#2C2C2E',
   },
 });

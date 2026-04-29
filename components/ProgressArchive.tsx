@@ -8,13 +8,13 @@ import {
   Image,
   Modal,
   FlatList,
-  useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useRoutine } from '../contexts/RoutineContext';
 import { useMood } from '../contexts/MoodContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../hooks/useTheme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -28,8 +28,7 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
   const { weeklyMoods } = useMood();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [routineCompletions, setRoutineCompletions] = useState<any[]>([]);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     if (selectedDate) {
@@ -55,19 +54,27 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
 
     return (
       <TouchableOpacity
-        style={[styles.archiveItem, isSelected && styles.selectedArchiveItem]}
+        style={[
+          styles.archiveItem,
+          {
+            backgroundColor: colors.card,
+            shadowColor: colors.shadow.medium,
+            borderColor: isSelected ? '#FF7F50' : 'transparent',
+          },
+          isSelected && styles.selectedArchiveItem
+        ]}
         onPress={() => setSelectedDate(date)}
       >
         <View style={styles.archiveItemContent}>
-          <Text style={[styles.archiveDate, isDark && styles.darkText]}>
+          <Text style={[styles.archiveDate, { color: colors.textPrimary }]}>
             {getDateLabel(item.date)}
           </Text>
           <View style={styles.archiveIcons}>
             {item.hasRoutineCompletion && (
-              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
             )}
             {item.hasJournalEntry && (
-              <Ionicons name="journal" size={16} color="#FF9500" />
+              <Ionicons name="journal" size={16} color={colors.warning} />
             )}
             {item.hasSleepEntry && (
               <Ionicons name="moon" size={16} color="#5856D6" />
@@ -90,25 +97,25 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
     return (
       <View style={styles.detailContainer}>
         <View style={styles.detailHeader}>
-          <Text style={[styles.detailDate, isDark && styles.darkText]}>
+          <Text style={[styles.detailDate, { color: colors.textPrimary }]}>
             {format(selectedDate, 'EEEE, MMMM d')}
           </Text>
           <TouchableOpacity onPress={() => setSelectedDate(null)}>
-            <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#000000'} />
+            <Ionicons name="close" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.detailContent}>
           <View style={styles.detailSection}>
-            <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Routines</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Routines</Text>
             {routineCompletions.map((completion) => (
-              <View key={completion.id} style={styles.completionItem}>
+              <View key={completion.id} style={[styles.completionItem, { backgroundColor: colors.card }]}>
                 <Ionicons
                   name={completion.status === 'completed' ? 'checkmark-circle' : 'close-circle'}
                   size={20}
-                  color={completion.status === 'completed' ? '#34C759' : '#FF3B30'}
+                  color={completion.status === 'completed' ? colors.success : colors.error}
                 />
-                <Text style={[styles.completionText, isDark && styles.darkText]}>
+                <Text style={[styles.completionText, { color: colors.textPrimary }]}>
                   {completion.routine.title}
                 </Text>
               </View>
@@ -117,10 +124,10 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
 
           {archive.hasJournalEntry && (
             <View style={styles.detailSection}>
-              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Journal</Text>
-              <View style={styles.journalPreview}>
-                <Ionicons name="journal" size={24} color="#FF9500" />
-                <Text style={[styles.journalText, isDark && styles.darkText]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Journal</Text>
+              <View style={[styles.journalPreview, { backgroundColor: colors.card }]}>
+                <Ionicons name="journal" size={24} color={colors.warning} />
+                <Text style={[styles.journalText, { color: colors.textPrimary }]}>
                   Journal entry recorded
                 </Text>
               </View>
@@ -129,10 +136,10 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
 
           {archive.hasSleepEntry && (
             <View style={styles.detailSection}>
-              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Sleep</Text>
-              <View style={styles.sleepPreview}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Sleep</Text>
+              <View style={[styles.sleepPreview, { backgroundColor: colors.card }]}>
                 <Ionicons name="moon" size={24} color="#5856D6" />
-                <Text style={[styles.sleepText, isDark && styles.darkText]}>
+                <Text style={[styles.sleepText, { color: colors.textPrimary }]}>
                   {archive.sleepQualityRating ? `${archive.sleepQualityRating}/10` : 'Sleep recorded'}
                 </Text>
               </View>
@@ -141,10 +148,10 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
 
           {archive.moodRating && (
             <View style={styles.detailSection}>
-              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Mood</Text>
-              <View style={styles.moodPreview}>
-                <Ionicons name="happy" size={24} color="#FF9500" />
-                <Text style={[styles.moodText, isDark && styles.darkText]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Mood</Text>
+              <View style={[styles.moodPreview, { backgroundColor: colors.card }]}>
+                <Ionicons name="happy" size={24} color={colors.warning} />
+                <Text style={[styles.moodText, { color: colors.textPrimary }]}>
                   {archive.moodRating}/10
                 </Text>
               </View>
@@ -162,12 +169,12 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={[styles.container, isDark && styles.darkContainer]}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { borderBottomColor: colors.divider }]}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#000000'} />
+            <Ionicons name="close" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, isDark && styles.darkText]}>Progress Archive</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Progress Archive</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -189,10 +196,6 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  darkContainer: {
-    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -200,12 +203,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    fontFamily: 'Vercetti-Regular',
   },
   placeholder: {
     width: 24,
@@ -214,22 +216,16 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   archiveItem: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
-  },
-  darkArchiveItem: {
-    backgroundColor: '#1C1C1E',
+    borderWidth: 2,
   },
   selectedArchiveItem: {
-    borderColor: '#FF7F50',
-    borderWidth: 2,
   },
   archiveItemContent: {
     flexDirection: 'row',
@@ -239,7 +235,7 @@ const styles = StyleSheet.create({
   archiveDate: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#000000',
+    fontFamily: 'Vercetti-Regular',
   },
   archiveIcons: {
     flexDirection: 'row',
@@ -258,7 +254,7 @@ const styles = StyleSheet.create({
   detailDate: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000000',
+    fontFamily: 'Vercetti-Regular',
   },
   detailContent: {
     flex: 1,
@@ -269,59 +265,52 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
     marginBottom: 12,
+    fontFamily: 'Vercetti-Regular',
   },
   completionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     marginBottom: 8,
   },
   completionText: {
     fontSize: 16,
-    color: '#000000',
     marginLeft: 12,
+    fontFamily: 'Vercetti-Regular',
   },
   journalPreview: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
   },
   journalText: {
     fontSize: 16,
-    color: '#000000',
     marginLeft: 12,
+    fontFamily: 'Vercetti-Regular',
   },
   sleepPreview: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
   },
   sleepText: {
     fontSize: 16,
-    color: '#000000',
     marginLeft: 12,
+    fontFamily: 'Vercetti-Regular',
   },
   moodPreview: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
   },
   moodText: {
     fontSize: 16,
-    color: '#000000',
     marginLeft: 12,
-  },
-  darkText: {
-    color: '#FFFFFF',
+    fontFamily: 'Vercetti-Regular',
   },
 }); 

@@ -53,21 +53,21 @@ interface CalendarDayHeaderProps {
                 styles.dayHeaderDay,
                 isDark && styles.darkText,
                 isSelected && styles.selectedDayText, 
-                { color: isDark ? '#FFFFFF' : '#FF7F50',}
+                { color: isDark ? '#FBEEE3' : '#8B7355',}
               ]}>
                 {day.substring(0, 3)}
               </Text>
               <View style={[
                 styles.dayNumberContainer,
                 isToday && styles.todayCircle,
-                isSelected && [styles.selectedCircle, { backgroundColor: isDark ? '#FF7F50' : '#FF7F5030' }]
+                isSelected && [styles.selectedCircle, { backgroundColor: isDark ? 'rgba(139, 115, 85, 0.25)' : 'rgba(251, 238, 227, 0.7)' }]
               ]}>
                 <Text style={[
                   styles.dayHeaderDate,
                   isDark && styles.darkText,
                   isToday && styles.todayText,
                   isSelected && styles.selectedDayText, 
-                  { color: isDark ? '#FFFFFF' : '#FF7F50'}
+                  { color: isToday ? '#FFFFFF' : (isDark ? '#FBEEE3' : '#8B7355')}
                 ]}>
                   {dayNum}
                 </Text>
@@ -85,7 +85,7 @@ interface CalendarDayHeaderProps {
       paddingVertical: 12,
       paddingHorizontal: 8,
       borderBottomWidth: 0.5,
-      borderBottomColor: '#C6C6C8',
+      borderBottomColor: isDark ? 'rgba(251, 238, 227, 0.15)' : 'rgba(139, 115, 85, 0.15)',
     },
     dayHeaderItem: {
       flex: 1,
@@ -96,7 +96,8 @@ interface CalendarDayHeaderProps {
     dayHeaderDay: {
       fontSize: 13,
       fontWeight: '500',
-      color: '#000000',
+      fontFamily: 'Vercetti-Regular',
+      color: '#8B7355',
       marginBottom: 6,
     },
     dayNumberContainer: {
@@ -107,15 +108,16 @@ interface CalendarDayHeaderProps {
       justifyContent: 'center',
     },
     todayCircle: {
-      backgroundColor: '#FF7F50',
+      backgroundColor: '#8B7355',
     },
     selectedCircle: {
-      backgroundColor: '#FF7F5030',
+      backgroundColor: isDark ? 'rgba(139, 115, 85, 0.25)' : 'rgba(251, 238, 227, 0.7)',
     },
     dayHeaderDate: {
       fontSize: 15,
       fontWeight: '500',
-      color: '#000000',
+      fontFamily: 'Vercetti-Regular',
+      color: isDark ? '#FBEEE3' : '#8B7355',
     },
     todayText: {
       color: '#FFFFFF',
@@ -125,6 +127,6 @@ interface CalendarDayHeaderProps {
       fontWeight: '600',
     },
     darkText: {
-      color: '#FFFFFF',
+      color: '#FBEEE3',
     },
   });

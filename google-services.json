@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "496335769268",
+    "project_id": "uniwell-3f8a5",
+    "storage_bucket": "uniwell-3f8a5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:496335769268:android:cf2c2cedd69a57956e91e1",
+        "android_client_info": {
+          "package_name": "com.uzski.uniwell"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4OwM5rQXtstr61m62CvAqOnt_7NAORMQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

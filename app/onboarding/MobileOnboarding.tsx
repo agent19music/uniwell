@@ -1,18 +1,21 @@
 import React, { useCallback, useRef } from 'react';
-import { StyleSheet, SafeAreaView, useWindowDimensions, StatusBar, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, StatusBar, View, ImageBackground } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
   useAnimatedRef,
 } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { onboardingSlides } from '../../onboarding/slidesData';
 import OnboardingSlide from './components/OnboardingSlide';
 import { useOnboarding } from './OnboardingContext';
+import { useTheme } from '../../hooks/useTheme';
 
 const MobileOnboarding: React.FC = () => {
   const { skipOnboarding } = useOnboarding();
   const { width, height } = useWindowDimensions();
+  const { colors, isDark } = useTheme();
   
   const scrollX = useSharedValue(0);
   const flatListIndex = useSharedValue(0);
@@ -74,12 +77,24 @@ const MobileOnboarding: React.FC = () => {
   // Extract item keys
   const keyExtractor = useCallback((item: any) => item.id, []);
 
+  const styles = createStyles(colors, isDark);
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ImageBackground
+        source={isDark ? require('../../assets/mesh-99dark.png') : require('../../assets/mesh-99.png')}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
+      >
+        <View style={[styles.overlay, { 
+          backgroundColor: isDark ? 'rgba(28, 24, 21, 0.65)' : 'rgba(254, 253, 251, 0.65)' 
+        }]} />
+      </ImageBackground>
+
       <StatusBar
         translucent
         backgroundColor="transparent"
-        barStyle="light-content"
+        barStyle={isDark ? "light-content" : "dark-content"}
       />
       
       <Animated.FlatList
@@ -97,14 +112,17 @@ const MobileOnboarding: React.FC = () => {
         decelerationRate="fast"
         style={styles.flatList}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#171717',
+    backgroundColor: colors.background,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   flatList: {
     flex: 1,

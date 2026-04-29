@@ -15,6 +15,8 @@ export interface ClassInfo {
     color: string;
     location?: string;
     positionTop?: number;
+    attendanceRate?: number;
+    classId?: string;
   }
   
   interface ClassBlockProps {
@@ -130,14 +132,58 @@ export interface ClassInfo {
                     {classInfo.location}
                   </Text>
                 )}
+                {classInfo.attendanceRate !== undefined && (
+                  <View style={[
+                    styles.attendanceBadge,
+                    {
+                      backgroundColor: classInfo.attendanceRate >= 80 ? 'rgba(76, 217, 100, 0.3)' :
+                                      classInfo.attendanceRate >= 60 ? 'rgba(255, 149, 0, 0.3)' :
+                                      'rgba(255, 59, 48, 0.3)'
+                    }
+                  ]}>
+                    <Text style={[
+                      styles.attendanceBadgeText,
+                      {
+                        color: classInfo.attendanceRate >= 80 ? '#4CD964' :
+                               classInfo.attendanceRate >= 60 ? '#FF9500' :
+                               '#FF3B30'
+                      }
+                    ]}>
+                      {classInfo.attendanceRate}%
+                    </Text>
+                  </View>
+                )}
               </View>
             ) : (
               <View style={styles.classBlockContent}>
                 <View style={styles.classBlockDot} />
                 <View style={styles.classBlockHeader}>
-                  <Text style={styles.classBlockTime}>
-                    {classInfo.startTimeString} - {classInfo.endTimeString}
-                  </Text>
+                  <View style={styles.classBlockHeaderTop}>
+                    <Text style={styles.classBlockTime}>
+                      {classInfo.startTimeString} - {classInfo.endTimeString}
+                    </Text>
+                    {classInfo.attendanceRate !== undefined && (
+                      <View style={[
+                        styles.attendanceBadge,
+                        {
+                          backgroundColor: classInfo.attendanceRate >= 80 ? 'rgba(76, 217, 100, 0.3)' :
+                                          classInfo.attendanceRate >= 60 ? 'rgba(255, 149, 0, 0.3)' :
+                                          'rgba(255, 59, 48, 0.3)'
+                        }
+                      ]}>
+                        <Text style={[
+                          styles.attendanceBadgeText,
+                          {
+                            color: classInfo.attendanceRate >= 80 ? '#4CD964' :
+                                   classInfo.attendanceRate >= 60 ? '#FF9500' :
+                                   '#FF3B30'
+                          }
+                        ]}>
+                          {classInfo.attendanceRate}%
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.classBlockName} numberOfLines={1}>
                     {classInfo.name}
                   </Text>
@@ -271,11 +317,25 @@ export interface ClassInfo {
     classBlockHeader: {
       flex: 1,
     },
+    classBlockHeaderTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 2,
+    },
     classBlockTime: {
       fontSize: 11,
       fontWeight: '600',
       color: '#FFFFFF',
-      marginBottom: 2,
+    },
+    attendanceBadge: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 8,
+    },
+    attendanceBadgeText: {
+      fontSize: 10,
+      fontWeight: '600',
     },
     classBlockName: {
       fontSize: 14,

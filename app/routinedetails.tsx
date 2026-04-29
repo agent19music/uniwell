@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRoutine } from '../contexts/RoutineContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../hooks/useTheme';
 
 export default function RoutineDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { habits, deleteRoutine } = useRoutine(); 
+  const { habits, deleteRoutine } = useRoutine();
+  const { colors } = useTheme();
   
   const habit = habits.find(h => h.id === id);
 
@@ -29,28 +31,28 @@ export default function RoutineDetailsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.divider }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#FF7F50" />
         </TouchableOpacity>
-        <Text style={styles.title}>{habit.title}</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>{habit.title}</Text>
         <TouchableOpacity onPress={() => router.push('/modals/edit-routine')}>
           <Ionicons name="create-outline" size={24} color="#FF7F50" />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Frequency</Text>
-        <Text style={styles.infoText}>{habit.frequency}</Text>
+      <View style={[styles.infoCard, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
+        <Text style={[styles.infoTitle, { color: colors.textSecondary }]}>Frequency</Text>
+        <Text style={[styles.infoText, { color: colors.textPrimary }]}>{habit.frequency}</Text>
       </View>
 
       <View style={styles.streakInfo}>
-        <Text style={styles.streakTitle}>Current Streak</Text>
-        <Text style={styles.streakCount}>{habit.streak.currentStreak} days</Text>
+        <Text style={[styles.streakTitle, { color: colors.textSecondary }]}>Current Streak</Text>
+        <Text style={[styles.streakCount, { color: '#FF7F50' }]}>{habit.streak.currentStreak} days</Text>
       </View>
 
-      <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+      <TouchableOpacity style={[styles.deleteButton, { backgroundColor: colors.error }]} onPress={handleDelete}>
         <Text style={styles.deleteButtonText}>Delete Routine</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -60,7 +62,6 @@ export default function RoutineDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
   },
   header: {
     flexDirection: 'row',
@@ -68,29 +69,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
   },
   infoCard: {
-    backgroundColor: 'white',
     margin: 16,
     padding: 16,
     borderRadius: 12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   infoTitle: {
     fontSize: 16,
-    color: '#666',
     marginBottom: 8,
     fontFamily: 'Vercetti-Regular',
   },
   infoText: {
     fontSize: 18,
-    color: '#333',
     fontFamily: 'Vercetti-Regular',
   },
   streakInfo: {
@@ -99,20 +99,17 @@ const styles = StyleSheet.create({
   },
   streakTitle: {
     fontSize: 16,
-    color: '#666',
     marginBottom: 8,
     fontFamily: 'Vercetti-Regular',
   },
   streakCount: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#FF7F50',
     fontFamily: 'Vercetti-Regular',
   },
   deleteButton: {
     margin: 16,
     padding: 16,
-    backgroundColor: '#ff4444',
     borderRadius: 12,
     alignItems: 'center',
   },
