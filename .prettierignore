@@ -29,6 +29,8 @@ lib
 !lib/contracts/**
 !lib/mappers
 !lib/mappers/**
+!lib/auth
+!lib/auth/**
 constants
 types
 scripts

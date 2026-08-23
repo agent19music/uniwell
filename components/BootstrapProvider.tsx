@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router'
 import { useAuth } from '@/contexts/AuthContext'
 import { useBootstrap, RemoteConfig } from '@/hooks/useBootstrap'
 
+/** @deprecated Index + AuthStartupGate own bootstrap. Do not mount this provider. */
 interface BootstrapProviderProps {
   // Optional remote config loader; if not provided, defaults to no-op config
   remoteConfig?: RemoteConfig | ((signal?: AbortSignal) => Promise<RemoteConfig>)

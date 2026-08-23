@@ -1,8 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { AppState } from 'react-native';
 import 'react-native-url-polyfill/auto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import { secureAuthStorage } from '@/lib/auth/sessionStorage';
 import { getSupabaseEnv } from '@/lib/contracts/env';
 import type { Database } from '@/types/database';
 
@@ -13,7 +12,7 @@ export const supabaseClient = createClient<Database>(
   EXPO_PUBLIC_SUPABASE_ANON_KEY,
   {
     auth: {
-      storage: AsyncStorage,
+      storage: secureAuthStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,

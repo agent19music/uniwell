@@ -5,8 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 
 /**
- * Index screen - handles initial routing based on auth state
- * 
+ * Sole bootstrap/redirect owner.
+ * BootstrapProvider/useBootstrap are retired and must not add competing navigation.
+ *
  * Flow:
  * - If authenticated → /(tabs)/home
  * - If has stored users → /user-selection

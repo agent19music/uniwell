@@ -1,4 +1,5 @@
 {
+  "lib/auth/**/*.{ts,tsx}": ["eslint --max-warnings=0", "prettier --check"],
   "lib/contracts/**/*.{ts,tsx}": ["eslint --max-warnings=0", "prettier --check"],
   "lib/mappers/**/*.{ts,tsx}": ["eslint --max-warnings=0", "prettier --check"],
   "constants/theme/**/*.{ts,tsx}": ["eslint --max-warnings=0", "prettier --check"],

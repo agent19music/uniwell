@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Alert } from 'react-native';
 import { registerForPushNotificationsAsync } from '../lib/NotificationHandler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { roleFromAppMetadata, type AppRole } from '@/lib/auth/roles';
 import { parseJsonOrNull, storedUsersSchema } from '@/lib/contracts';
 import * as Burnt from 'burnt';
 import { profileCache, cacheManager } from '../lib/cache';
@@ -74,9 +75,9 @@ interface AuthContextType {
   clearStoredUsers: () => Promise<void>;
   currentUser: User | null;
   fetchProfile: () => Promise<void>;
-  userRole: 'user' | 'therapist' | 'admin' | null;
+  userRole: AppRole | null;
   userWithRole: UserWithRole | null;
-  checkUserRole: () => Promise<'user' | 'therapist' | 'admin' | null>;
+  checkUserRole: () => Promise<AppRole | null>;
   signInWithGoogle: () => Promise<void>;
   googleSignInInProgress: boolean;
   handleAuthCallback: () => Promise<void>;
@@ -84,34 +85,14 @@ interface AuthContextType {
 
 const STORED_USERS_KEY = 'uniwell_stored_users';
 
-export const AuthContext = createContext<AuthContextType>({
-  session: null,
-  loading: true,
-  profileLoading: true,
-  signOut: async () => { },
-  profile: {
-    username: '',
-    full_name: '',
-    avatar_url: null,
-  },
-  setProfile: () => { },
-  storedUsers: [],
-  addStoredUser: async () => { },
-  removeStoredUser: async () => { },
-  clearStoredUsers: async () => { },
-  currentUser: null,
-  fetchProfile: async () => { },
-  userRole: null,
-  userWithRole: null,
-  checkUserRole: async () => null,
-  signInWithGoogle: async () => { },
-  googleSignInInProgress: false,
-  handleAuthCallback: async () => { },
-});
+export const AuthContext = createContext<AuthContextType | null>(null);
 
-// This hook can be used to access the user info.
 export function useAuth() {
-  return useContext(AuthContext);
+  const value = useContext(AuthContext);
+  if (!value) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return value;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -126,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     full_name: '',
     avatar_url: null,
   });
-  const [userRole, setUserRole] = useState<'user' | 'therapist' | 'admin' | null>(null);
+  const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [userWithRole, setUserWithRole] = useState<UserWithRole | null>(null);
   const [googleSignInInProgress, setGoogleSignInInProgress] = useState(false);
   const googleSignInRef = useRef(false);
@@ -209,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfileLoading(true);
     try {
       const applyProfile = (data: CachedProfile | null) => {
-        const derivedRole = (user.user_metadata as any)?.role ?? null;
+        const derivedRole = roleFromAppMetadata(user.app_metadata as Record<string, unknown>);
         const userProfile: ProfileType = {
           username: data?.username || user.user_metadata?.full_name || 'User',
           full_name: user.user_metadata?.full_name || data?.full_name || 'User',
@@ -224,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         setUserRole(derivedRole);
-        setUserWithRole(derivedRole ? { id: user.id, email: user.email || '', role: derivedRole, created_at: '', updated_at: '' } : null);
+        setUserWithRole({ id: user.id, email: user.email || '', role: derivedRole, created_at: '', updated_at: '' });
         setCurrentUser({
           id: user.id,
           email: user.email,
@@ -305,7 +286,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event: string, newSession: Session | null) => {
-      console.log(`Supabase auth event: ${event}`);
+      if (__DEV__) {
+        console.log(`Supabase auth event: ${event}`);
+      }
 
       // INITIAL_SESSION can fire with null while storage is still being read.
       // getSession() is the startup source of truth so we do not flash guest UI.
@@ -376,11 +359,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const checkUserRole = async (): Promise<'user' | 'therapist' | 'admin' | null> => {
+  const checkUserRole = async (): Promise<AppRole | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      const role = (user.user_metadata as any)?.role ?? null;
+      const role = roleFromAppMetadata(user.app_metadata as Record<string, unknown>);
       setUserRole(role);
       return role;
     } catch (error) {
@@ -419,30 +402,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear it before prompting so Android opens the account picker again.
       await clearNativeGoogleAccount();
 
-      console.log('[Auth] Starting Google Sign-In...');
       const userInfo = await GoogleSignin.signIn();
       if (!isSuccessResponse(userInfo)) {
-        // v16 returns cancellation as a response, rather than throwing. Clear
-        // the native account so the next attempt opens account selection.
         await clearNativeGoogleAccount();
-        console.log('[Auth] User cancelled Google Sign-In');
         return;
       }
-      console.log('[Auth] Google Sign-In returned user:', userInfo.data?.user?.email);
 
       if (userInfo.data?.idToken) {
-        console.log('[Auth] Got ID token, signing in to Supabase...');
-        const { data, error } = await supabase.auth.signInWithIdToken({
+        const { error } = await supabase.auth.signInWithIdToken({
           provider: 'google',
           token: userInfo.data.idToken,
         });
 
         if (error) {
-          console.error('[Auth] Supabase signInWithIdToken error:', error);
           throw error;
         }
-
-        console.log('[Auth] Supabase sign-in successful:', data.user?.email);
         // Session will be handled by onAuthStateChange
       } else {
         console.error('[Auth] No ID token received from Google');
@@ -456,9 +430,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
         // User cancelled - no toast needed
-        console.log('[Auth] User cancelled Google Sign-In');
+        return;
       } else if (error.code === statusCodes.IN_PROGRESS) {
-        console.log('[Auth] Sign-in already in progress');
         Burnt.toast({
           title: 'Please Wait',
           message: 'Sign-in is already in progress',

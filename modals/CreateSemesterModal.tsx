@@ -1,10 +1,10 @@
-import React, { useContext, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Platform, StyleSheet, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { Picker } from '@react-native-picker/picker';
 import { SemesterType, NewSemester } from '../types/TimetableTypes';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTimetableManagement } from '@/lib/useTimeTableManagement';
 import { SafeText } from '@/components/ThemedText';
 import { Button } from '@/components/ui/Button';
@@ -22,7 +22,7 @@ type CreateSemesterModalProps = {
 const CreateSemesterModal: React.FC<CreateSemesterModalProps> = ({
   onClose,
 }) => {
-  const { currentUser: user } = useContext(AuthContext);
+  const { currentUser: user } = useAuth();
   const { colors } = useTheme();
   const nameInput = useRef<TextInput>(null);
   const [name, setName] = useState('');
