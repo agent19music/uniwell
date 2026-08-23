@@ -15,7 +15,7 @@
     "format:check": "prettier --check .",
     "test": "jest",
     "doctor": "node scripts/ci-doctor.mjs",
-    "test:e2e": "echo 'Build an APK/IPA and configure Detox, then run: detox test --configuration android.emu.release --config e2e/config.json'",
+    "test:e2e": "echo 'Build a release binary, then: detox test --configuration android.emu.release --config e2e/config.json'",
     "update-resources": "ts-node scripts/update-resources.ts",
     "start-scheduler": "ts-node-esm scripts/schedule-updates.ts",
     "prepare": "husky"
