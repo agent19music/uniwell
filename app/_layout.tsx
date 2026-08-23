@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useColorScheme, Platform, ActivityIndicator, View } from 'react-native';
 import * as Font from 'expo-font';
 import { AuthProvider } from '../contexts/AuthContext';
+import { QueryProvider } from '@/lib/query';
 import { Camera } from 'expo-camera';
 import { RoutineProvider } from '@/contexts/RoutineContext';
 import { MoodProvider } from '@/contexts/MoodContext';
@@ -76,6 +77,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <QueryProvider>
       <AuthProvider>
         <CommunityProvider>
           <PostNavigationProvider>
@@ -90,6 +92,7 @@ export default function RootLayout() {
           </PostNavigationProvider>
         </CommunityProvider>
       </AuthProvider>
+      </QueryProvider>
     </GestureHandlerRootView>
   );
 }
