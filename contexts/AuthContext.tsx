@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Alert } from 'react-native';
 import { registerForPushNotificationsAsync } from '../lib/NotificationHandler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { parseJsonOrNull, storedUsersSchema } from '@/lib/contracts';
 import * as Burnt from 'burnt';
 import { profileCache, cacheManager } from '../lib/cache';
 import type { CachedProfile } from '../lib/cache';
@@ -148,8 +149,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const loadStoredUsers = async () => {
       try {
         const storedUsersJson = await AsyncStorage.getItem(STORED_USERS_KEY);
-        if (storedUsersJson) {
-          const parsedUsers = JSON.parse(storedUsersJson);
+        const parsedUsers = parseJsonOrNull(storedUsersJson, (value) => storedUsersSchema.parse(value), 'stored users');
+        if (parsedUsers) {
           setStoredUsers(parsedUsers);
         }
       } catch (error) {

@@ -10,7 +10,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint --max-warnings=50 babel.config.js jest.config.js eslint.config.mjs constants/theme components/ui",
+    "lint": "eslint --max-warnings=50 babel.config.js jest.config.js eslint.config.mjs constants/theme components/ui lib/contracts lib/mappers",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest",

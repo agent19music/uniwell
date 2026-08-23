@@ -25,6 +25,10 @@ modals
 onboarding
 hooks
 lib
+!lib/contracts
+!lib/contracts/**
+!lib/mappers
+!lib/mappers/**
 constants
 types
 scripts
