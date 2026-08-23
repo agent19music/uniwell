@@ -33,6 +33,10 @@ lib
 !lib/auth/**
 !lib/query
 !lib/query/**
+!lib/sync
+!lib/sync/**
+!features
+!features/**
 constants
 types
 scripts

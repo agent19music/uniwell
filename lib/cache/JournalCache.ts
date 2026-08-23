@@ -7,7 +7,9 @@
 
 import { BaseCacheService } from './BaseCacheService';
 import { CACHE_CONFIGS } from './types';
-import { syncQueue } from './SyncQueue';
+import { v4 as uuid } from 'uuid';
+
+import { enqueueMutation } from '@/lib/sync';
 
 export type JournalType = 'text' | 'audio' | 'video';
 
@@ -61,12 +63,12 @@ class JournalCacheService extends BaseCacheService<JournalCacheData> {
     userId: string, 
     entry: Omit<CachedJournalEntry, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'is_synced'>
   ): Promise<string> {
-    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = uuid();
     const now = new Date().toISOString();
     
     const newEntry: CachedJournalEntry = {
       ...entry,
-      id: tempId,
+      id,
       user_id: userId,
       is_synced: false,
       created_at: now,
@@ -83,15 +85,15 @@ class JournalCacheService extends BaseCacheService<JournalCacheData> {
       userId
     );
 
-    // Queue for sync
-    await syncQueue.enqueue({
-      type: 'create',
-      table: 'journal_entries',
-      data: entry,
-      userId,
+    await enqueueMutation({
+      entityId: id,
+      entity: 'journal',
+      op: 'create',
+      payload: { ...newEntry, id },
+      dependsOn: null,
     });
 
-    return tempId;
+    return id;
   }
 
   /**
@@ -118,11 +120,12 @@ class JournalCacheService extends BaseCacheService<JournalCacheData> {
     );
 
     // Queue for sync
-    await syncQueue.enqueue({
-      type: 'update',
-      table: 'journal_entries',
-      data: { id: entryId, ...updates },
-      userId,
+    await enqueueMutation({
+      entityId: entryId,
+      entity: 'journal',
+      op: 'update',
+      payload: updates,
+      dependsOn: null,
     });
   }
 
@@ -142,11 +145,12 @@ class JournalCacheService extends BaseCacheService<JournalCacheData> {
     );
 
     // Queue for sync
-    await syncQueue.enqueue({
-      type: 'delete',
-      table: 'journal_entries',
-      data: { id: entryId },
-      userId,
+    await enqueueMutation({
+      entityId: entryId,
+      entity: 'journal',
+      op: 'delete',
+      payload: { id: entryId },
+      dependsOn: null,
     });
   }
 

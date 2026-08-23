@@ -1,12 +1,18 @@
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useEffect, type ReactNode } from 'react';
 
+import { syncWorker } from '@/lib/sync';
+
 import { queryClient } from './client';
 import { bindQueryLifecycle } from './network';
 import { queryPersister } from './persist';
 
 export function QueryProvider({ children }: { children: ReactNode }) {
-  useEffect(() => bindQueryLifecycle(), []);
+  useEffect(() => {
+    const unbind = bindQueryLifecycle();
+    syncWorker.start();
+    return unbind;
+  }, []);
 
   return (
     <PersistQueryClientProvider

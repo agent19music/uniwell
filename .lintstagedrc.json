@@ -1,4 +1,6 @@
 {
+  "lib/sync/**/*.{ts,tsx}": ["eslint --max-warnings=0", "prettier --check"],
+  "features/**/*.{ts,tsx}": ["eslint --max-warnings=0", "prettier --check"],
   "lib/query/**/*.{ts,tsx}": ["eslint --max-warnings=0", "prettier --check"],
   "lib/auth/**/*.{ts,tsx}": ["eslint --max-warnings=0", "prettier --check"],
   "lib/contracts/**/*.{ts,tsx}": ["eslint --max-warnings=0", "prettier --check"],
