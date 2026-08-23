@@ -24,7 +24,7 @@ export default function AddPostModal({ visible, onClose }: { visible: boolean, o
   const [content, setContent] = useState('');
   const [media, setMedia] = useState<{ uri: string; type: 'image' | 'video' }[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const { uploadMedia, createPost } = useCommunity();
   const isDark = useColorScheme() === 'dark';
@@ -94,7 +94,7 @@ export default function AddPostModal({ visible, onClose }: { visible: boolean, o
       setContent('');
       setMedia([]);
       setSelectedTags([]);
-      setIsAnonymous(false);
+      setIsAnonymous(true);
       onClose();
     } catch (error) {
       console.error('Error creating post:', error);

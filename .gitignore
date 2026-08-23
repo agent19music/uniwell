@@ -25,6 +25,7 @@ ios/
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+pnpm-debug.*
 
 # macos
 .DS_Store

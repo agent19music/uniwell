@@ -14,8 +14,8 @@ import {
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CaretLeft, Books, Sparkle, Gear } from 'phosphor-react-native';
-import { useRouter } from 'expo-router';
+import { CaretLeft, Books, Gear } from 'phosphor-react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useRoutine } from '../contexts/RoutineContext';
@@ -73,14 +73,15 @@ const CONTENT_CATEGORIES = [
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { colors, isDark } = useTheme();
   const { streaks } = useRoutine();
-  
+
   const [resources, setResources] = useState<Resource[]>([]);
   const [savedResources, setSavedResources] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('featured');
+  const [selectedCategory, setSelectedCategory] = useState(tab || 'featured');
   const [userPreferences, setUserPreferences] = useState<string[]>([]);
   const [categories, setCategories] = useState<{id: string, name: string, color: string}[]>([]);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
@@ -92,7 +93,7 @@ export default function LibraryScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = scrollY.interpolate({
     inputRange: [0, 100],
-    outputRange: [130, 75],
+    outputRange: [145, 85],
     extrapolate: 'clamp'
   });
   
@@ -447,42 +448,29 @@ export default function LibraryScreen() {
           style={styles.headerBlur}
         >
           <View style={styles.headerContent}>
-            <TouchableOpacity 
-              onPress={() => router.back()} 
+            <TouchableOpacity
+              onPress={() => router.back()}
               style={styles.backButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <CaretLeft 
-                size={28} 
-                color={colors.textPrimary} 
+              <CaretLeft
+                size={28}
+                color={colors.textPrimary}
                 weight="regular"
               />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Library</Text>
-            <View style={styles.headerRight}>
-              <TouchableOpacity 
-                onPress={() => setShowInterestModal(true)} 
-                style={styles.interestButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Sparkle 
-                  size={24} 
-                  color={colors.textPrimary} 
-                  weight="regular"
-                />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => router.push('/search')} 
-                style={styles.searchButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Gear 
-                  size={24} 
-                  color={colors.textPrimary} 
-                  weight="regular"
-                />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={() => router.push('/search')}
+              style={styles.searchButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Gear
+                size={24}
+                color={colors.textPrimary}
+                weight="regular"
+              />
+            </TouchableOpacity>
           </View>
           
           <LibraryFilter
@@ -627,11 +615,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
   backButton: {
-    padding: 6,
+    padding: 8,
   },
   headerTitle: {
     fontSize: 24,
@@ -639,15 +627,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   searchButton: {
-    padding: 6,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  interestButton: {
-    padding: 6,
+    padding: 8,
   },
   loadingContainer: {
     flex: 1,
@@ -665,7 +645,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   resourceListContent: {
-    paddingTop: 145,
+    paddingTop: 160,
     paddingHorizontal: 16,
     paddingBottom: 32,
   },

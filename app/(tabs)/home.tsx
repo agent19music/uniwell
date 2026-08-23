@@ -129,7 +129,7 @@ export default function HomeScreen() {
   };
 
   const handleLibraryPress = () => {
-    router.push('/library');
+    router.push('/library?tab=saved');
   };
 
   const handleSleepCardPress = () => {

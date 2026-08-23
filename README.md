@@ -70,7 +70,7 @@ Optional (used by specific features):
 ## 📦 Prerequisites
 
 - Node.js (v16+)
-- npm or Yarn
+- pnpm
 - Expo CLI
 - Smartphone or Emulator (iOS/Android)
 
@@ -84,14 +84,12 @@ cd uniwell
 
 2. Install dependencies:
 ```bash
-npm install
-# or
-yarn install
+pnpm install
 ```
 
 3. Start the development server:
 ```bash
-npx expo start
+pnpm expo start
 ```
 
 ## 📱 Running the App
@@ -127,8 +125,8 @@ uniwell/
 
 ## Scripts
 
-- `npm run update-resources`: refreshes/updates library resources content
-- `npm run start-scheduler`: starts scheduled background updates
+- `pnpm update-resources`: refreshes/updates library resources content
+- `pnpm start-scheduler`: starts scheduled background updates
 
 ## 📞 Support
 
