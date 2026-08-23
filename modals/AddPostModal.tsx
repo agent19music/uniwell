@@ -10,7 +10,7 @@ import {
   ScrollView,
   useColorScheme 
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ImageIcon, VideoCamera, XCircle, EyeSlash, Eye } from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useCommunity } from '../contexts/CommunityContext';
@@ -154,20 +154,20 @@ export default function AddPostModal({ visible, onClose }: { visible: boolean, o
                   style={styles.mediaButton} 
                   onPress={() => handleMediaPicker('image')}
                 >
-                  <Ionicons 
-                    name="image-outline" 
-                    size={22} 
-                    color={isDark ? '#FF7F50' : '#FF7F50'} 
+                  <ImageIcon
+                    size={22}
+                    color={isDark ? '#FF7F50' : '#FF7F50'}
+                    weight="regular"
                   />
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.mediaButton} 
                   onPress={() => handleMediaPicker('video')}
                 >
-                  <Ionicons 
-                    name="videocam-outline" 
-                    size={22} 
-                    color={isDark ? '#FF7F50' : '#FF7F50'} 
+                  <VideoCamera
+                    size={22}
+                    color={isDark ? '#FF7F50' : '#FF7F50'}
+                    weight="regular"
                   />
                 </TouchableOpacity>
               </View>
@@ -194,7 +194,7 @@ export default function AddPostModal({ visible, onClose }: { visible: boolean, o
                       style={styles.removeMedia}
                       onPress={() => setMedia(media.filter((_, i) => i !== index))}
                     >
-                      <Ionicons name="close-circle" size={24} color="#fff" />
+                      <XCircle size={24} color="#fff" weight="fill" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -210,11 +210,10 @@ export default function AddPostModal({ visible, onClose }: { visible: boolean, o
               style={[styles.anonymousToggle, isDark && styles.anonymousToggleDark]}
               onPress={() => setIsAnonymous(!isAnonymous)}
             >
-              <Ionicons
-                name={isAnonymous ? 'eye-off' : 'eye'}
-                size={24}
-                color={isDark ? '#fff' : '#000'}
-              />
+              {isAnonymous
+                ? <EyeSlash size={24} color={isDark ? '#fff' : '#000'} weight="regular" />
+                : <Eye size={24} color={isDark ? '#fff' : '#000'} weight="regular" />
+              }
               <Text style={[styles.anonymousText, isDark && styles.anonymousTextDark]}>
                 Post anonymously
               </Text>

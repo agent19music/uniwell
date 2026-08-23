@@ -5,10 +5,11 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  TextInput,
   ActivityIndicator,
   Image,
-  Dimensions
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,6 +20,7 @@ import { useTheme } from '../hooks/useTheme';
 import { toast } from '@/lib/toast';
 import { ArrowLeft, ArrowRight, Check, Camera, GraduationCap, Sparkle } from 'phosphor-react-native';
 import InterestSelectionModal from '../components/InterestSelectionModal';
+import { Input } from '@/components/ui/Input';
 
 const { width } = Dimensions.get('window');
 
@@ -260,27 +262,15 @@ export default function ProfileCompletionScreen() {
               </Text>
             </View>
             
-            <View style={styles.formGroup}>
-              <TextInput
-                style={[
-                  styles.textInput, 
-                  { 
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    color: colors.textPrimary 
-                  }
-                ]}
-                placeholder="e.g., Computer Science, Business, Medicine..."
-                placeholderTextColor={colors.textTertiary}
-                value={course}
-                onChangeText={setCourse}
-                autoFocus
-              />
-            </View>
-            
-            <Text style={[styles.helperText, { color: colors.textTertiary }]}>
-              This helps us personalize your experience with relevant resources
-            </Text>
+            <Input
+              autoFocus
+              helper="This helps us personalize your experience with relevant resources."
+              label="Course or program"
+              onChangeText={setCourse}
+              placeholder="e.g., Computer Science, Business, Medicine"
+              placeholderTextColor={colors.textTertiary}
+              value={course}
+            />
           </View>
         );
         
@@ -350,6 +340,7 @@ export default function ProfileCompletionScreen() {
   
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboard}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -386,6 +377,7 @@ export default function ProfileCompletionScreen() {
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {renderStepContent()}
@@ -417,6 +409,7 @@ export default function ProfileCompletionScreen() {
           )}
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
       
       {/* Interest Selection Modal */}
       <InterestSelectionModal
@@ -444,6 +437,9 @@ export default function ProfileCompletionScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboard: {
     flex: 1,
   },
   header: {

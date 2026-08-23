@@ -9,7 +9,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Pencil, Trash, Clock, Plus, CheckCircle, Circle, List } from 'phosphor-react-native';
 import { format, addDays, subDays, isToday, isFuture } from 'date-fns';
 import { useRoutine } from '../contexts/RoutineContext';
 import ProgressArchive from '../components/ProgressArchive';
@@ -176,7 +176,7 @@ export default function RoutinesScreen() {
       <View key={routine.id} style={[styles.routineItem, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
         <View style={styles.routineHeader}>
           <View style={styles.routineInfo}>
-            <Ionicons name={routine.icon || 'list'} size={24} color={routine.color || '#FF7F50'} />
+            <List size={24} color={routine.color || '#FF7F50'} weight="regular" />
             <Text style={[styles.routineTitle, { color: colors.textPrimary }]}>{routine.title}</Text>
           </View>
           <View style={styles.routineActions}>
@@ -188,24 +188,22 @@ export default function RoutinesScreen() {
                   status === 'completed' && styles.completedButton,
                 ]}
               >
-                <Ionicons
-                  name={status === 'completed' ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={24}
-                  color={status === 'completed' ? colors.success : '#FF7F50'}
-                />
+                {status === 'completed'
+                  ? <CheckCircle size={24} color={colors.success} weight="fill" />
+                  : <Circle size={24} color="#FF7F50" weight="regular" />}
               </TouchableOpacity>
             )}
             <TouchableOpacity
               onPress={() => handleEditRoutine(routine)}
               style={styles.editButton}
             >
-              <Ionicons name="pencil" size={20} color={colors.info} />
+              <Pencil size={20} color={colors.info} weight="fill" />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleDeleteRoutine(routine.id)}
               style={styles.deleteButton}
             >
-              <Ionicons name="trash" size={20} color={colors.error} />
+              <Trash size={20} color={colors.error} weight="fill" />
             </TouchableOpacity>
           </View>
         </View>
@@ -235,7 +233,7 @@ export default function RoutinesScreen() {
           style={styles.archiveButton}
           onPress={() => setShowArchiveModal(true)}
         >
-          <Ionicons name="time" size={24} color={colors.textPrimary} />
+          <Clock size={24} color={colors.textPrimary} weight="fill" />
         </TouchableOpacity>
       </View>
 
@@ -256,7 +254,7 @@ export default function RoutinesScreen() {
           setShowAddModal(true);
         }}
       >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
+        <Plus size={24} color="#FFFFFF" weight="regular" />
       </TouchableOpacity>
 
       <Modal

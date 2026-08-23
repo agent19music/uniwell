@@ -1,15 +1,13 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useState, useEffect, useRef } from 'react';
+import { PlusCircle, Plus, Eye, PencilSimple, ArrowCounterClockwise, CheckCircle, Trash, Fire, TrendUp, XCircle, WarningCircle, Warning, Circle } from 'phosphor-react-native';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useRoutine } from '../../contexts/RoutineContext';
 import AddRoutineModal from '@/modals/AddRoutineModal';
 import AddStreakModal from '@/modals/AddStreakModal';
 import { useAuth } from '@/contexts/AuthContext';
 import * as Haptics from 'expo-haptics';
-import { Animated } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import { format, differenceInDays, isToday, isYesterday, isTomorrow, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { Streak } from '@/contexts/RoutineContext';
 import NextActivityWidget from '@/components/NextActivityWidget';
@@ -40,8 +38,6 @@ export default function RoutinesScreen() {
   const [streakMenuVisible, setStreakMenuVisible] = useState(false);
   const [streakMenuPosition, setStreakMenuPosition] = useState({ x: 0, y: 0 });
   const [selectedStreakId, setSelectedStreakId] = useState<string | null>(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const [showEditRoutine, setShowEditRoutine] = useState(false);
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
   const [routineMenuVisible, setRoutineMenuVisible] = useState(false);
@@ -117,37 +113,10 @@ export default function RoutinesScreen() {
     setStreakMenuPosition({ x, y });
     setStreakMenuVisible(true);
     
-    // Animate menu appearance
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 7,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start();
   };
 
   const handleStreakMenuClose = () => {
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 0.9,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setStreakMenuVisible(false);
-    });
+    setStreakMenuVisible(false);
   };
 
   const onReset = async (streakId: string) => {
@@ -234,21 +203,15 @@ export default function RoutinesScreen() {
     return localSelectedDate >= localRoutineCreatedAt;
   });
 
-  const getRoutineIcon = (routine: any) => {
+  const getRoutineIcon = (routine: any, size: number, color: string) => {
     const status = getRoutineStatus(routine);
     switch (status) {
-      case 'completed':
-        return "checkmark-circle";
-      case 'missed':
-        return "close-circle";
-      case 'warning':
-        return "alert-circle";
-      case 'urgent':
-        return "warning";
-      case 'due':
-        return "alert-circle";
-      default:
-        return "ellipse-outline";
+      case 'completed': return <CheckCircle size={size} color={color} weight="fill" />;
+      case 'missed': return <XCircle size={size} color={color} weight="fill" />;
+      case 'warning': return <WarningCircle size={size} color={color} weight="regular" />;
+      case 'urgent': return <Warning size={size} color={color} weight="regular" />;
+      case 'due': return <WarningCircle size={size} color={color} weight="regular" />;
+      default: return <Circle size={size} color={color} weight="regular" />;
     }
   };
 
@@ -294,11 +257,9 @@ export default function RoutinesScreen() {
       >
         <View style={styles.streakCardTop}>
           <View style={styles.streakIconContainer}>
-            <Ionicons 
-              name={streak.type === 'break' ? 'flame' : 'trending-up'} 
-              size={16} 
-              color={streak.color} 
-            />
+            {streak.type === 'break'
+              ? <Fire size={16} color={streak.color} weight="regular" />
+              : <TrendUp size={16} color={streak.color} weight="regular" />}
           </View>
           <View style={[
             styles.statusDot, 
@@ -318,7 +279,7 @@ export default function RoutinesScreen() {
         </View>
         
         <View style={[styles.miniProgressBar, { backgroundColor: colors.border }]}>
-          <View style={[styles.miniProgressFill, { width: `${progress}%`, backgroundColor: '#FF7F50' }]} />
+          <View style={[styles.miniProgressFill, { width: `${progress}%`, backgroundColor: colors.accent }]} />
         </View>
       </TouchableOpacity>
     );
@@ -341,37 +302,10 @@ export default function RoutinesScreen() {
     setRoutineMenuPosition({ x, y });
     setRoutineMenuVisible(true);
     
-    // Animate menu appearance
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 7,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start();
   };
 
   const handleRoutineMenuClose = () => {
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 0.9,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setRoutineMenuVisible(false);
-    });
+    setRoutineMenuVisible(false);
   };
 
   return (
@@ -392,7 +326,7 @@ export default function RoutinesScreen() {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Streaks</Text>
               <TouchableOpacity onPress={handleAddStreak}>
-                <Ionicons name="add-circle-outline" size={20} color={colors.textPrimary} />
+                <PlusCircle size={20} color={colors.textPrimary} weight="regular" />
               </TouchableOpacity>
             </View>
             
@@ -410,7 +344,7 @@ export default function RoutinesScreen() {
                   style={[styles.emptyStreakCard, { backgroundColor: colors.card }]}
                   onPress={handleAddStreak}
                 >
-                  <Ionicons name="add" size={24} color={colors.textSecondary} />
+                  <Plus size={24} color={colors.textSecondary} weight="regular" />
                   <Text style={[styles.emptyStreakText, { color: colors.textSecondary }]}>
                     Add streak
                   </Text>
@@ -428,19 +362,19 @@ export default function RoutinesScreen() {
                     key={date.toISOString()}
                     style={[
                       styles.dateButton,
-                      { backgroundColor: isSelected ? '#FF7F50' : 'transparent' }
+                      { backgroundColor: isSelected ? colors.accent : colors.transparent }
                     ]}
                     onPress={() => setSelectedDate(startOfDay(date))}
                   >
                     <Text style={[
                       styles.dayText,
-                      { color: isSelected ? '#FFFFFF' : colors.textSecondary }
+                      { color: isSelected ? colors.textOnAccent : colors.textSecondary }
                     ]}>
                       {date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3)}
                     </Text>
                     <Text style={[
                       styles.dateText,
-                      { color: isSelected ? '#FFFFFF' : colors.textPrimary }
+                      { color: isSelected ? colors.textOnAccent : colors.textPrimary }
                     ]}>
                       {date.getDate()}
                     </Text>
@@ -454,7 +388,7 @@ export default function RoutinesScreen() {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Daily Routines</Text>
               <TouchableOpacity onPress={handleAddRoutine}>
-                <Ionicons name="add-circle-outline" size={20} color={colors.textPrimary} />
+                <PlusCircle size={20} color={colors.textPrimary} weight="regular" />
               </TouchableOpacity>
             </View>
             
@@ -483,11 +417,7 @@ export default function RoutinesScreen() {
                       style={[styles.checkButton, completed && styles.checkedButton]}
                       onPress={() => handleCompleteTask(routine.id)}
                     >
-                      <Ionicons
-                        name={getRoutineIcon(routine)}
-                        size={24}
-                        color={getRoutineIconColor(routine)}
-                      />
+                      {getRoutineIcon(routine, 24, getRoutineIconColor(routine))}
                     </TouchableOpacity>
                   </TouchableOpacity>
                 );
@@ -524,7 +454,7 @@ export default function RoutinesScreen() {
           style={styles.modalOverlay}
           onPress={handleStreakMenuClose}
         >
-          <Animated.View
+          <View
             style={[
               styles.streakContextMenu,
               {
@@ -532,8 +462,6 @@ export default function RoutinesScreen() {
                 shadowColor: colors.shadow.dark,
                 left: streakMenuPosition.x,
                 top: streakMenuPosition.y,
-                opacity: fadeAnim,
-                transform: [{ scale: scaleAnim }],
               }
             ]}
           >
@@ -544,7 +472,7 @@ export default function RoutinesScreen() {
                 router.push(`/streak-details/${selectedStreakId}`);
               }}
             >
-              <Feather name="eye" size={16} color={colors.textPrimary} />
+              <Eye size={16} color={colors.textPrimary} weight="regular" />
               <Text style={[styles.menuText, { color: colors.textPrimary }]}>View Details</Text>
             </TouchableOpacity>
 
@@ -557,7 +485,7 @@ export default function RoutinesScreen() {
                 router.push(`/edit-streak/${selectedStreakId}`);
               }}
             >
-              <Feather name="edit-2" size={16} color={colors.textPrimary} />
+              <PencilSimple size={16} color={colors.textPrimary} weight="regular" />
               <Text style={[styles.menuText, { color: colors.textPrimary }]}>Edit</Text>
             </TouchableOpacity>
 
@@ -572,10 +500,10 @@ export default function RoutinesScreen() {
                 }
               }}
             >
-              <Feather name="refresh-cw" size={16} color={colors.warning} />
+              <ArrowCounterClockwise size={16} color={colors.warning} weight="regular" />
               <Text style={[styles.menuText, { color: colors.textPrimary }]}>Reset Streak</Text>
             </TouchableOpacity>
-          </Animated.View>
+          </View>
         </Pressable>
       </Modal>
 
@@ -590,7 +518,7 @@ export default function RoutinesScreen() {
           style={styles.modalOverlay}
           onPress={handleRoutineMenuClose}
         >
-          <Animated.View
+          <View
             style={[
               styles.routineContextMenu,
               {
@@ -598,8 +526,6 @@ export default function RoutinesScreen() {
                 shadowColor: colors.shadow.dark,
                 left: routineMenuPosition.x,
                 top: routineMenuPosition.y,
-                opacity: fadeAnim,
-                transform: [{ scale: scaleAnim }],
               }
             ]}
           >
@@ -610,7 +536,7 @@ export default function RoutinesScreen() {
                 setShowEditRoutine(true);
               }}
             >
-              <Feather name="edit-2" size={16} color={colors.textPrimary} />
+              <PencilSimple size={16} color={colors.textPrimary} weight="regular" />
               <Text style={[styles.menuText, { color: colors.textPrimary }]}>Edit</Text>
             </TouchableOpacity>
 
@@ -625,7 +551,7 @@ export default function RoutinesScreen() {
                 }
               }}
             >
-              <Feather name="check-circle" size={16} color={colors.success} />
+              <CheckCircle size={16} color={colors.success} weight="regular" />
               <Text style={[styles.menuText, { color: colors.textPrimary }]}>Mark Completed</Text>
             </TouchableOpacity>
 
@@ -640,10 +566,10 @@ export default function RoutinesScreen() {
                 }
               }}
             >
-              <Feather name="trash-2" size={16} color={colors.error} />
+              <Trash size={16} color={colors.error} weight="regular" />
               <Text style={[styles.menuText, { color: colors.textPrimary }]}>Delete</Text>
             </TouchableOpacity>
-          </Animated.View>
+          </View>
         </Pressable>
       </Modal>
 

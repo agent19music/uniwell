@@ -10,7 +10,7 @@ import {
   PixelRatio
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { X, Hourglass, Export, Trophy, TrendUp, Calendar, Leaf, Fire } from 'phosphor-react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import Svg, { 
@@ -155,7 +155,7 @@ export default function StreakShareWidget({ streak, onClose }: StreakShareWidget
       {/* Header Controls */}
       <View style={styles.controlsHeader}>
         <TouchableOpacity onPress={onClose} style={styles.iconButton}>
-          <Ionicons name="close" size={24} color={theme.textMain} />
+          <X size={24} color={theme.textMain} weight="regular" />
         </TouchableOpacity>
         <TouchableOpacity 
           onPress={handleShare} 
@@ -163,10 +163,10 @@ export default function StreakShareWidget({ streak, onClose }: StreakShareWidget
           disabled={isSharing}
         >
           {isSharing ? (
-            <Ionicons name="hourglass-outline" size={16} color={theme.card} />
+            <Hourglass size={16} color={theme.card} weight="regular" />
           ) : (
             <>
-              <Ionicons name="share-outline" size={16} color={theme.card} style={{ marginRight: 6 }} />
+              <Export size={16} color={theme.card} weight="regular" style={{ marginRight: 6 }} />
               <Text style={[styles.shareText, { color: theme.card }]}>Share</Text>
             </>
           )}
@@ -192,12 +192,9 @@ export default function StreakShareWidget({ streak, onClose }: StreakShareWidget
         <View style={styles.cardHeader}>
           <View style={styles.iconContainer}>
             <SoftGlow color={theme.glow} size={45} />
-            <MaterialCommunityIcons 
-              name={type === 'break' ? 'leaf' : 'fire'} 
-              size={28} 
-              color={theme.accent} 
-              style={{ zIndex: 2 }}
-            />
+            {type === 'break'
+              ? <Leaf size={28} color={theme.accent} weight="regular" style={{ zIndex: 2 }} />
+              : <Fire size={28} color={theme.accent} weight="regular" style={{ zIndex: 2 }} />}
           </View>
           
           {/* Right: App Branding */}
@@ -265,7 +262,7 @@ export default function StreakShareWidget({ streak, onClose }: StreakShareWidget
               </G>
             </Svg>
              <View style={styles.ringIconAbsolute}>
-                <MaterialCommunityIcons name="trophy-variant-outline" size={24} color={theme.textSub} />
+                <Trophy size={24} color={theme.textSub} weight="regular" />
              </View>
           </View>
         </View>
@@ -275,7 +272,7 @@ export default function StreakShareWidget({ streak, onClose }: StreakShareWidget
           <View style={[styles.statBox, { backgroundColor: isDark ? '#252525' : '#F8F9FB' }]}>
              <Text style={[styles.statLabel, { color: theme.textSub }]}>LONGEST</Text>
              <View style={styles.statValueRow}>
-                <Ionicons name="trending-up" size={14} color={theme.accent} style={{ marginRight: 4 }} />
+                <TrendUp size={14} color={theme.accent} weight="regular" style={{ marginRight: 4 }} />
                 <Text style={[styles.statValue, { color: theme.textMain }]}>{longestStreak} Days</Text>
              </View>
           </View>
@@ -283,7 +280,7 @@ export default function StreakShareWidget({ streak, onClose }: StreakShareWidget
           <View style={[styles.statBox, { backgroundColor: isDark ? '#252525' : '#F8F9FB' }]}>
              <Text style={[styles.statLabel, { color: theme.textSub }]}>STARTED</Text>
              <View style={styles.statValueRow}>
-                <Ionicons name="calendar-outline" size={14} color={theme.textSub} style={{ marginRight: 4 }} />
+                <Calendar size={14} color={theme.textSub} weight="regular" style={{ marginRight: 4 }} />
                 <Text style={[styles.statValue, { color: theme.textMain }]}>
                   {new Date(startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </Text>

@@ -1,9 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useRoutine } from '@/contexts/RoutineContext';
-import { Ionicons } from '@expo/vector-icons';
 import { DayOfTheWeek } from '@/types/TimetableTypes';
 import { useTheme } from '@/hooks/useTheme';
+import { SafeText } from '@/components/ThemedText';
+import { Button } from '@/components/ui/Button';
+import { Dialog } from '@/components/ui/Dialog';
+import { FormSection } from '@/components/ui/Form';
+import { Input } from '@/components/ui/Input';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { radius, spacing } from '@/constants/theme';
 
 type Frequency = 'daily' | 'weekly' | 'custom';
 
@@ -20,7 +26,8 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
   const [selectedDays, setSelectedDays] = useState<DayOfTheWeek[]>([]);
   const [selectedWeekDay, setSelectedWeekDay] = useState<DayOfTheWeek | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { colors, isDark } = useTheme();
+  const [error, setError] = useState('');
+  const { colors } = useTheme();
 
   useEffect(() => {
     const fetchRoutine = async () => {
@@ -52,10 +59,12 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
 
   const handleSave = async () => {
     if (!title.trim()) {
+      setError('A routine title is required.');
       return;
     }
 
     try {
+      setError('');
       const days = frequency === 'weekly' && selectedWeekDay ? [selectedWeekDay] : selectedDays;
       await updateRoutine(routineId, { 
         title, 
@@ -65,6 +74,7 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
       onClose();
     } catch (error) {
       console.error('Error updating routine:', error);
+      setError('Unable to save this routine. Please try again.');
     }
   };
 
@@ -74,286 +84,88 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
       onClose();
     } catch (error) {
       console.error('Error deleting routine:', error);
+      setError('Unable to delete this routine. Please try again.');
     }
   };
 
   const renderDaySelector = () => {
-    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    
-    if (frequency === 'weekly') {
-      return (
-        <View style={styles.daysSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Day</Text>
-          <View style={styles.daysGrid}>
-            {days.map((day) => {
-              const isSelected = selectedWeekDay === day;
-              return (
-                <TouchableOpacity
-                  key={day}
-                  style={[
-                    styles.dayButton,
-                    {
-                      backgroundColor: isSelected ? '#FF7F50' : colors.surface,
-                      borderColor: colors.border,
-                    }
-                  ]}
-                  onPress={() => setSelectedWeekDay(day as DayOfTheWeek)}
-                >
-                  <Text style={[
-                    styles.dayButtonText,
-                    { color: isSelected ? '#FFFFFF' : colors.textPrimary }
-                  ]}>
-                    {day.charAt(0).toUpperCase() + day.slice(1, 3)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      );
-    }
+    if (frequency === 'daily') return null;
+    const days: DayOfTheWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const selected = frequency === 'weekly' ? selectedWeekDay : null;
 
-    if (frequency === 'custom') {
-      return (
-        <View style={styles.daysSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Days</Text>
-          <View style={styles.daysGrid}>
-            {days.map((day) => {
-              const isSelected = selectedDays.includes(day as DayOfTheWeek);
-              return (
-                <TouchableOpacity
-                  key={day}
-                  style={[
-                    styles.dayButton,
-                    {
-                      backgroundColor: isSelected ? '#FF7F50' : colors.surface,
-                      borderColor: colors.border,
-                    }
-                  ]}
-                  onPress={() => {
-                    if (selectedDays.includes(day as DayOfTheWeek)) {
-                      setSelectedDays(selectedDays.filter(d => d !== day));
-                    } else {
-                      setSelectedDays([...selectedDays, day as DayOfTheWeek]);
-                    }
-                  }}
-                >
-                  <Text style={[
-                    styles.dayButtonText,
-                    { color: isSelected ? '#FFFFFF' : colors.textPrimary }
-                  ]}>
-                    {day.charAt(0).toUpperCase() + day.slice(1, 3)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+    return (
+      <View style={styles.daysSection}>
+        <SafeText variant="label" color={colors.text}>
+          {frequency === 'weekly' ? 'Select a day' : 'Select days'}
+        </SafeText>
+        <View accessibilityLabel={frequency === 'weekly' ? 'Routine day' : 'Routine days'} accessibilityRole={frequency === 'weekly' ? 'radiogroup' : undefined} style={styles.daysGrid}>
+          {days.map((day) => {
+            const isSelected = frequency === 'weekly' ? selected === day : selectedDays.includes(day);
+            return (
+              <Button
+                key={day}
+                label={day.slice(0, 3).replace(/^./, (letter) => letter.toUpperCase())}
+                onPress={() => {
+                  if (frequency === 'weekly') {
+                    setSelectedWeekDay(day);
+                  } else {
+                    setSelectedDays((current) => current.includes(day) ? current.filter((item) => item !== day) : [...current, day]);
+                  }
+                }}
+                style={styles.dayButton}
+                variant={isSelected ? 'primary' : 'secondary'}
+              />
+            );
+          })}
         </View>
-      );
-    }
-
-    return null;
+      </View>
+    );
   };
 
-  if (isLoading) {
-    return (
-      <Modal
-        visible={visible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={onClose}
-      >
-        <View style={[styles.modalOverlay, styles.loadingContainer, { backgroundColor: colors.card }]}>
-          <Text style={[styles.loadingText, { color: colors.textPrimary }]}>Loading...</Text>
-        </View>
-      </Modal>
-    );
-  }
-
   return (
-    <Modal
+    <Dialog
+      description="Update the routine’s schedule or remove it."
+      dismissible
+      footer={<View style={styles.actions}><Button label="Delete routine" onPress={handleDelete} style={styles.action} variant="destructive" /><Button label="Save changes" onPress={handleSave} style={styles.action} /></View>}
+      onClose={onClose}
+      title="Edit routine"
       visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
     >
-      <ScrollView style={[styles.editFormScroll, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { borderBottomColor: colors.divider }]}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color="#FF7F50" />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Edit Routine</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={styles.saveButton}>Save</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.form}>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
-            placeholder="Routine Title"
-            value={title}
-            onChangeText={setTitle}
-            placeholderTextColor={colors.textSecondary}
-          />
-
-          <View style={styles.frequencySection}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Frequency</Text>
-            <TouchableOpacity 
-              style={[
-                styles.frequencyButton,
-                {
-                  backgroundColor: frequency === 'daily' ? '#FF7F50' : colors.surface,
-                  borderColor: colors.border,
-                }
-              ]}
-              onPress={() => setFrequency('daily')}
-            >
-              <Text style={[
-                styles.frequencyText,
-                { color: frequency === 'daily' ? '#FFFFFF' : colors.textPrimary }
-              ]}>Daily</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[
-                styles.frequencyButton,
-                {
-                  backgroundColor: frequency === 'weekly' ? '#FF7F50' : colors.surface,
-                  borderColor: colors.border,
-                }
-              ]}
-              onPress={() => setFrequency('weekly')}
-            >
-              <Text style={[
-                styles.frequencyText,
-                { color: frequency === 'weekly' ? '#FFFFFF' : colors.textPrimary }
-              ]}>Weekly</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[
-                styles.frequencyButton,
-                {
-                  backgroundColor: frequency === 'custom' ? '#FF7F50' : colors.surface,
-                  borderColor: colors.border,
-                }
-              ]}
-              onPress={() => setFrequency('custom')}
-            >
-              <Text style={[
-                styles.frequencyText,
-                { color: frequency === 'custom' ? '#FFFFFF' : colors.textPrimary }
-              ]}>Custom</Text>
-            </TouchableOpacity>
-          </View>
-
+      {isLoading ? <View accessibilityLabel="Loading routine" accessibilityRole="progressbar" style={styles.loading}><ActivityIndicator color={colors.accent} /><SafeText variant="body" color={colors.textSecondary}>Loading routine…</SafeText></View> : (
+        <FormSection>
+          <Input autoFocus error={error || undefined} label="Routine title" onChangeText={(value) => { setTitle(value); setError(''); }} placeholder="e.g. Morning walk" returnKeyType="done" value={title} />
+          <SegmentedControl label="Frequency" onChange={setFrequency} options={[{ label: 'Daily', value: 'daily' }, { label: 'Weekly', value: 'weekly' }, { label: 'Custom', value: 'custom' }]} value={frequency} />
           {renderDaySelector()}
-
-          <TouchableOpacity style={[styles.deleteButton, { backgroundColor: colors.error }]} onPress={handleDelete}>
-            <Text style={styles.deleteButtonText}>Delete Routine</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </Modal>
+        </FormSection>
+      )}
+    </Dialog>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  loadingContainer: {
-    padding: 20,
-    borderRadius: 12,
-  },
-  loadingText: {
-    fontSize: 16,
-    fontFamily: 'Vercetti-Regular',
-  },
-  editFormScroll: {
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
-  },
-  saveButton: {
-    color: '#FF7F50',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
-  },
-  form: {
-    padding: 20,
-  },
-  input: {
-    padding: 16,
-    borderRadius: 12,
-    fontSize: 16,
-    marginBottom: 20,
-    fontFamily: 'Vercetti-Regular',
-    borderWidth: 1,
-  },
-  frequencySection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-    fontFamily: 'Vercetti-Regular',
-  },
-  frequencyButton: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-  },
-  frequencyText: {
-    fontSize: 16,
-    fontFamily: 'Vercetti-Regular',
-  },
   daysSection: {
-    marginTop: 20,
+    gap: spacing.micro,
   },
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.micro,
   },
   dayButton: {
-    width: '30%',
-    padding: 12,
-    borderRadius: 12,
+    flexGrow: 1,
+    width: '22%',
+  },
+  loading: {
     alignItems: 'center',
+    gap: spacing.control,
     justifyContent: 'center',
-    borderWidth: 1,
+    minHeight: 160,
   },
-  dayButtonText: {
-    fontSize: 14,
-    fontFamily: 'Vercetti-Regular',
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.micro,
   },
-  deleteButton: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
+  action: {
+    flex: 1,
   },
 });

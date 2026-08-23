@@ -1,118 +1,106 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Pause, Play } from 'phosphor-react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { Play, Pause } from 'phosphor-react-native';
+
+import { MediaFrame } from '@/components/ui/MediaFrame';
+import { radius } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 interface CircularVideoPlayerProps {
   uri: string;
-  colorScheme: {
+  size?: number;
+  /** @deprecated The player now inherits the semantic app accent. */
+  colorScheme?: {
     button: string;
     gradient: string[];
   };
-  size?: number;
 }
 
-export const CircularVideoPlayer: React.FC<CircularVideoPlayerProps> = ({
-  uri,
-  colorScheme,
-  size = 120,
-}) => {
+export function CircularVideoPlayer({ uri, size = 120 }: CircularVideoPlayerProps) {
+  const { colors } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
-  const player = useVideoPlayer(uri, (player) => {
-    player.loop = true;
-    player.muted = false;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const player = useVideoPlayer(uri, (videoPlayer) => {
+    videoPlayer.loop = true;
+    videoPlayer.muted = false;
   });
 
   useEffect(() => {
+    const statusSubscription = player.addListener('statusChange', ({ status, error: playerError }) => {
+      setIsLoading(status === 'loading');
+      setError(playerError?.message ?? null);
+    });
+    const playingSubscription = player.addListener('playingChange', ({ isPlaying: playing }) => setIsPlaying(playing));
+
     return () => {
-      // Cleanup
+      statusSubscription.remove();
+      playingSubscription.remove();
       player.pause();
     };
-  }, []);
+  }, [player]);
 
   const togglePlayback = () => {
-    if (player.playing) {
-      player.pause();
-    } else {
-      player.play();
-    }
+    if (isPlaying) player.pause();
+    else player.play();
   };
 
-  return (
-    <View style={[styles.container, { width: size, height: size }]}>
-      {/* Circular Video */}
-      <View style={[styles.circularMask, { width: size, height: size, borderRadius: size / 2 }]}>
-        <VideoView
-          style={[styles.video, { width: size, height: size }]}
-          player={player}
-          nativeControls={false}
-          contentFit="cover"
-        />
-      </View>
+  const controlLabel = isPlaying ? 'Pause video note' : 'Play video note';
 
-      {/* Overlay Controls */}
-      <TouchableOpacity
-        style={[
-          styles.overlay,
-          { width: size, height: size, borderRadius: size / 2 },
-        ]}
-        onPress={togglePlayback}
-        activeOpacity={0.7}
-      >
-        {isLoading ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : !player.playing ? (
-          <View
-            style={[
-              styles.playButton,
-              { backgroundColor: colorScheme.button },
-            ]}
-          >
-            <Play size={size * 0.15} color="#fff" weight="fill" />
+  return (
+    <MediaFrame
+      accessibilityLabel="Video journal note"
+      circular
+      error={error}
+      loading={isLoading}
+      style={{ height: size, width: size }}
+    >
+      <VideoView
+        accessibilityLabel="Video journal note"
+        contentFit="cover"
+        nativeControls={false}
+        player={player}
+        style={StyleSheet.absoluteFill}
+      />
+      {!isLoading && !error && (
+        <Pressable
+          accessibilityHint="Toggles video playback."
+          accessibilityLabel={controlLabel}
+          accessibilityRole="button"
+          onPress={togglePlayback}
+          style={({ pressed }) => [
+            styles.overlay,
+            { backgroundColor: isPlaying ? colors.transparent : colors.scrim, opacity: pressed ? 0.82 : 1 },
+          ]}
+        >
+          <View pointerEvents="none" style={[styles.control, { backgroundColor: colors.accent }]}>
+            {isPlaying
+              ? <Pause color={colors.textOnAccent} size={20} weight="fill" />
+              : <Play color={colors.textOnAccent} size={20} weight="fill" />}
           </View>
-        ) : null}
-      </TouchableOpacity>
-    </View>
+        </Pressable>
+      )}
+    </MediaFrame>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'relative',
-  },
-  circularMask: {
-    overflow: 'hidden',
-    backgroundColor: '#000',
-  },
-  video: {
-    backgroundColor: '#000',
-  },
   overlay: {
-    position: 'absolute',
-    top: 0,
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
     left: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
-  playButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  control: {
     alignItems: 'center',
+    borderCurve: 'continuous',
+    borderRadius: radius.full,
+    height: 48,
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    width: 48,
   },
 });

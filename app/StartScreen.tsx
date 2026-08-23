@@ -4,7 +4,6 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    ImageBackground,
     Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,20 +26,9 @@ export default function StartScreen() {
 
     return (
         <SafeAreaView
-            style={[styles.container, { backgroundColor: colors.background }]}
+            style={[styles.container, { backgroundColor: colors.canvas }]}
             edges={['top', 'bottom']}
         >
-            {/* Background with mesh overlay */}
-            <ImageBackground
-                source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-99.png')}
-                style={StyleSheet.absoluteFillObject}
-                resizeMode="cover"
-            >
-                <View style={[styles.overlay, {
-                    backgroundColor: isDark ? 'rgba(28, 24, 21, 0.85)' : 'rgba(254, 253, 251, 0.85)'
-                }]} />
-            </ImageBackground>
-
             <View style={styles.content}>
                 {/* Hero Section */}
                 <View style={styles.hero}>
@@ -102,9 +90,6 @@ export default function StartScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
     },
     content: {
         flex: 1,

@@ -19,7 +19,7 @@ import {
   DayOfTheWeek
 } from '@/types/TimetableTypes';
 import { useColorScheme } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { X } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 
 interface StudyTimetableModalProps {
@@ -232,7 +232,7 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
       <View style={[styles.modalContainer, isDark && styles.darkModalContainer]}>
         <View style={[styles.header]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="close" size={24} color="#FF7F50" />
+            <X size={24} color="#FF7F50" weight="regular" />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, isDark && styles.darkText]}>Add Study Schedule</Text>
           <TouchableOpacity onPress={handleAddSchedule}>

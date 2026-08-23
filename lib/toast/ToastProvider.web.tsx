@@ -33,7 +33,21 @@ export interface ToastProviderProps {
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => (
   <>
     {children}
-    <Toaster position="top-center" />
+    <Toaster
+      position="top-center"
+      toastOptions={{
+        duration: 4000,
+        style: {
+          borderRadius: '14px',
+          fontFamily: 'SF-Regular, system-ui, sans-serif',
+          maxWidth: '360px',
+        },
+        success: { duration: 4000 },
+        // react-hot-toast's stock renderer has no explicit dismiss control; use a
+        // long, finite duration until action/error toasts move to the UI Toast host.
+        error: { duration: 8000 },
+      }}
+    />
   </>
 );
 

@@ -1,13 +1,17 @@
-import React, { useState, useContext} from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
-import { TextInput } from 'react-native-gesture-handler';
 import { Picker } from '@react-native-picker/picker';
 import { Semester, SemesterType } from '../types/TimetableTypes';
-import { AuthContext } from '@/contexts/AuthContext';
+import { SafeText } from '@/components/ThemedText';
+import { Button } from '@/components/ui/Button';
+import { Dialog } from '@/components/ui/Dialog';
+import { FormSection } from '@/components/ui/Form';
+import { Input } from '@/components/ui/Input';
+import { SwitchRow } from '@/components/ui/SwitchRow';
+import { spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 type UpdateSemesterModalProps = {
   onClose: () => void;
@@ -22,18 +26,8 @@ const UpdateSemesterModal: React.FC<UpdateSemesterModalProps> = ({
   onDelete,
   semester,
 }) => {
-  const colorScheme = useColorScheme();
-  
-  const colors = {
-    background: colorScheme === 'dark' ? '#121212' : '#FFFFFF',
-    text: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
-    card: colorScheme === 'dark' ? '#1E1E1E' : '#F0F0F0',
-    border: colorScheme === 'dark' ? '#383838' : '#E0E0E0',
-    primary: '#FF7F50',
-    primaryDark: '#FF7F50',
-    error: '#B00020',
-  };
-
+  const { colors } = useTheme();
+  const nameInput = useRef<TextInput>(null);
   const [name, setName] = useState(semester.name);
   const [type, setType] = useState<SemesterType>(semester.type);
   const [startDate, setStartDate] = useState(semester.startDate);
@@ -48,6 +42,7 @@ const UpdateSemesterModal: React.FC<UpdateSemesterModalProps> = ({
 
     if (!name.trim()) {
       setError('Semester name is required');
+      nameInput.current?.focus();
       return;
     }
 
@@ -73,251 +68,39 @@ const UpdateSemesterModal: React.FC<UpdateSemesterModalProps> = ({
     onClose();
   };
 
-  // Exact same JSX structure as your original modal
   return (
-    <View style={styles.overlay}>
-      <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color="#FF7F50" />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Edit Semester
-          </Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={styles.saveButton}>Save</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.modalContent}>
-          {error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : null}
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Semester Name</Text>
-            <TextInput
-              style={[
-                styles.input,
-                { backgroundColor: colors.card, color: colors.text, borderColor: colors.border },
-              ]}
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter semester name"
-              placeholderTextColor={colors.text + '80'}
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Semester Type</Text>
-            <View style={[styles.pickerContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Picker
-                selectedValue={type}
-                onValueChange={(itemValue) => setType(itemValue as SemesterType)}
-                style={[styles.picker, { color: colors.text }]}
-                dropdownIconColor={colors.text}
-              >
-                <Picker.Item label="Fall" value={SemesterType.FALL} />
-                <Picker.Item label="Spring" value={SemesterType.SPRING} />
-                <Picker.Item label="Summer" value={SemesterType.SUMMER} />
-                <Picker.Item label="Winter" value={SemesterType.WINTER} />
-                <Picker.Item label="Custom" value={SemesterType.CUSTOM} />
-              </Picker>
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Start Date</Text>
-            <TouchableOpacity
-              style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => setShowStartDatePicker(true)}
-            >
-              <Text style={[styles.dateButtonText, { color: colors.text }]}>
-                {format(startDate, 'MMMM dd, yyyy')}
-              </Text>
-              <Ionicons name="calendar-outline" size={20} color={colors.text} />
-            </TouchableOpacity>
-            {showStartDatePicker && (
-              <DateTimePicker
-                value={startDate}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowStartDatePicker(false);
-                  if (selectedDate) {
-                    setStartDate(selectedDate);
-                  }
-                }}
-              />
-            )}
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>End Date</Text>
-            <TouchableOpacity
-              style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => setShowEndDatePicker(true)}
-            >
-              <Text style={[styles.dateButtonText, { color: colors.text }]}>
-                {format(endDate, 'MMMM dd, yyyy')}
-              </Text>
-              <Ionicons name="calendar-outline" size={20} color={colors.text} />
-            </TouchableOpacity>
-            {showEndDatePicker && (
-              <DateTimePicker
-                value={endDate}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowEndDatePicker(false);
-                  if (selectedDate) {
-                    setEndDate(selectedDate);
-                  }
-                }}
-              />
-            )}
-          </View>
-
-          <View style={styles.formGroup}>
-            <View style={styles.switchContainer}>
-              <Text style={[styles.label, { color: colors.text }]}>Set as Active Semester</Text>
-              <Switch
-                value={isActive}
-                onValueChange={setIsActive}
-                trackColor={{ false: '#767577', true: colors.primary }}
-                thumbColor={isActive ? colors.primaryDark : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-              />
-            </View>
-            <Text style={[styles.helperText, { color: colors.text + '80' }]}>
-              Only one semester can be active at a time
-            </Text>
-          </View>
-          
-          {semester && (
-            <TouchableOpacity
-              onPress={handleDelete}
-              style={[styles.deleteButton, { backgroundColor: colors.error }]}
-            >
-              <Text style={styles.buttonText}>Delete</Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
-      </View>
-    </View>
+    <Dialog
+      dismissible
+      footer={<View style={styles.actions}><Button label="Delete" onPress={handleDelete} style={styles.action} variant="destructive" /><Button label="Save changes" onPress={handleSave} style={styles.action} /></View>}
+      onClose={onClose}
+      title="Edit semester"
+      visible
+    >
+      <FormSection>
+        <Input ref={nameInput} autoFocus error={error || undefined} label="Semester name" onChangeText={(value) => { setName(value); setError(''); }} placeholder="e.g. Fall 2026" returnKeyType="done" value={name} />
+        <View style={styles.field}><SafeText variant="label" color={colors.text}>Semester type</SafeText><View style={[styles.picker, { backgroundColor: colors.surface, borderColor: colors.border }]}><Picker accessibilityLabel="Semester type" dropdownIconColor={colors.text} onValueChange={(value) => setType(value as SemesterType)} selectedValue={type} style={{ color: colors.text }}><Picker.Item label="Fall" value={SemesterType.FALL} /><Picker.Item label="Spring" value={SemesterType.SPRING} /><Picker.Item label="Summer" value={SemesterType.SUMMER} /><Picker.Item label="Winter" value={SemesterType.WINTER} /><Picker.Item label="Custom" value={SemesterType.CUSTOM} /></Picker></View></View>
+        <View style={styles.dates}><View style={styles.dateField}><SafeText variant="label" color={colors.text}>Start date</SafeText><Button label={format(startDate, 'MMM d, yyyy')} onPress={() => setShowStartDatePicker(true)} variant="secondary" /></View><View style={styles.dateField}><SafeText variant="label" color={colors.text}>End date</SafeText><Button label={format(endDate, 'MMM d, yyyy')} onPress={() => setShowEndDatePicker(true)} variant="secondary" /></View></View>
+        {showStartDatePicker && <DateTimePicker display={Platform.OS === 'ios' ? 'spinner' : 'default'} mode="date" onChange={(_, date) => { setShowStartDatePicker(false); if (date) setStartDate(date); }} value={startDate} />}
+        {showEndDatePicker && <DateTimePicker display={Platform.OS === 'ios' ? 'spinner' : 'default'} mode="date" onChange={(_, date) => { setShowEndDatePicker(false); if (date) setEndDate(date); }} value={endDate} />}
+        <SwitchRow description="Only one semester can be active at a time." label="Set as active semester" onValueChange={setIsActive} value={isActive} />
+      </FormSection>
+    </Dialog>
   );
 };
 
-// Exact same styles as your original modal
 const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  modalContainer: {
-    width: '90%',
-    maxWidth: 500,
-    maxHeight: '80%',
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  saveButton: {
-    color: '#FF7F50',
-    fontSize: 16,
-    fontWeight: '400',
-    fontFamily: 'SF-Regular',
-  },
-  modalContent: {
-    padding: 20,
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
   picker: {
-    height: 50,
-    width: '100%',
-  },
-  dateButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderCurve: 'continuous',
+    borderRadius: 14,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
+    minHeight: 56,
+    overflow: 'hidden',
   },
-  dateButtonText: {
-    fontSize: 16,
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  helperText: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  deleteButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginBottom: 10,
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: '500',
-    fontSize: 16,
-  },
-  errorText: {
-    color: 'red',
-    marginBottom: 16,
-  },
+  field: { gap: spacing.micro },
+  dates: { flexDirection: 'row', gap: spacing.micro },
+  dateField: { flex: 1, gap: spacing.micro },
+  actions: { flexDirection: 'row', gap: spacing.micro },
+  action: { flex: 1 },
 });
 
 export default UpdateSemesterModal;

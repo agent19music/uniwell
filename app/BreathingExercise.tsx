@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowUp, Pause, ArrowDown, Pulse, Play, XCircle, Microphone, MicrophoneSlash, Barbell } from 'phosphor-react-native';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -422,18 +422,13 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
     }
   };
 
-  const getPhaseIcon = () => {
+  const getPhaseIcon = (size: number, color: string) => {
     switch (currentPhase) {
-      case 'inhale':
-        return 'arrow-up-outline';
-      case 'hold':
-        return 'pause-outline';
-      case 'exhale':
-        return 'arrow-down-outline';
-      case 'holdEnd':
-        return 'pause-outline';
-      default:
-        return 'pulse-outline';
+      case 'inhale': return <ArrowUp size={size} color={color} weight="regular" />;
+      case 'hold': return <Pause size={size} color={color} weight="regular" />;
+      case 'exhale': return <ArrowDown size={size} color={color} weight="regular" />;
+      case 'holdEnd': return <Pause size={size} color={color} weight="regular" />;
+      default: return <Pulse size={size} color={color} weight="regular" />;
     }
   };
 
@@ -461,7 +456,7 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
           setShowControls(!showControls);
         }}
       >
-        <Ionicons name={getPhaseIcon()} size={18} color={selectedPattern.colors[0]} style={styles.phaseIcon} />
+        {getPhaseIcon(18, selectedPattern.colors[0])}
         <Text style={[styles.timerText, isDark && styles.darkText]}>
           {isActive ? getPhaseLabel() : 'Tap to Start'}
         </Text>
@@ -476,32 +471,26 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
             <View style={styles.controlRow}>
               {isPaused ? (
                 <TouchableOpacity onPress={resumeBreathing} style={styles.controlButton}>
-                  <Ionicons name="play" size={22} color={selectedPattern.colors[0]} />
+                  <Play size={22} color={selectedPattern.colors[0]} weight="fill" />
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity onPress={pauseBreathing} style={styles.controlButton}>
-                  <Ionicons name="pause" size={22} color={selectedPattern.colors[0]} />
+                  <Pause size={22} color={selectedPattern.colors[0]} weight="fill" />
                 </TouchableOpacity>
               )}
               
               <TouchableOpacity onPress={handleEndSession} style={styles.controlButton}>
-                <Ionicons name="close-circle-outline" size={22} color={selectedPattern.colors[0]} />
+                <XCircle size={22} color={selectedPattern.colors[0]} weight="regular" />
               </TouchableOpacity>
               
               <TouchableOpacity onPress={toggleMute} style={styles.controlButton}>
-                <Ionicons
-                  name={isMuted ? 'volume-mute' : 'volume-high'}
-                  size={22}
-                  color={selectedPattern.colors[0]}
-                />
+                {isMuted
+                  ? <MicrophoneSlash size={22} color={selectedPattern.colors[0]} weight="regular" />
+                  : <Microphone size={22} color={selectedPattern.colors[0]} weight="regular" />}
               </TouchableOpacity>
               
               <TouchableOpacity onPress={toggleHaptic} style={styles.controlButton}>
-                <Ionicons
-                  name={hapticEnabled ? 'fitness-outline' : 'fitness-sharp'}
-                  size={22}
-                  color={selectedPattern.colors[0]}
-                />
+                <Barbell size={22} color={selectedPattern.colors[0]} weight={hapticEnabled ? "regular" : "thin"} />
               </TouchableOpacity>
             </View>
           ) : (
@@ -550,12 +539,7 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
                   },
                 ]}
               >
-                <Ionicons 
-                  name={getPhaseIcon()} 
-                  size={36} 
-                  color={selectedPattern.colors[0]} 
-                  style={styles.breathIcon}
-                />
+                {getPhaseIcon(36, selectedPattern.colors[0])}
                 <Text style={[styles.breathingText, { color: selectedPattern.colors[0] }]}>
                   {getPhaseLabel()}
                 </Text>

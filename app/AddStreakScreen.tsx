@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useRoutine } from '@/contexts/RoutineContext';
-import { Ionicons, Octicons } from '@expo/vector-icons';
+import { X, Calendar, Rocket, Fire } from 'phosphor-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { TimePickerInteraction } from '@/components/TimePickerInteraction';
 
@@ -43,7 +43,7 @@ export default function AddStreakModal() {
     <View style={[styles.container, isDark && styles.darkContainer]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={24} color="#FF7F50" />
+          <X size={24} color="#FF7F50" weight="regular" />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isDark && styles.darkText]}>New Streak</Text>
         <TouchableOpacity onPress={handleSave}>
@@ -66,11 +66,7 @@ export default function AddStreakModal() {
             style={[styles.typeButton, type === 'build' && styles.selectedType]}
             onPress={() => setType('build')}
           >
-            <Octicons 
-              name="rocket" 
-              size={24} 
-              color={type === 'build' ? 'white' : '#8A8AFF'} 
-            />
+            <Rocket size={24} color={type === 'build' ? 'white' : '#8A8AFF'} weight="regular" />
             <Text style={[styles.typeText, type === 'build' && styles.selectedText]}>
               Build Habit
             </Text>
@@ -80,11 +76,7 @@ export default function AddStreakModal() {
             style={[styles.typeButton, type === 'break' && styles.selectedType]}
             onPress={() => setType('break')}
           >
-            <Octicons 
-              name="flame" 
-              size={24} 
-              color={type === 'break' ? 'white' : '#FF69B4'} 
-            />
+            <Fire size={24} color={type === 'break' ? 'white' : '#FF69B4'} weight="regular" />
             <Text style={[styles.typeText, type === 'break' && styles.selectedText]}>
               Break Habit
             </Text>
@@ -97,7 +89,7 @@ export default function AddStreakModal() {
             style={[styles.dateTimeButton, styles.dateButton]}
             onPress={() => setShowDatePicker(true)}
           >
-            <Ionicons name="calendar-outline" size={24} color="#666" />
+            <Calendar size={24} color="#666" weight="regular" />
             <Text style={styles.dateTimeText}>
               {startDate.toLocaleDateString()}
             </Text>

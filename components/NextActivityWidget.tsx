@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, useColorScheme, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Calendar, MapPin } from 'phosphor-react-native';
 import { format, isToday, differenceInMinutes } from 'date-fns';
 import { useSemester } from '@/contexts/SemesterContext';
 import { useRouter } from 'expo-router';
@@ -117,7 +117,7 @@ export default function NextActivityWidget() {
     >
       <View style={styles.header}>
         <View style={styles.titleContainer}>
-          <Ionicons name="calendar" size={18} color="#FF7F50" />
+          <Calendar size={18} color="#FF7F50" weight="fill" />
           <Text style={[styles.headerText, isDark && styles.darkText]}>Schedule</Text>
         </View>
         <TouchableOpacity onPress={handleOpenCalendar} style={styles.viewButton}>
@@ -142,7 +142,7 @@ export default function NextActivityWidget() {
           
           {nextActivity.location && (
             <View style={styles.locationContainer}>
-              <Ionicons name="location-outline" size={14} color={isDark ? "#8E8E93" : "#8E8E93"} />
+              <MapPin size={14} color={isDark ? "#8E8E93" : "#8E8E93"} weight="regular" />
               <Text style={[styles.locationText, isDark && styles.darkSubText]}>
                 {nextActivity.location}
               </Text>

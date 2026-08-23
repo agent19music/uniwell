@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -7,11 +7,9 @@ import {
   ScrollView,
   StyleSheet,
   useColorScheme,
-  Animated,
-  PanResponder
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { X, Plus, CaretRight } from 'phosphor-react-native';
 import { useSemester } from '@/contexts/SemesterContext';
 import { ClassSchedule } from '@/types/TimetableTypes';
 import AddClassModal from './AddClassModal';
@@ -61,7 +59,6 @@ export default function ScheduleEditorModal({
   const { classSchedules } = useSemester();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const [slideAnim] = useState(new Animated.Value(visible ? 1 : 0));
   console.log('classSchedule in schedule editor',classSchedules)
   
   // Modal states
@@ -75,36 +72,8 @@ export default function ScheduleEditorModal({
     schedule => schedule.semesterId === semesterId
   );
 
-  const [panResponder] = useState(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 10;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          slideAnim.setValue(1 - (gestureState.dy / 300));
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 100) {
-          handleClose();
-        } else {
-          Animated.timing(slideAnim, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  );
-
   const handleClose = () => {
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => onClose());
+    onClose();
   };
 
   const handleEditClass = (classData: any) => {
@@ -132,34 +101,25 @@ export default function ScheduleEditorModal({
       <Modal
         visible={visible}
         transparent
-        animationType="none"
+        animationType="slide"
         onRequestClose={handleClose}
       >
         <BlurView intensity={isDark ? 40 : 20} tint={isDark ? 'dark' : 'light'} style={styles.backdrop}>
-          <Animated.View
-            {...panResponder.panHandlers}
+          <View
             style={[
               styles.modalContainer,
               isDark && styles.darkModalContainer,
-              {
-                transform: [{
-                  translateY: slideAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [600, 0],
-                  }),
-                }],
-              },
             ]}
           >
             <View style={[styles.header, isDark && styles.darkHeader]}>
               <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#FF7F50" />
+                <X size={24} color="#FF7F50" weight="regular" />
               </TouchableOpacity>
               <Text style={[styles.title, isDark && styles.darkText]}>
                 Schedule Editor
               </Text>
               <TouchableOpacity style={styles.addButton} onPress={handleAddNew}>
-                <Ionicons name="add" size={24} color="#FF7F50" />
+                <Plus size={24} color="#FF7F50" weight="regular" />
               </TouchableOpacity>
             </View>
 
@@ -189,10 +149,10 @@ export default function ScheduleEditorModal({
                               {classData.daysOfWeek.join(', ')} • {formatTime(classData.startTime)}
                             </Text>
                           </View>
-                          <Ionicons 
-                            name="chevron-forward" 
-                            size={20} 
-                            color={isDark ? "#8E8E93" : "#C7C7CC"} 
+                          <CaretRight
+                            size={20}
+                            color={isDark ? "#8E8E93" : "#C7C7CC"}
+                            weight="regular"
                           />
                         </View>
                       </TouchableOpacity>
@@ -214,7 +174,7 @@ export default function ScheduleEditorModal({
                 )}
               </View>
             </ScrollView>
-          </Animated.View>
+          </View>
         </BlurView>
       </Modal>
 
@@ -378,8 +338,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E1E9EE',
     opacity: 0.7,
   },
-  // Shimmer animation should be implemented using Animated API
-  // Remove keyframes as they're not supported in React Native StyleSheet
 });
 
 

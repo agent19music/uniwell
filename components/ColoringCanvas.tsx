@@ -15,7 +15,7 @@ import {
 import { Svg, Path, G, Defs, Pattern, Circle, Rect } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { PlusCircle, Palette, Sparkle, GridFour, ArrowCounterClockwise, ArrowClockwise, ArrowsCounterClockwise, FloppyDisk } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -363,11 +363,7 @@ export default function ColoringCanvas({ onSave }: ColoringCanvasProps) {
             accessibilityLabel="Open color picker"
             accessibilityRole="button"
           >
-            <Ionicons 
-              name="add-circle-outline" 
-              size={24} 
-              color={isDark ? '#FFFFFF' : '#000000'} 
-            />
+            <PlusCircle size={24} color={isDark ? '#FFFFFF' : '#000000'} weight="regular" />
           </TouchableOpacity>
         </ScrollView>
 
@@ -409,11 +405,7 @@ export default function ColoringCanvas({ onSave }: ColoringCanvasProps) {
             accessibilityLabel="Toggle eyedropper tool"
             accessibilityRole="button"
           >
-            <Ionicons 
-              name="color-palette-outline" 
-              size={24} 
-              color={isDark ? '#FFFFFF' : '#000000'} 
-            />
+            <Palette size={24} color={isDark ? '#FFFFFF' : '#000000'} weight="regular" />
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -427,11 +419,7 @@ export default function ColoringCanvas({ onSave }: ColoringCanvasProps) {
             accessibilityLabel="Toggle magic wand tool"
             accessibilityRole="button"
           >
-            <Ionicons 
-              name="sparkles-outline" 
-              size={24} 
-              color={isDark ? '#FFFFFF' : '#000000'} 
-            />
+            <Sparkle size={24} color={isDark ? '#FFFFFF' : '#000000'} weight="regular" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -445,11 +433,7 @@ export default function ColoringCanvas({ onSave }: ColoringCanvasProps) {
             accessibilityLabel="Toggle pattern fill"
             accessibilityRole="button"
           >
-            <Ionicons 
-              name="grid-outline" 
-              size={24} 
-              color={isDark ? '#FFFFFF' : '#000000'} 
-            />
+            <GridFour size={24} color={isDark ? '#FFFFFF' : '#000000'} weight="regular" />
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -459,11 +443,7 @@ export default function ColoringCanvas({ onSave }: ColoringCanvasProps) {
             accessibilityLabel="Undo last action"
             accessibilityRole="button"
           >
-            <Ionicons 
-              name="arrow-undo-outline" 
-              size={24} 
-              color={isDark ? '#FFFFFF' : '#000000'} 
-            />
+            <ArrowCounterClockwise size={24} color={isDark ? '#FFFFFF' : '#000000'} weight="regular" />
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -473,11 +453,7 @@ export default function ColoringCanvas({ onSave }: ColoringCanvasProps) {
             accessibilityLabel="Redo last action"
             accessibilityRole="button"
           >
-            <Ionicons 
-              name="arrow-redo-outline" 
-              size={24} 
-              color={isDark ? '#FFFFFF' : '#000000'} 
-            />
+            <ArrowClockwise size={24} color={isDark ? '#FFFFFF' : '#000000'} weight="regular" />
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -486,11 +462,7 @@ export default function ColoringCanvas({ onSave }: ColoringCanvasProps) {
             accessibilityLabel="Reset illustration"
             accessibilityRole="button"
           >
-            <Ionicons 
-              name="refresh-outline" 
-              size={24} 
-              color={isDark ? '#FFFFFF' : '#000000'} 
-            />
+            <ArrowsCounterClockwise size={24} color={isDark ? '#FFFFFF' : '#000000'} weight="regular" />
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -499,11 +471,7 @@ export default function ColoringCanvas({ onSave }: ColoringCanvasProps) {
             accessibilityLabel="Save illustration"
             accessibilityRole="button"
           >
-            <Ionicons 
-              name="save-outline" 
-              size={24} 
-              color={isDark ? '#FFFFFF' : '#000000'} 
-            />
+            <FloppyDisk size={24} color={isDark ? '#FFFFFF' : '#000000'} weight="regular" />
           </TouchableOpacity>
         </View>
       </View>

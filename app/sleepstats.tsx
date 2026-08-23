@@ -1,7 +1,7 @@
-import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Dimensions, Modal, Share, Pressable } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, Share, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MoonStars, Star, Target, TrendUp, TrendDown, Minus, CalendarCheck, ClockCountdown, ShieldCheck, ThumbsUp, WarningCircle, Warning, ArrowsClockwise, Info, ChartBar, X, Lightbulb, Export, Calendar, ArrowLeft, Gear } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { format, subDays, addDays, parseISO } from 'date-fns';
 import { useFocusEffect } from '@react-navigation/native';
@@ -17,9 +17,12 @@ import {
   getSleepInsights,
   setSleepGoal
 } from '../lib/services/sleepService';
-import { LoadingIndicator } from '@rn-nui/loading-indicator';
-import { Colors } from '@/constants/Colors';
 import { GlowingSleepChart } from '@/components/charts';
+import { Button } from '@/components/ui/Button';
+import { ErrorState } from '@/components/ui/EmptyState';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { useTheme } from '@/hooks/useTheme';
 
 // Bento detail configurations
 interface BentoDetail {
@@ -144,9 +147,29 @@ const SLEEP_ADVICE_POOL = [
   }
 ];
 
+const getSleepIcon = (icon: string, size: number, color: string) => {
+  switch (icon) {
+    case 'sleep': return <MoonStars size={size} color={color} weight="regular" />;
+    case 'star': return <Star size={size} color={color} weight="regular" />;
+    case 'target': return <Target size={size} color={color} weight="regular" />;
+    case 'trending-up': return <TrendUp size={size} color={color} weight="regular" />;
+    case 'trending-down': return <TrendDown size={size} color={color} weight="regular" />;
+    case 'minus': return <Minus size={size} color={color} weight="regular" />;
+    case 'calendar-check': return <CalendarCheck size={size} color={color} weight="regular" />;
+    case 'clock-alert-outline': return <ClockCountdown size={size} color={color} weight="regular" />;
+    case 'shield-checkmark': return <ShieldCheck size={size} color={color} weight="regular" />;
+    case 'thumbs-up': return <ThumbsUp size={size} color={color} weight="regular" />;
+    case 'alert-circle': return <WarningCircle size={size} color={color} weight="regular" />;
+    case 'warning': return <Warning size={size} color={color} weight="regular" />;
+    case 'sync-problem': return <ArrowsClockwise size={size} color={color} weight="regular" />;
+    case 'information-circle': return <Info size={size} color={color} weight="regular" />;
+    case 'analytics': return <ChartBar size={size} color={color} weight="regular" />;
+    default: return <MoonStars size={size} color={color} weight="regular" />;
+  }
+};
+
 export default function SleepStatsScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
   const router = useRouter();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [timeRange, setTimeRange] = useState<'week' | 'month'>('week');
@@ -155,6 +178,7 @@ export default function SleepStatsScreen() {
   const [sleepStats, setSleepStats] = useState<SleepStats | null>(null);
   const [sleepGoal, setSleepGoalState] = useState<SleepGoal | null>(null);
   const [insights, setInsights] = useState<string[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedBento, setSelectedBento] = useState<BentoDetail | null>(null);
   const [bentoModalVisible, setBentoModalVisible] = useState(false);
   
@@ -164,6 +188,7 @@ export default function SleepStatsScreen() {
   
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       if (USE_DUMMY_DATA) {
         // Use dummy data for aesthetic testing
@@ -196,6 +221,7 @@ export default function SleepStatsScreen() {
       }
     } catch (error) {
       console.error('Error fetching sleep data:', error);
+      setLoadError('We could not refresh your sleep data. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -460,17 +486,13 @@ export default function SleepStatsScreen() {
               {/* Header */}
               <View style={styles.modalHeader}>
                 <View style={[styles.modalIconContainer, { backgroundColor: `${selectedBento.iconColor}20` }]}>
-                  <MaterialCommunityIcons 
-                    name={selectedBento.icon as any} 
-                    size={28} 
-                    color={selectedBento.iconColor} 
-                  />
+                  {getSleepIcon(selectedBento.icon, 28, selectedBento.iconColor)}
                 </View>
                 <TouchableOpacity 
                   onPress={() => setBentoModalVisible(false)}
                   style={styles.modalClose}
                 >
-                  <Ionicons name="close" size={24} color={isDark ? '#aaa' : '#666'} />
+                  <X size={24} color={isDark ? '#aaa' : '#666'} weight="regular" />
                 </TouchableOpacity>
               </View>
 
@@ -492,7 +514,7 @@ export default function SleepStatsScreen() {
 
               {/* Tip */}
               <View style={[styles.tipContainer, { backgroundColor: `${selectedBento.iconColor}15` }]}>
-                <Ionicons name="bulb-outline" size={18} color={selectedBento.iconColor} />
+                <Lightbulb size={18} color={selectedBento.iconColor} weight="regular" />
                 <Text style={[styles.tipText, { color: selectedBento.iconColor }]}>
                   {selectedBento.tip}
                 </Text>
@@ -504,14 +526,14 @@ export default function SleepStatsScreen() {
                   style={[styles.shareButton, { backgroundColor: selectedBento.iconColor }]}
                   onPress={handleShare}
                 >
-                  <Ionicons name="share-outline" size={18} color="#fff" />
+                  <Export size={18} color="#fff" weight="regular" />
                   <Text style={styles.shareButtonText}>Share Stat</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.shareWeeklyButton}
                   onPress={handleShareWeekly}
                 >
-                  <Ionicons name="calendar-outline" size={18} color={isDark ? '#fff' : '#333'} />
+                  <Calendar size={18} color={isDark ? '#fff' : '#333'} weight="regular" />
                   <Text style={[styles.shareWeeklyText, isDark && styles.darkText]}>Weekly Report</Text>
                 </TouchableOpacity>
               </View>
@@ -541,7 +563,7 @@ export default function SleepStatsScreen() {
           <View style={[styles.glowAccent, { backgroundColor: 'rgba(168, 184, 150, 0.06)' }]} />
           <View style={styles.bentoHeroContent}>
             <View style={styles.bentoHeroHeader}>
-              <MaterialCommunityIcons name="sleep" size={22} color="#A8B896" />
+              <MoonStars size={22} color="#A8B896" weight="regular" />
               <Text style={[styles.bentoHeroLabel, isDark && styles.darkSubText]}>AVG SLEEP</Text>
             </View>
             <Text style={[styles.bentoHeroValue, isDark && styles.darkText]}>
@@ -563,7 +585,7 @@ export default function SleepStatsScreen() {
         >
           {/* Static glow accent */}
           <View style={[styles.glowAccent, { backgroundColor: 'rgba(184, 163, 200, 0.06)' }]} />
-          <MaterialCommunityIcons name="star" size={20} color="#B8A3C8" />
+          <Star size={20} color="#B8A3C8" weight="regular" />
           <Text style={[styles.bentoMediumValue, isDark && styles.darkText]}>
             {sleepStats.averageQuality.toFixed(1)}
           </Text>
@@ -582,7 +604,7 @@ export default function SleepStatsScreen() {
         >
           {/* Static glow accent */}
           <View style={[styles.glowAccent, { backgroundColor: 'rgba(107, 142, 94, 0.06)' }]} />
-          <MaterialCommunityIcons name="target" size={20} color="#6b8e5e" />
+          <Target size={20} color="#6b8e5e" weight="regular" />
           <Text style={[styles.bentoMediumValue, isDark && styles.darkText]}>
             {sleepStats.goalAchievement.toFixed(0)}%
           </Text>
@@ -595,13 +617,11 @@ export default function SleepStatsScreen() {
           onPress={() => handleBentoPress('trend')}
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons 
-            name={sleepStats.trend === 'improving' ? "trending-up" : 
-                 sleepStats.trend === 'declining' ? "trending-down" : "minus"} 
-            size={20} 
-            color={sleepStats.trend === 'improving' ? "#6b8e5e" : 
-                  sleepStats.trend === 'declining' ? "#E89B8E" : "#9E9289"} 
-          />
+          {getSleepIcon(
+            sleepStats.trend === 'improving' ? 'trending-up' : sleepStats.trend === 'declining' ? 'trending-down' : 'minus',
+            20,
+            sleepStats.trend === 'improving' ? "#6b8e5e" : sleepStats.trend === 'declining' ? "#E89B8E" : "#9E9289"
+          )}
           <Text style={[styles.bentoSmallValue, isDark && styles.darkText, {
             color: sleepStats.trend === 'improving' ? "#6b8e5e" : 
                   sleepStats.trend === 'declining' ? "#E89B8E" : isDark ? '#fff' : '#333'
@@ -617,7 +637,7 @@ export default function SleepStatsScreen() {
           onPress={() => handleBentoPress('consistency')}
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons name="calendar-check" size={20} color="#A8B896" />
+          <CalendarCheck size={20} color="#A8B896" weight="regular" />
           <Text style={[styles.bentoSmallValue, isDark && styles.darkText]}>
             {sleepStats.consistencyScore.toFixed(0)}
           </Text>
@@ -630,11 +650,7 @@ export default function SleepStatsScreen() {
           onPress={() => handleBentoPress('debt')}
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons 
-            name="clock-alert-outline" 
-            size={20} 
-            color={sleepStats.sleepDebt > 5 ? "#E89B8E" : "#9E9289"} 
-          />
+          <ClockCountdown size={20} color={sleepStats.sleepDebt > 5 ? "#E89B8E" : "#9E9289"} weight="regular" />
           <Text style={[styles.bentoSmallValue, isDark && styles.darkText, sleepStats.sleepDebt > 5 && { color: "#E89B8E" }]}>
             {sleepStats.sleepDebt.toFixed(1)}h
           </Text>
@@ -650,7 +666,7 @@ export default function SleepStatsScreen() {
     return (
       <View style={[styles.insightsCard, isDark && styles.darkCard]}>
         <View style={styles.insightsHeader}>
-          <Ionicons name={sleepAdvice.icon as any} size={20} color={sleepAdvice.color} />
+          {getSleepIcon(sleepAdvice.icon, 20, sleepAdvice.color)}
           <Text style={[styles.insightsStatus, {color: sleepAdvice.color}]}>
             {sleepAdvice.status}
           </Text>
@@ -678,19 +694,23 @@ export default function SleepStatsScreen() {
       {renderBentoModal()}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#000000'} />
+          <ArrowLeft size={24} color={isDark ? '#ffffff' : '#000000'} weight="regular" />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isDark && styles.darkText]}>Sleep Health</Text>
         <TouchableOpacity onPress={handleSetSleepGoal} style={styles.actionButton}>
-          <Ionicons name="settings-outline" size={24} color={isDark ? '#ffffff' : '#000000'} />
+          <Gear size={24} color={isDark ? '#ffffff' : '#000000'} weight="regular" />
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <LoadingIndicator containerSize={50} containerColor={Colors.primary} animating={true} color={Colors.background} />
-          <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading sleep data...</Text>
-        </View>
+        <LoadingState label="Loading sleep data…" style={styles.loadingContainer} />
+      ) : loadError ? (
+        <ErrorState
+          title="Sleep data is unavailable"
+          description={loadError}
+          action={<Button label="Try again" onPress={fetchData} />}
+          style={styles.loadingContainer}
+        />
       ) : (
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {/* Quick Stats Bento Grid */}
@@ -702,46 +722,13 @@ export default function SleepStatsScreen() {
               <Text style={[styles.chartTitle, isDark && styles.darkText]}>
                 Sleep Duration
               </Text>
-              <View style={styles.periodSelector}>
-                <TouchableOpacity 
-                  style={[
-                    styles.periodButton,
-                    timeRange === 'week' && styles.activePeriodButton,
-                    isDark && timeRange === 'week' && styles.darkActivePeriodButton
-                  ]}
-                  onPress={() => setTimeRange('week')}
-                >
-                  <Text 
-                    style={[
-                      styles.periodButtonText,
-                      timeRange === 'week' && styles.activePeriodButtonText,
-                      isDark && styles.darkText,
-                      isDark && timeRange === 'week' && styles.darkActivePeriodButtonText
-                    ]}
-                  >
-                    Week
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[
-                    styles.periodButton,
-                    timeRange === 'month' && styles.activePeriodButton,
-                    isDark && timeRange === 'month' && styles.darkActivePeriodButton
-                  ]}
-                  onPress={() => setTimeRange('month')}
-                >
-                  <Text 
-                    style={[
-                      styles.periodButtonText,
-                      timeRange === 'month' && styles.activePeriodButtonText,
-                      isDark && styles.darkText,
-                      isDark && timeRange === 'month' && styles.darkActivePeriodButtonText
-                    ]}
-                  >
-                    Month
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <SegmentedControl
+                label="Sleep range"
+                value={timeRange}
+                onChange={setTimeRange}
+                options={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]}
+                style={styles.periodSelector}
+              />
             </View>
             
             {renderWeeklyChart()}
@@ -762,7 +749,7 @@ export default function SleepStatsScreen() {
 
       <FloatingActionButton
         onPress={() => setIsModalVisible(true)}
-        color="#3F70F4"
+        color={colors.accent as string}
         icon="plus"
       />
 

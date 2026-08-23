@@ -8,14 +8,14 @@ import {
   useColorScheme 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { DeviceMobile, Fire, GraduationCap, Heart, Calendar, Bell } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 
 // Notification Categories Configuration
 type NotificationCategoryKey = 'login' | 'streak' | 'class' | 'affirmations' | 'routine';
 
 const NOTIFICATION_CATEGORIES: Record<NotificationCategoryKey, {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   color: string;
   notifications: {
@@ -28,7 +28,7 @@ const NOTIFICATION_CATEGORIES: Record<NotificationCategoryKey, {
   }[];
 }> = {
   login: {
-    icon: 'device-mobile',
+    icon: <DeviceMobile size={30} color="#4A90E2" weight="regular" />,
     title: 'Device Logins',
     color: '#4A90E2',
     notifications: [
@@ -51,7 +51,7 @@ const NOTIFICATION_CATEGORIES: Record<NotificationCategoryKey, {
     ]
   },
   streak: {
-    icon: 'fire',
+    icon: <Fire size={30} color="#FF6B6B" weight="regular" />,
     title: 'Streak Encouragements',
     color: '#FF6B6B',
     notifications: [
@@ -66,7 +66,7 @@ const NOTIFICATION_CATEGORIES: Record<NotificationCategoryKey, {
     ]
   },
   class: {
-    icon: 'school',
+    icon: <GraduationCap size={30} color="#4CAF50" weight="regular" />,
     title: 'Class Reminders',
     color: '#4CAF50',
     notifications: [
@@ -81,7 +81,7 @@ const NOTIFICATION_CATEGORIES: Record<NotificationCategoryKey, {
     ]
   },
   affirmations: {
-    icon: 'heart',
+    icon: <Heart size={30} color="#9C27B0" weight="regular" />,
     title: 'Daily Affirmations',
     color: '#9C27B0',
     notifications: [
@@ -96,7 +96,7 @@ const NOTIFICATION_CATEGORIES: Record<NotificationCategoryKey, {
     ]
   },
   routine: {
-    icon: 'calendar',
+    icon: <Calendar size={30} color="#FF9800" weight="regular" />,
     title: 'Routine Reminders',
     color: '#FF9800',
     notifications: [
@@ -209,11 +209,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Ionicons 
-          name="notifications" 
-          size={24} 
-          color={isDarkMode ? '#FFFFFF' : '#000000'} 
-        />
+        <Bell size={24} color={isDarkMode ? '#FFFFFF' : '#000000'} weight="regular" />
         <Text style={styles.headerTitle}>Notifications</Text>
       </View>
       
@@ -227,11 +223,7 @@ export default function NotificationsScreen() {
               ]}
               onPress={() => handleNotificationPress(notification)}
             >
-              <Ionicons 
-                name={NOTIFICATION_CATEGORIES[notification.category].icon} 
-                size={30} 
-                color={NOTIFICATION_CATEGORIES[notification.category].color} 
-              />
+              {NOTIFICATION_CATEGORIES[notification.category].icon}
               <View style={styles.notificationContent}>
                 <Text style={styles.notificationTitle}>{notification.title}</Text>
                 <Text style={styles.notificationDescription}>

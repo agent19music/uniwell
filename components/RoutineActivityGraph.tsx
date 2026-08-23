@@ -1,352 +1,279 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
-import { useTheme } from '../hooks/useTheme';
-import { useRoutine } from '../contexts/RoutineContext';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, subMonths, startOfMonth, endOfMonth, isSameDay, parseISO } from 'date-fns';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { endOfMonth, endOfWeek, eachDayOfInterval, format, isSameDay, startOfMonth, startOfWeek, subMonths } from 'date-fns';
+import { useReducedMotion } from 'react-native-reanimated';
 
-const { width } = Dimensions.get('window');
-const CELL_SIZE = 10;
-const CELL_GAP = 3;
+import { SafeText } from '@/components/ThemedText';
+import { ChartPresentation } from '@/components/charts/ChartPresentation';
+import { IconButton } from '@/components/ui/IconButton';
+import { spacing } from '@/constants/theme';
+import { useRoutine } from '@/contexts/RoutineContext';
+import { useTheme } from '@/hooks/useTheme';
+
+const CELL_SIZE = 24;
+const CELL_GAP = 0;
+const CELL_INDICATOR_SIZE = 12;
 const MONTHS_TO_SHOW = 12;
-
-interface ActivityData {
-  date: string;
-  count: number;
-}
 
 interface RoutineActivityGraphProps {
   onDayPress?: (date: Date, count: number) => void;
 }
 
 export default function RoutineActivityGraph({ onDayPress }: RoutineActivityGraphProps) {
+  const { width } = useWindowDimensions();
   const { colors } = useTheme();
-  const { routineCompletions, getRoutineCompletions, getRoutineCompletionsForRange } = useRoutine();
+  const reducedMotion = useReducedMotion();
+  const { getRoutineCompletionsForRange } = useRoutine();
   const [activityData, setActivityData] = useState<Record<string, number>>({});
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedCount, setSelectedCount] = useState<number>(0);
+  const [selectedCount, setSelectedCount] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Generate dates for the last 12 months
   const dates = useMemo(() => {
     const end = new Date();
     const start = subMonths(end, MONTHS_TO_SHOW - 1);
-    const startOfFirstWeek = startOfWeek(startOfMonth(start));
-    const endOfLastWeek = endOfWeek(endOfMonth(end));
-    return eachDayOfInterval({ start: startOfFirstWeek, end: endOfLastWeek });
+    return eachDayOfInterval({
+      start: startOfWeek(startOfMonth(start)),
+      end: endOfWeek(endOfMonth(end)),
+    });
   }, []);
 
-  // Fetch completion data
   useEffect(() => {
     const fetchActivityData = async () => {
-      if (dates.length === 0) return;
-      
-      const startDate = dates[0];
-      const endDate = dates[dates.length - 1];
-      
+      if (!dates.length) return;
+      setStatus('loading');
+
       try {
-        const completions = await getRoutineCompletionsForRange(startDate, endDate);
-        
-        const data: Record<string, number> = {};
-        
-        // Initialize all dates with 0
-        dates.forEach(date => {
-          data[format(date, 'yyyy-MM-dd')] = 0;
+        const completions = await getRoutineCompletionsForRange(dates[0], dates[dates.length - 1]);
+        const data = Object.fromEntries(dates.map((date) => [format(date, 'yyyy-MM-dd'), 0]));
+        completions.forEach((completion) => {
+          if (data[completion.completionDate] !== undefined) data[completion.completionDate] += 1;
         });
-        
-        // Count completions per day
-        completions.forEach(completion => {
-          const dateKey = completion.completionDate;
-          if (data[dateKey] !== undefined) {
-            data[dateKey]++;
-          }
-        });
-        
         setActivityData(data);
+        setStatus('ready');
       } catch (error) {
         console.error('Error fetching activity data:', error);
+        setStatus('error');
       }
     };
 
     fetchActivityData();
   }, [dates, getRoutineCompletionsForRange]);
 
-  // Group dates by week
   const weeks = useMemo(() => {
     const grouped: Date[][] = [];
-    let currentWeek: Date[] = [];
-    
-    dates.forEach((date, index) => {
-      if (index % 7 === 0 && currentWeek.length > 0) {
-        grouped.push(currentWeek);
-        currentWeek = [];
-      }
-      currentWeek.push(date);
-    });
-    
-    if (currentWeek.length > 0) {
-      grouped.push(currentWeek);
-    }
-    
+    for (let index = 0; index < dates.length; index += 7) grouped.push(dates.slice(index, index + 7));
     return grouped;
   }, [dates]);
 
-  // Get month labels
   const monthLabels = useMemo(() => {
-    const labels: { month: string; index: number }[] = [];
-    let lastMonth = '';
-    
-    dates.forEach((date, index) => {
+    let previousMonth = '';
+    return dates.reduce<{ month: string; index: number }[]>((labels, date, index) => {
       const month = format(date, 'MMM');
-      if (month !== lastMonth && index % 7 === 0) {
-        labels.push({ month, index: Math.floor(index / 7) });
-        lastMonth = month;
-      }
-    });
-    
-    return labels;
+      if (month !== previousMonth && index % 7 === 0) labels.push({ month, index: Math.floor(index / 7) });
+      previousMonth = month;
+      return labels;
+    }, []);
   }, [dates]);
 
-  // Auto-scroll to current month on mount
   useEffect(() => {
-    if (scrollViewRef.current && weeks.length > 0) {
-      // Calculate the scroll position to show the last few months
-      // Scroll to show approximately the last 3-4 months
-      const totalWidth = weeks.length * (CELL_SIZE + CELL_GAP);
-      const scrollToX = Math.max(0, totalWidth - width + 100);
-      
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ x: scrollToX, animated: true });
-      }, 100);
-    }
-  }, [weeks.length]);
+    if (!scrollViewRef.current || !weeks.length) return;
+    const contentWidth = weeks.length * (CELL_SIZE + CELL_GAP);
+    scrollViewRef.current.scrollTo({
+      x: Math.max(0, contentWidth - width + spacing.field),
+      animated: !reducedMotion,
+    });
+  }, [reducedMotion, weeks.length, width]);
 
-  // Get intensity level based on count
-  const getIntensity = (count: number): number => {
-    if (count === 0) return 0;
-    if (count <= 2) return 1;
-    if (count <= 4) return 2;
-    if (count <= 6) return 3;
-    return 4;
-  };
+  const intensityFor = (count: number) => count === 0 ? 0 : count <= 2 ? 1 : count <= 4 ? 2 : count <= 6 ? 3 : 4;
+  const colorFor = (intensity: number) => intensity === 0
+    ? colors.surfacePressed
+    : `${colors.accent}${[0, '48', '80', 'B3', 'E6'][intensity]}`;
+  const completedDays = Object.values(activityData).filter((count) => count > 0).length;
+  const totalCompletions = Object.values(activityData).reduce((total, count) => total + count, 0);
+  const summary = status === 'loading'
+    ? 'Loading routine activity.'
+    : status === 'error'
+      ? 'Routine activity could not be loaded.'
+      : `${totalCompletions} routine completions across ${completedDays} active days in the last 12 months.`;
 
-  // Get color for intensity
-  const getColor = (intensity: number): string => {
-    const baseColor = '#FF7F50';
-    const opacity = intensity === 0 ? 0.1 : 0.2 + (intensity * 0.2);
-    return baseColor + Math.round(opacity * 255).toString(16).padStart(2, '0');
-  };
-
-  const handleDayPress = (date: Date) => {
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const count = activityData[dateKey] || 0;
-    setSelectedDate(date);
-    setSelectedCount(count);
-    onDayPress?.(date, count);
-  };
-
-  const renderDayCell = (date: Date, weekIndex: number, dayIndex: number) => {
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const count = activityData[dateKey] || 0;
-    const intensity = getIntensity(count);
-    const isToday = isSameDay(date, new Date());
-    const isSelected = selectedDate && isSameDay(date, selectedDate);
-    const isPast = date < new Date();
-    
+  if (status === 'error') {
     return (
-      <TouchableOpacity
-        key={`${weekIndex}-${dayIndex}`}
-        style={[
-          styles.dayCell,
-          {
-            backgroundColor: getColor(intensity),
-            borderColor: isSelected ? colors.primary : 'transparent',
-            borderWidth: isSelected ? 2 : 0,
-            opacity: isPast ? 1 : 0.5,
-          },
-          isToday && styles.todayCell,
-        ]}
-        onPress={() => handleDayPress(date)}
-        disabled={!isPast}
+      <ChartPresentation
+        accessibilityLabel="Routine activity chart unavailable"
+        emptyTitle="Activity unavailable"
+        emptyDescription="Your routine activity could not be loaded. Try again later."
+        summary={summary}
+        style={styles.presentation}
       />
     );
-  };
+  }
+
+  if (status === 'loading') {
+    return (
+      <ChartPresentation
+        accessibilityLabel="Loading routine activity chart"
+        emptyTitle="Loading activity"
+        emptyDescription="Preparing your routine history."
+        summary={summary}
+        style={styles.presentation}
+      />
+    );
+  }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
+    <ChartPresentation accessibilityLabel={`Routine activity heatmap. ${summary}`} summary={summary} style={styles.presentation}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Activity Overview</Text>
+        <View>
+          <SafeText variant="heading">Activity overview</SafeText>
+          <SafeText variant="caption" color={colors.textSecondary}>Each square is one day; color shows completed routines.</SafeText>
+        </View>
         {selectedDate && (
-          <View style={styles.selectedInfo}>
-            <Text style={[styles.selectedDateText, { color: colors.textSecondary }]}>
-              {format(selectedDate, 'MMM d, yyyy')}
-            </Text>
-            <Text style={[styles.selectedCountText, { color: colors.textPrimary }]}>
-              {selectedCount} {selectedCount === 1 ? 'routine' : 'routines'}
-            </Text>
+          <View accessibilityLiveRegion="polite" style={styles.selected}>
+            <SafeText variant="caption" color={colors.textSecondary}>{format(selectedDate, 'MMM d, yyyy')}</SafeText>
+            <SafeText variant="bodyStrong">{selectedCount} {selectedCount === 1 ? 'routine' : 'routines'}</SafeText>
           </View>
         )}
       </View>
-
-      <ScrollView 
+      <ScrollView
         ref={scrollViewRef}
-        horizontal 
-        showsHorizontalScrollIndicator={false}
+        horizontal
+        accessibilityLabel="Routine activity by day. Swipe horizontally to browse months."
         contentContainerStyle={styles.scrollContent}
+        showsHorizontalScrollIndicator
       >
-        <View style={styles.graphContainer}>
-          {/* Month labels */}
+        <View>
           <View style={styles.monthLabels}>
             {monthLabels.map(({ month, index }) => (
-              <View key={index} style={[styles.monthLabel, { left: index * (CELL_SIZE + CELL_GAP) }]}>
-                <Text style={[styles.monthLabelText, { color: colors.textSecondary }]}>{month}</Text>
-              </View>
+              <SafeText key={`${month}-${index}`} variant="caption" color={colors.textMuted} style={[styles.month, { left: index * (CELL_SIZE + CELL_GAP) }]}>
+                {month}
+              </SafeText>
             ))}
           </View>
-
-          {/* Activity grid */}
-          <View style={styles.gridWrapper}>
+          <View style={styles.gridRow}>
             <View style={styles.grid}>
-            {weeks.map((week, weekIndex) => (
-              <View key={weekIndex} style={styles.weekColumn}>
-                {week.map((date, dayIndex) => renderDayCell(date, weekIndex, dayIndex))}
-              </View>
-            ))}
+              {weeks.map((week, weekIndex) => (
+                <View key={weekIndex} style={styles.week}>
+                  {week.map((date, dayIndex) => {
+                    const count = activityData[format(date, 'yyyy-MM-dd')] ?? 0;
+                    const isPast = date <= new Date();
+                    const isSelected = selectedDate && isSameDay(date, selectedDate);
+                    return (
+                      <IconButton
+                        key={format(date, 'yyyy-MM-dd')}
+                        accessibilityLabel={`${format(date, 'MMMM d, yyyy')}: ${count} ${count === 1 ? 'routine completed' : 'routines completed'}`}
+                        accessibilityHint={isPast ? 'Shows this day’s routine completion count.' : 'Future date'}
+                        disabled={!isPast}
+                        onPress={() => {
+                          setSelectedDate(date);
+                          setSelectedCount(count);
+                          onDayPress?.(date, count);
+                        }}
+                        style={[
+                          styles.day,
+                          {
+                            backgroundColor: colors.transparent,
+                          },
+                        ]}
+                      >
+                        <View
+                          pointerEvents="none"
+                          style={[
+                            styles.dayIndicator,
+                            {
+                              backgroundColor: colorFor(intensityFor(count)),
+                              borderColor: isSelected ? colors.focusRing : isSameDay(date, new Date()) ? colors.borderStrong : colors.transparent,
+                            },
+                          ]}
+                        />
+                      </IconButton>
+                    );
+                  })}
+                </View>
+              ))}
             </View>
-
-            {/* Day of week labels - on the right */}
-            <View style={styles.dayLabels}>
-              <Text style={[styles.dayLabelText, { color: colors.textSecondary }]}>Mon</Text>
-              <Text style={[styles.dayLabelText, { color: colors.textSecondary }]}>Wed</Text>
-              <Text style={[styles.dayLabelText, { color: colors.textSecondary }]}>Fri</Text>
+            <View style={styles.days}>
+              <SafeText variant="caption" color={colors.textMuted}>Mon</SafeText>
+              <SafeText variant="caption" color={colors.textMuted}>Wed</SafeText>
+              <SafeText variant="caption" color={colors.textMuted}>Fri</SafeText>
             </View>
           </View>
         </View>
       </ScrollView>
-
-      {/* Legend */}
-      <View style={styles.legend}>
-        <Text style={[styles.legendText, { color: colors.textSecondary }]}>Less</Text>
-        <View style={styles.legendCells}>
-          {[0, 1, 2, 3, 4].map(intensity => (
-            <View
-              key={intensity}
-              style={[
-                styles.legendCell,
-                { backgroundColor: getColor(intensity) }
-              ]}
-            />
-          ))}
-        </View>
-        <Text style={[styles.legendText, { color: colors.textSecondary }]}>More</Text>
+      <View accessibilityLabel="Legend: less to more routine completions" style={styles.legend}>
+        <SafeText variant="caption" color={colors.textSecondary}>Less</SafeText>
+        {[0, 1, 2, 3, 4].map((intensity) => (
+          <View key={intensity} style={[styles.legendCell, { backgroundColor: colorFor(intensity) }]} />
+        ))}
+        <SafeText variant="caption" color={colors.textSecondary}>More</SafeText>
       </View>
-    </View>
+    </ChartPresentation>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 24,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  presentation: {
+    marginBottom: spacing.field,
+    marginHorizontal: spacing.control,
   },
   header: {
+    alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
-  },
-  selectedInfo: {
+  selected: {
     alignItems: 'flex-end',
   },
-  selectedDateText: {
-    fontSize: 12,
-    fontFamily: 'Vercetti-Regular',
-  },
-  selectedCountText: {
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
-  },
   scrollContent: {
-    paddingBottom: 8,
-  },
-  graphContainer: {
-    paddingLeft: 0,
-  },
-  gridWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingBottom: spacing.micro,
   },
   monthLabels: {
     height: 20,
+    marginBottom: spacing.optical,
     position: 'relative',
-    marginBottom: 4,
   },
-  monthLabel: {
+  month: {
     position: 'absolute',
   },
-  monthLabelText: {
-    fontSize: 11,
-    fontFamily: 'Vercetti-Regular',
-  },
-  dayLabels: {
-    width: 24,
-    justifyContent: 'space-between',
-    height: (CELL_SIZE + CELL_GAP) * 7 - CELL_GAP,
-    paddingTop: CELL_SIZE / 2,
-    marginLeft: 8,
-  },
-  dayLabelText: {
-    fontSize: 10,
-    fontFamily: 'Vercetti-Regular',
+  gridRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
   },
   grid: {
     flexDirection: 'row',
+    gap: CELL_GAP,
   },
-  weekColumn: {
-    marginRight: CELL_GAP,
+  week: {
+    gap: CELL_GAP,
   },
-  dayCell: {
-    width: CELL_SIZE,
+  day: {
     height: CELL_SIZE,
-    borderRadius: 2,
-    marginBottom: CELL_GAP,
+    minHeight: CELL_SIZE,
+    minWidth: CELL_SIZE,
+    padding: 0,
+    width: CELL_SIZE,
   },
-  todayCell: {
+  dayIndicator: {
+    borderRadius: 3,
     borderWidth: 1,
-    borderColor: '#FF7F50',
+    height: CELL_INDICATOR_SIZE,
+    width: CELL_INDICATOR_SIZE,
+  },
+  days: {
+    height: (CELL_SIZE + CELL_GAP) * 7 - CELL_GAP,
+    justifyContent: 'space-between',
+    marginLeft: spacing.micro,
   },
   legend: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-    gap: 8,
-  },
-  legendText: {
-    fontSize: 11,
-    fontFamily: 'Vercetti-Regular',
-  },
-  legendCells: {
     flexDirection: 'row',
-    gap: 3,
+    gap: spacing.micro,
+    justifyContent: 'center',
   },
   legendCell: {
-    width: CELL_SIZE,
+    borderRadius: 3,
     height: CELL_SIZE,
-    borderRadius: 2,
+    width: CELL_SIZE,
   },
 });
-
-
-

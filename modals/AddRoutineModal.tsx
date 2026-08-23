@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, ScrollView } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useRoutine } from '@/contexts/RoutineContext';
-import { Ionicons } from '@expo/vector-icons';
 import { DayOfTheWeek } from '@/types/TimetableTypes';
 import { useTheme } from '@/hooks/useTheme';
+import { Button } from '@/components/ui/Button';
+import { Dialog } from '@/components/ui/Dialog';
+import { Input } from '@/components/ui/Input';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { SafeText } from '@/components/ThemedText';
+import { radius, spacing } from '@/constants/theme';
 
 type Frequency = 'daily' | 'weekly' | 'custom';
 
@@ -18,7 +23,7 @@ export default function AddRoutineModal({ visible, onClose }: AddRoutineModalPro
   const [frequency, setFrequency] = useState<Frequency>('daily');
   const [selectedDays, setSelectedDays] = useState<DayOfTheWeek[]>([]);
   const [selectedWeekDay, setSelectedWeekDay] = useState<DayOfTheWeek | null>(null);
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   const handleSave = async () => {
     try {
@@ -41,29 +46,26 @@ export default function AddRoutineModal({ visible, onClose }: AddRoutineModalPro
     if (frequency === 'weekly') {
       return (
         <View style={styles.daysSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Day</Text>
+          <SafeText variant="label">Select day</SafeText>
           <View style={styles.daysGrid}>
             {days.map((day) => {
               const isSelected = selectedWeekDay === day;
               return (
-                <TouchableOpacity
+                <Pressable
                   key={day}
                   style={[
                     styles.dayButton,
                     {
-                      backgroundColor: isSelected ? '#FF7F50' : colors.surface,
+                      backgroundColor: isSelected ? colors.accent : colors.surface,
                       borderColor: colors.border,
                     }
                   ]}
                   onPress={() => setSelectedWeekDay(day as DayOfTheWeek)}
                 >
-                  <Text style={[
-                    styles.dayButtonText,
-                    { color: isSelected ? '#FFFFFF' : colors.textPrimary }
-                  ]}>
+                  <SafeText variant="bodyStrong" color={isSelected ? colors.textOnAccent : colors.text}>
                     {day.charAt(0).toUpperCase() + day.slice(1, 3)}
-                  </Text>
-                </TouchableOpacity>
+                  </SafeText>
+                </Pressable>
               );
             })}
           </View>
@@ -74,17 +76,17 @@ export default function AddRoutineModal({ visible, onClose }: AddRoutineModalPro
     if (frequency === 'custom') {
       return (
         <View style={styles.daysSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Days</Text>
+          <SafeText variant="label">Select days</SafeText>
           <View style={styles.daysGrid}>
             {days.map((day) => {
               const isSelected = selectedDays.includes(day as DayOfTheWeek);
               return (
-                <TouchableOpacity
+                <Pressable
                   key={day}
                   style={[
                     styles.dayButton,
                     {
-                      backgroundColor: isSelected ? '#FF7F50' : colors.surface,
+                      backgroundColor: isSelected ? colors.accent : colors.surface,
                       borderColor: colors.border,
                     }
                   ]}
@@ -96,13 +98,10 @@ export default function AddRoutineModal({ visible, onClose }: AddRoutineModalPro
                     }
                   }}
                 >
-                  <Text style={[
-                    styles.dayButtonText,
-                    { color: isSelected ? '#FFFFFF' : colors.textPrimary }
-                  ]}>
+                  <SafeText variant="bodyStrong" color={isSelected ? colors.textOnAccent : colors.text}>
                     {day.charAt(0).toUpperCase() + day.slice(1, 3)}
-                  </Text>
-                </TouchableOpacity>
+                  </SafeText>
+                </Pressable>
               );
             })}
           </View>
@@ -114,71 +113,37 @@ export default function AddRoutineModal({ visible, onClose }: AddRoutineModalPro
   };
 
   return (
-    <Modal
+    <Dialog
       visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
+      onClose={onClose}
+      dismissible
+      title="New routine"
+      description="Choose a schedule you can keep."
+      footer={<View style={styles.actions}>
+        <Button label="Cancel" variant="secondary" onPress={onClose} style={styles.action} />
+        <Button label="Save routine" disabled={!title.trim()} onPress={handleSave} style={styles.action} />
+      </View>}
     >
-      <ScrollView style={[styles.editFormScroll, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { borderBottomColor: colors.divider }]}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color="#FF7F50" />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>New Routine</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={styles.saveButton}>Save</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.form}>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
-            placeholder="Routine Title"
-            value={title}
-            onChangeText={setTitle}
-            placeholderTextColor={colors.textSecondary}
-          />
-
-          <View style={styles.frequencySection}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Frequency</Text>
-            <TouchableOpacity 
-              style={[
-                styles.frequencyButton,
-                { backgroundColor: frequency === 'daily' ? '#FF7F50' : colors.surface, borderColor: colors.border }
-              ]}
-              onPress={() => setFrequency('daily')}
-            >
-              <Text style={[styles.frequencyText, { color: frequency === 'daily' ? '#FFFFFF' : colors.textPrimary }]}>Daily</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[
-                styles.frequencyButton,
-                { backgroundColor: frequency === 'weekly' ? '#FF7F50' : colors.surface, borderColor: colors.border }
-              ]}
-              onPress={() => setFrequency('weekly')}
-            >
-              <Text style={[styles.frequencyText, { color: frequency === 'weekly' ? '#FFFFFF' : colors.textPrimary }]}>Weekly</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[
-                styles.frequencyButton,
-                { backgroundColor: frequency === 'custom' ? '#FF7F50' : colors.surface, borderColor: colors.border }
-              ]}
-              onPress={() => setFrequency('custom')}
-            >
-              <Text style={[styles.frequencyText, { color: frequency === 'custom' ? '#FFFFFF' : colors.textPrimary }]}>Custom</Text>
-            </TouchableOpacity>
-          </View>
-
-          {renderDaySelector()}
-        </View>
-      </ScrollView>
-    </Modal>
+      <Input label="Routine title" value={title} onChangeText={setTitle} placeholder="e.g. Morning walk" autoFocus />
+      <SegmentedControl
+        label="Frequency"
+        value={frequency}
+        onChange={setFrequency}
+        options={[{ value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }, { value: 'custom', label: 'Custom' }]}
+      />
+      {renderDaySelector()}
+    </Dialog>
   );
 }
 
 const styles = StyleSheet.create({
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.micro,
+  },
+  action: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     justifyContent: 'flex-start',
@@ -239,18 +204,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Vercetti-Regular',
   },
   daysSection: {
-    marginTop: 20,
+    gap: spacing.micro,
   },
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.micro,
   },
   dayButton: {
     width: '30%',
-    padding: 12,
-    borderRadius: 12,
+    minHeight: 48,
+    padding: spacing.micro,
+    borderRadius: radius.control,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,

@@ -1,6 +1,11 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import { Article, Headphones, VideoCamera, BookOpen, BookmarkSimple } from 'phosphor-react-native';
+import { SafeText } from '@/components/ThemedText';
+import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import { IconButton } from '@/components/ui/IconButton';
+import { spacing, typography } from '@/constants/theme';
 import { useTheme } from '../hooks/useTheme';
 
 interface ResourceCardProps {
@@ -30,7 +35,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
   onPress,
   onSave
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   
   const getTypeIcon = () => {
     switch (type) {
@@ -46,20 +51,14 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
   };
   
   return (
-    <TouchableOpacity 
-      style={[
-        styles.resourceCard,
-        { 
-          backgroundColor: colors.card,
-          shadowColor: colors.shadow.medium
-        }
-      ]} 
+    <Card
+      accessibilityLabel={`Open ${title}`}
       onPress={() => onPress(id)}
-      activeOpacity={0.8}
+      style={styles.resourceCard}
     >
       <Image 
         source={{ uri: imageUrl }} 
-        style={styles.resourceImage} 
+        style={[styles.resourceImage, { borderColor: colors.border }]}
         resizeMode="cover"
       />
       
@@ -67,123 +66,91 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
         <View style={styles.resourceHeader}>
           <View style={styles.resourceTypeContainer}>
             {getTypeIcon()}
-            <Text style={[styles.resourceType, { color: colors.textSecondary }]}>
+            <SafeText variant="caption" color={colors.textSecondary} style={styles.resourceType}>
               {type}
-            </Text>
+            </SafeText>
           </View>
           
           {isNew && (
-            <View style={[styles.newBadge, { backgroundColor: colors.success }]}>
-              <Text style={[styles.newBadgeText, { color: colors.background }]}>NEW</Text>
-            </View>
+            <Badge label="New" tone="success" />
           )}
         </View>
         
-        <Text 
-          style={[styles.resourceTitle, { color: colors.textPrimary }]} 
+        <SafeText
+          variant="bodyStrong"
+          style={styles.resourceTitle}
           numberOfLines={2}
         >
           {title}
-        </Text>
+        </SafeText>
         
-        <Text 
-          style={[styles.resourceDescription, { color: colors.textSecondary }]} 
+        <SafeText
+          variant="caption"
+          color={colors.textSecondary}
+          style={styles.resourceDescription}
           numberOfLines={2}
         >
           {description}
-        </Text>
+        </SafeText>
         
         <View style={styles.resourceFooter}>
-          <Text style={[styles.resourceDuration, { color: colors.textTertiary }]}>
+          <SafeText variant="caption" color={colors.textMuted}>
             {duration}
-          </Text>
+          </SafeText>
           
-          <TouchableOpacity 
-            style={styles.saveButton} 
+          <IconButton
+            accessibilityLabel={isSaved ? `Remove ${title} from saved resources` : `Save ${title}`}
             onPress={() => onSave(id)}
           >
             <BookmarkSimple 
               size={22} 
-              color={isSaved ? colors.primary : colors.textSecondary} 
+              color={isSaved ? colors.accent : colors.textSecondary}
               weight={isSaved ? "fill" : "regular"} 
             />
-          </TouchableOpacity>
+          </IconButton>
         </View>
       </View>
-    </TouchableOpacity>
+    </Card>
   );
 };
 
 const styles = StyleSheet.create({
   resourceCard: {
-    borderRadius: 16,
     marginBottom: 12,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    padding: 0,
   },
   resourceImage: {
+    borderBottomWidth: 1,
     width: '100%',
     height: 160,
   },
   resourceContent: {
-    padding: 14,
+    gap: spacing.micro,
+    padding: spacing.control,
   },
   resourceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: spacing.optical,
   },
   resourceTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.optical,
   },
-  resourceType: {
-    fontSize: 12,
-    fontFamily: 'Vercetti-Regular',
-    fontWeight: '500',
-    textTransform: 'capitalize',
-  },
-  newBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  newBadgeText: {
-    fontSize: 10,
-    fontFamily: 'Vercetti-Regular',
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
+  resourceType: { textTransform: 'capitalize' },
   resourceTitle: {
-    fontSize: 17,
-    fontFamily: 'Vercetti-Regular',
-    fontWeight: '600',
-    marginBottom: 6,
-    lineHeight: 22,
+    ...typography.bodyStrong,
   },
   resourceDescription: {
-    fontSize: 14,
-    fontFamily: 'Vercetti-Regular',
-    marginBottom: 12,
-    lineHeight: 20,
+    marginBottom: spacing.optical,
   },
   resourceFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
-  },
-  resourceDuration: {
-    fontSize: 13,
-    fontFamily: 'Vercetti-Regular',
-  },
-  saveButton: {
-    padding: 4,
+    marginTop: spacing.optical,
   },
 });
 

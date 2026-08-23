@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
-  useColorScheme,
-  ActivityIndicator,
-  RefreshControl
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { User, Repeat, Fire, Trophy, Bell, BellSlash } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { getUserNotifications, markNotificationAsRead } from '../lib/NotificationHandler';
+import { SafeText } from '@/components/ThemedText';
+import { Card } from '@/components/ui/Card';
+import { EmptyState, ErrorState } from '@/components/ui/EmptyState';
+import { BackAction } from '@/components/ui/Navigation';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { Button } from '@/components/ui/Button';
+import { spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 interface Notification {
   id: string;
@@ -27,20 +31,21 @@ interface Notification {
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useTheme();
   
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
   }, []);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      setError(false);
+      if (!isRefresh) setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
@@ -49,6 +54,7 @@ export default function NotificationsScreen() {
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      setError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -57,7 +63,7 @@ export default function NotificationsScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchNotifications();
+    fetchNotifications(true);
   };
 
   const handleNotificationPress = async (notification: Notification) => {
@@ -94,83 +100,64 @@ export default function NotificationsScreen() {
   const renderNotificationItem = ({ item }: { item: Notification }) => {
     const formattedDate = formatDistanceToNow(new Date(item.created_at), { addSuffix: true });
     
-    // Determine icon based on category
-    let icon = 'notifications-outline';
-    let iconColor = '#FF7F50';
-    
-    switch (item.category) {
-      case 'profile':
-        icon = 'person-outline';
-        break;
-      case 'habit':
-        icon = 'repeat-outline';
-        break;
-      case 'streak':
-        icon = 'flame-outline';
-        break;
-      case 'achievement':
-        icon = 'trophy-outline';
-        break;
-      default:
-        icon = 'notifications-outline';
-    }
+    const iconColor = colors.accent;
+    const getNotifIcon = () => {
+      switch (item.category) {
+        case 'profile': return <User size={24} color={iconColor} weight="regular" />;
+        case 'habit': return <Repeat size={24} color={iconColor} weight="regular" />;
+        case 'streak': return <Fire size={24} color={iconColor} weight="regular" />;
+        case 'achievement': return <Trophy size={24} color={iconColor} weight="regular" />;
+        default: return <Bell size={24} color={iconColor} weight="regular" />;
+      }
+    };
     
     return (
-      <TouchableOpacity
-        style={[
-          styles.notificationItem,
-          !item.is_read && styles.unreadNotification,
-          isDark && styles.darkCard
-        ]}
+      <Card
+        accessibilityLabel={`${item.is_read ? '' : 'Unread '}notification: ${item.title}`}
+        contentStyle={styles.notificationItem}
         onPress={() => handleNotificationPress(item)}
       >
-        <View style={[styles.iconContainer, { backgroundColor: item.is_read ? 'rgba(255, 127, 80, 0.1)' : 'rgba(255, 127, 80, 0.2)' }]}>
-          <Ionicons name={icon as any} size={24} color={iconColor} />
+        <View style={[styles.iconContainer, { backgroundColor: item.is_read ? colors.surfacePressed : colors.dangerSurface }]}>
+          {getNotifIcon()}
         </View>
         <View style={styles.notificationContent}>
-          <Text style={[
-            styles.notificationTitle,
-            !item.is_read && styles.unreadText,
-            isDark && styles.darkText
-          ]}>
+          <SafeText variant="bodyStrong" style={!item.is_read && styles.unreadText}>
             {item.title}
-          </Text>
-          <Text style={[
-            styles.notificationDescription,
-            isDark && styles.darkSubText
-          ]}>
+          </SafeText>
+          <SafeText variant="caption" color={colors.textSecondary}>
             {item.description}
-          </Text>
-          <Text style={styles.notificationTime}>{formattedDate}</Text>
+          </SafeText>
+          <SafeText variant="caption" color={colors.textMuted}>{formattedDate}</SafeText>
         </View>
-        {!item.is_read && <View style={styles.unreadDot} />}
-      </TouchableOpacity>
+        {!item.is_read && <View style={[styles.unreadDot, { backgroundColor: colors.accent }]} />}
+      </Card>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.canvas }]} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#000000'} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, isDark && styles.darkText]}>Notifications</Text>
+        <BackAction onPress={() => router.back()} />
+        <SafeText variant="heading">Notifications</SafeText>
         <View style={styles.placeholder} />
       </View>
 
       {loading && !refreshing ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF7F50" />
-          <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading notifications...</Text>
-        </View>
+        <LoadingState label="Loading notifications…" style={styles.state} />
+      ) : error ? (
+        <ErrorState
+          title="Couldn’t load notifications"
+          description="Check your connection and try again."
+          action={<Button label="Try again" onPress={() => fetchNotifications()} />}
+          style={styles.state}
+        />
       ) : notifications.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="notifications-off-outline" size={64} color={isDark ? '#555555' : '#cccccc'} />
-          <Text style={[styles.emptyText, isDark && styles.darkText]}>No notifications yet</Text>
-          <Text style={[styles.emptySubText, isDark && styles.darkSubText]}>
-            We'll notify you about important updates and achievements
-          </Text>
-        </View>
+        <EmptyState
+          title="You’re all caught up"
+          description="Important updates and achievements will appear here."
+          icon={<BellSlash size={48} color={colors.textMuted} weight="regular" />}
+          style={styles.state}
+        />
       ) : (
         <FlatList
           data={notifications}
@@ -181,8 +168,8 @@ export default function NotificationsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={['#FF7F50']}
-              tintColor={isDark ? '#ffffff' : '#FF7F50'}
+              colors={[colors.accent]}
+              tintColor={colors.accent}
             />
           }
         />
@@ -194,123 +181,49 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
-  },
-  darkContainer: {
-    backgroundColor: '#121212',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.field,
+    paddingVertical: spacing.micro,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333333',
+    borderBottomColor: 'transparent',
   },
   placeholder: {
-    width: 40,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#333333',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginTop: 16,
-  },
-  emptySubText: {
-    fontSize: 14,
-    color: '#666666',
-    textAlign: 'center',
-    marginTop: 8,
+    width: 48,
   },
   listContainer: {
-    padding: 16,
+    padding: spacing.field,
+    gap: spacing.micro,
   },
   notificationItem: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  unreadNotification: {
-    backgroundColor: 'rgba(255, 127, 80, 0.05)',
+    gap: spacing.macro,
   },
   iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 127, 80, 0.1)',
+    borderRadius: 9999,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
   },
   notificationContent: {
     flex: 1,
-  },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333333',
-    marginBottom: 4,
+    gap: spacing.optical,
   },
   unreadText: {
-    fontWeight: 'bold',
-  },
-  notificationDescription: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 8,
-  },
-  notificationTime: {
-    fontSize: 12,
-    color: '#999999',
+    fontWeight: '700',
   },
   unreadDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#FF7F50',
     alignSelf: 'flex-start',
-    marginTop: 8,
+    marginTop: spacing.optical,
   },
-  darkText: {
-    color: '#ffffff',
-  },
-  darkSubText: {
-    color: '#aaaaaa',
-  },
-  darkCard: {
-    backgroundColor: '#1e1e1e',
-    borderColor: '#333333',
+  state: {
+    flex: 1,
   },
 });

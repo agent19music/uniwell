@@ -4,19 +4,22 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Image,
-  Dimensions,
   Linking,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, BookmarkSimple, ArrowSquareOut, PlayCircle, WarningCircle } from 'phosphor-react-native';
+import { X, BookmarkSimple, ArrowSquareOut, PlayCircle } from 'phosphor-react-native';
 import { WebView } from 'react-native-webview';
+import { Image as ExpoImage } from 'expo-image';
 import { supabase } from '../lib/supabase';
 import * as  Burnt from 'burnt';
 import { useTheme } from '../hooks/useTheme';
-import { LoadingIndicator } from '@rn-nui/loading-indicator';
+import { Button } from '@/components/ui/Button';
+import { ErrorState } from '@/components/ui/EmptyState';
+import { IconButton } from '@/components/ui/IconButton';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { MediaFrame } from '@/components/ui/MediaFrame';
+import { SafeText } from '@/components/ThemedText';
+import { spacing } from '@/constants/theme';
 
 interface ResourceDetailProps {
   resourceId: string;
@@ -38,11 +41,13 @@ interface Resource {
 }
 
 export default function ResourceDetail({ resourceId, onClose }: ResourceDetailProps) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [resource, setResource] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
-  const [showFullContent, setShowFullContent] = useState(false);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchResourceDetails();
@@ -52,6 +57,7 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
   const fetchResourceDetails = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const { data, error } = await supabase
         .from('resources')
         .select(`
@@ -72,6 +78,7 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       }
     } catch (error) {
       console.error('Error fetching resource details:', error);
+      setLoadError('Check your connection and try again.');
 
       Burnt.toast({
         title: "Error",
@@ -192,43 +199,46 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       case 'video':
         return (
           <View style={styles.videoContainer}>
-            <WebView
-              source={{ uri: resource.media_url, html: '' }}
-              style={styles.videoPlayer}
-              allowsFullscreenVideo
-              javaScriptEnabled
-              domStorageEnabled
-              startInLoadingState
-              renderLoading={() => (
-                <View style={styles.loadingContainer}>
-                  <LoadingIndicator containerSize={40} containerColor={colors.primary} animating={true} color={colors.background} />
-                </View>
-              )}
-            />
-            <TouchableOpacity
-              style={[styles.browserButton, { backgroundColor: colors.primary }]}
-              onPress={handleOpenInBrowser}
+            <MediaFrame
+              accessibilityLabel={`${resource.title} video`}
+              error={mediaError}
+              loading={mediaLoading}
+              style={styles.videoFrame}
             >
-              <ArrowSquareOut size={20} color={colors.background} weight="regular" />
-              <Text style={[styles.browserButtonText, { color: colors.background }]}>Open in Browser</Text>
-            </TouchableOpacity>
+              <WebView
+                source={{ uri: resource.media_url, html: '' }}
+                style={styles.videoPlayer}
+                allowsFullscreenVideo
+                javaScriptEnabled
+                domStorageEnabled
+                onError={() => setMediaError('This video could not be loaded.')}
+                onLoadEnd={() => setMediaLoading(false)}
+                onLoadStart={() => {
+                  setMediaError(null);
+                  setMediaLoading(true);
+                }}
+              />
+            </MediaFrame>
+            <Button
+              label="Open in browser"
+              leading={<ArrowSquareOut size={20} color={colors.textOnAccent} weight="regular" />}
+              onPress={handleOpenInBrowser}
+            />
           </View>
         );
       
       case 'article':
         return (
           <ScrollView style={styles.articleContainer}>
-            <Text style={[styles.articleContent, { color: colors.textPrimary }]}>
+            <SafeText variant="body" style={styles.articleContent}>
               {resource.article_content}
-            </Text>
+            </SafeText>
             {resource.media_url && (
-              <TouchableOpacity
-                style={[styles.browserButton, { backgroundColor: colors.primary }]}
+              <Button
+                label="Read full article"
+                leading={<ArrowSquareOut size={20} color={colors.textOnAccent} weight="regular" />}
                 onPress={handleOpenInBrowser}
-              >
-                <ArrowSquareOut size={20} color={colors.background} weight="regular" />
-                <Text style={[styles.browserButtonText, { color: colors.background }]}>Read Full Article</Text>
-              </TouchableOpacity>
+              />
             )}
           </ScrollView>
         );
@@ -236,17 +246,30 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
       case 'podcast':
         return (
           <View style={styles.podcastContainer}>
-            <Image
+            <MediaFrame
+              accessibilityLabel={`${resource.title} podcast cover art`}
+              error={mediaError}
+              loading={mediaLoading}
+              style={styles.podcastFrame}
+            >
+            <ExpoImage
               source={{ uri: resource.thumbnail_url }}
+              accessibilityLabel={`${resource.title} podcast cover art`}
+              contentFit="cover"
+              onError={() => setMediaError('This podcast artwork could not be loaded.')}
+              onLoadEnd={() => setMediaLoading(false)}
+              onLoadStart={() => {
+                setMediaError(null);
+                setMediaLoading(true);
+              }}
               style={styles.podcastImage}
             />
-            <TouchableOpacity
-              style={[styles.browserButton, { backgroundColor: colors.primary }]}
+            </MediaFrame>
+            <Button
+              label="Listen on Spotify"
+              leading={<PlayCircle size={20} color={colors.textOnAccent} weight="regular" />}
               onPress={handleOpenInBrowser}
-            >
-              <PlayCircle size={20} color={colors.background} weight="regular" />
-              <Text style={[styles.browserButtonText, { color: colors.background }]}>Listen on Spotify</Text>
-            </TouchableOpacity>
+            />
           </View>
         );
       
@@ -258,12 +281,7 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.loadingContainer}>
-          <LoadingIndicator containerSize={50} containerColor={colors.primary} animating={true} color={colors.background} />
-          <Text style={[styles.loadingText, { color: colors.textPrimary, marginTop: 16 }]}>
-            Loading resource...
-          </Text>
-        </View>
+        <LoadingState label="Loading resource…" />
       </SafeAreaView>
     );
   }
@@ -271,53 +289,49 @@ export default function ResourceDetail({ resourceId, onClose }: ResourceDetailPr
   if (!resource) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.errorContainer}>
-          <WarningCircle size={64} color={colors.error} weight="regular" />
-          <Text style={[styles.errorText, { color: colors.textPrimary }]}>
-            Resource not found
-          </Text>
-          <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.primary }]} onPress={onClose}>
-            <Text style={[styles.closeButtonText, { color: colors.background }]}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState
+          action={<Button label={loadError ? 'Try again' : 'Go back'} onPress={loadError ? fetchResourceDetails : onClose} />}
+          description={loadError ?? 'The resource may have been removed or is no longer available.'}
+          title={loadError ? 'Unable to load resource' : 'Resource not found'}
+        />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} style={styles.backButton}>
+      <View style={[styles.header, { borderBottomColor: colors.divider }]}>
+        <IconButton accessibilityLabel="Close resource" onPress={onClose}>
           <X size={24} color={colors.textPrimary} weight="regular" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={toggleSaveResource} style={styles.saveButton}>
+        </IconButton>
+        <IconButton accessibilityLabel={isSaved ? 'Remove from saved resources' : 'Save resource'} onPress={toggleSaveResource}>
           <BookmarkSimple
             size={24}
             color={colors.textPrimary}
             weight={isSaved ? "fill" : "regular"}
           />
-        </TouchableOpacity>
+        </IconButton>
       </View>
 
-      <ScrollView style={styles.content}>
-        <Text style={[styles.title, isDark && styles.darkText]}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <SafeText variant="title" style={styles.title}>
           {resource.title}
-        </Text>
+        </SafeText>
         
         <View style={styles.metaContainer}>
-          <Text style={[styles.metaText, isDark && styles.darkSubText]}>
+          <SafeText variant="caption" color={colors.textSecondary}>
             {resource.source} • {resource.duration}
-          </Text>
+          </SafeText>
           {resource.author && (
-            <Text style={[styles.authorText, isDark && styles.darkSubText]}>
+            <SafeText variant="caption" color={colors.textSecondary}>
               By {resource.author}
-            </Text>
+            </SafeText>
           )}
         </View>
 
-        <Text style={[styles.description, isDark && styles.darkText]}>
+        <SafeText variant="body" style={styles.description}>
           {resource.description}
-        </Text>
+        </SafeText>
 
         {renderContent()}
       </ScrollView>
@@ -333,9 +347,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: spacing.control,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.08)',
   },
   backButton: {
     padding: 6,
@@ -344,59 +357,48 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   content: {
-    flex: 1,
-    padding: 16,
+    gap: spacing.control,
+    padding: spacing.control,
+    paddingBottom: spacing.page,
   },
   title: {
-    fontSize: 24,
-    fontFamily: 'Vercetti-Regular',
-    fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 0,
   },
   metaContainer: {
-    marginBottom: 16,
-  },
-  metaText: {
-    fontSize: 14,
-    fontFamily: 'Vercetti-Regular',
-    marginBottom: 4,
-  },
-  authorText: {
-    fontSize: 14,
-    fontFamily: 'Vercetti-Regular',
+    gap: spacing.optical,
   },
   description: {
-    fontSize: 16,
-    fontFamily: 'Vercetti-Regular',
-    lineHeight: 24,
-    marginBottom: 24,
+    marginBottom: 0,
   },
   videoContainer: {
     width: '100%',
-    aspectRatio: 16 / 9,
     marginBottom: 16,
+  },
+  videoFrame: {
+    aspectRatio: 16 / 9,
+    width: '100%',
   },
   videoPlayer: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   articleContainer: {
     marginBottom: 16,
   },
   articleContent: {
-    fontSize: 16,
-    fontFamily: 'Vercetti-Regular',
     lineHeight: 24,
   },
   podcastContainer: {
     alignItems: 'center',
     marginBottom: 16,
+    width: '100%',
+  },
+  podcastFrame: {
+    aspectRatio: 1,
+    marginBottom: 16,
+    width: '100%',
   },
   podcastImage: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 16,
-    marginBottom: 16,
+    flex: 1,
   },
   browserButton: {
     flexDirection: 'row',

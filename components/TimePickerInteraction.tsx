@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Clock } from 'phosphor-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
 
@@ -32,7 +32,7 @@ export const TimePickerInteraction: React.FC<TimePickerInteractionProps> = ({
         style={[styles.timeButton, isDark && styles.darkTimeButton]}
         onPress={() => setShowPicker(true)}
       >
-        <Ionicons name="time-outline" size={24} color={isDark ? '#fff' : '#666'} />
+        <Clock size={24} color={isDark ? '#fff' : '#666'} weight="regular" />
         <Text style={[styles.timeText, isDark && styles.darkTimeText]}>
           {value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>

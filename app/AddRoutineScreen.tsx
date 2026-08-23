@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useRoutine } from '@/contexts/RoutineContext';
-import { Ionicons } from '@expo/vector-icons';
+import { X } from 'phosphor-react-native';
 import { TimePickerInteraction } from '@/components/TimePickerInteraction';
 import { useTheme } from '../hooks/useTheme';
 
@@ -31,7 +31,7 @@ export default function AddRoutineModal() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderBottomColor: colors.divider }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={24} color="#FF7F50" />
+          <X size={24} color="#FF7F50" weight="regular" />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>New Routine</Text>
         <TouchableOpacity onPress={handleSave}>

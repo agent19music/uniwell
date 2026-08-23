@@ -1,10 +1,8 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../hooks/useTheme';
-import { Session } from '@supabase/supabase-js';
 
 /**
  * Index screen - handles initial routing based on auth state
@@ -16,38 +14,20 @@ import { Session } from '@supabase/supabase-js';
  */
 export default function Index() {
   const router = useRouter();
-  const { storedUsers } = useAuth();
+  const { session, storedUsers, loading } = useAuth();
   const { colors } = useTheme();
 
   useEffect(() => {
-    const checkAuthAndRedirect = async () => {
-      try {
-        // Check for active session
-        const { data: { session } } = await supabase.auth.getSession();
+    if (loading) return;
 
-        if (session) {
-          // User is authenticated, go to home
-          router.replace('/(tabs)/home');
-          return;
-        }
-
-        // Check for stored users (for quick switch)
-        if (storedUsers.length > 0) {
-          router.replace('/user-selection');
-          return;
-        }
-
-        // No session, no stored users - show start screen
-        router.replace('/StartScreen');
-      } catch (error) {
-        console.error('Auth check error:', error);
-        // On error, default to start screen
-        router.replace('/StartScreen');
-      }
-    };
-
-    checkAuthAndRedirect();
-  }, [storedUsers]);
+    if (session) {
+      router.replace('/(tabs)/home');
+    } else if (storedUsers.length > 0) {
+      router.replace('/user-selection');
+    } else {
+      router.replace('/StartScreen');
+    }
+  }, [loading, router, session, storedUsers.length]);
 
   // Show loading indicator while checking auth
   return (

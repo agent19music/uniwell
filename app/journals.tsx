@@ -1,17 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet,
-  TouchableOpacity, Modal, TextInput, Animated,
-  PanResponder, Alert, Dimensions, ActivityIndicator,
+  Modal, PanResponder, Alert,
   KeyboardAvoidingView, Platform, ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   ArrowLeft, 
   Microphone, 
-  ArrowCircleUp, 
-  CheckCircle, 
-  X, 
   CaretUp, 
   LockSimple,
   VideoCamera 
@@ -23,7 +19,6 @@ import * as Burnt from 'burnt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // @ts-ignore
 import * as FileSystem from 'expo-file-system/legacy';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Menu } from '../components/Menu';
 import { JournalCard } from '../components/JournalCard';
 import { CircularVideoRecorder } from '../components/CircularVideoRecorder';
@@ -36,16 +31,22 @@ import {
   RecordingPresets,
   setAudioModeAsync,
 } from 'expo-audio';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Dialog } from '@/components/ui/Dialog';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { IconButton } from '@/components/ui/IconButton';
+import { Input } from '@/components/ui/Input';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { spacing } from '@/constants/theme';
 
 const JOURNAL_KEY = '@journals';
 const AUDIO_DIRECTORY = `${FileSystem.documentDirectory}audio/`;
 const VIDEO_DIRECTORY = `${FileSystem.documentDirectory}video/`;
 
-const { width } = Dimensions.get('window');
-
 export default function JournalScreen() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   
   // State
   const [journals, setJournals] = useState<JournalEntry[]>([]);
@@ -58,10 +59,6 @@ export default function JournalScreen() {
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  // Animations
-  const lockAnimation = useRef(new Animated.Value(0)).current;
-  const micScaleAnimation = useRef(new Animated.Value(1)).current;
 
   // Audio
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -385,7 +382,6 @@ export default function JournalScreen() {
           await audioRecorder.prepareToRecordAsync();
           audioRecorder.record();
           setIsLocked(false);
-          Animated.spring(micScaleAnimation, { toValue: 1.2, useNativeDriver: true }).start();
         } catch (err) {
           console.error('Failed to start recording', err);
         }
@@ -394,16 +390,13 @@ export default function JournalScreen() {
         if (gs.dy < -100) {
           if (!isLocked) {
             setIsLocked(true);
-            Animated.spring(lockAnimation, { toValue: -50, useNativeDriver: true }).start();
           }
         }
       },
       onPanResponderRelease: async (_, gs) => {
-        Animated.spring(micScaleAnimation, { toValue: 1, useNativeDriver: true }).start();
         if (isLocked) return;
         await audioRecorder.stop();
         handleRecordingSave(audioRecorder.uri as string);
-        Animated.spring(lockAnimation, { toValue: 0, useNativeDriver: true }).start();
       },
     })
   ).current;
@@ -416,11 +409,11 @@ export default function JournalScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <IconButton accessibilityLabel="Go back" onPress={() => router.back()}>
             <ArrowLeft size={24} color={colors.textPrimary} weight="bold" />
-          </TouchableOpacity>
+          </IconButton>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>My Journal</Text>
-          <View style={{ width: 40 }} />
+          <View style={styles.headerSpacer} />
         </View>
 
         {/* Journal List */}
@@ -429,7 +422,7 @@ export default function JournalScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.grid}>
+          {loading ? <LoadingState label="Loading your journal…" style={styles.loadingState} /> : <View style={styles.grid}>
             {journals.map((item, index) => (
               <JournalCard 
                 key={item.id}
@@ -440,94 +433,74 @@ export default function JournalScreen() {
                 index={index}
               />
             ))}
-          </View>
+          </View>}
           {journals.length === 0 && !loading && (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                No journals yet. Start writing!
-              </Text>
-            </View>
+            <EmptyState
+              description="Capture a thought, voice note, or video reflection when you are ready."
+              icon={<Microphone size={48} color={colors.textMuted} weight="regular" />}
+              style={styles.emptyState}
+              title="Your journal is waiting"
+            />
           )}
         </ScrollView>
 
         {/* Input Area */}
         <View style={[styles.inputWrapper, { backgroundColor: colors.background }]}>
-          <View style={[styles.inputContainer, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
-            <TextInput
-              style={[styles.titleInput, { color: colors.textPrimary }]}
+          <Card style={styles.inputContainer}>
+            <Input
+              label="Title"
               placeholder="Title"
-              placeholderTextColor={colors.textSecondary}
               value={titleText}
               onChangeText={setTitleText}
             />
-            <View style={[styles.separator, { backgroundColor: colors.border }]} />
-            <TextInput
-              style={[styles.bodyInput, { color: colors.textPrimary }]}
+            <Input
+              label="Reflection"
+              containerStyle={styles.bodyField}
               placeholder="Write your thoughts..."
-              placeholderTextColor={colors.textSecondary}
               value={bodyText}
               onChangeText={setBodyText}
               multiline
             />
             <View style={styles.actionButtons}>
               <View style={styles.mediaButtons}>
-                <TouchableOpacity onPress={() => setIsRecordingModalVisible(true)} style={styles.iconButton}>
+                <IconButton accessibilityLabel="Record voice note" onPress={() => setIsRecordingModalVisible(true)}>
                   <Microphone size={24} color={colors.textPrimary} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setIsVideoModalVisible(true)} style={styles.iconButton}>
+                </IconButton>
+                <IconButton accessibilityLabel="Record video note" onPress={() => setIsVideoModalVisible(true)}>
                   <VideoCamera size={24} color={colors.textPrimary} />
-                </TouchableOpacity>
+                </IconButton>
               </View>
               
               {(bodyText.trim().length > 0 || titleText.trim().length > 0) && (
-                <TouchableOpacity 
+                <Button
+                  label={editingId ? 'Update' : 'Save'}
                   onPress={handleSave}
-                  disabled={isSaving}
-                  style={styles.iconButton}
-                >
-                  {isSaving ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : editingId ? (
-                    <CheckCircle size={28} color={colors.primary} weight="fill" />
-                  ) : (
-                    <ArrowCircleUp size={28} color={colors.primary} weight="fill" />
-                  )}
-                </TouchableOpacity>
+                  loading={isSaving}
+                  size="compact"
+                />
               )}
             </View>
-          </View>
+          </Card>
         </View>
       </KeyboardAvoidingView>
 
       {/* Voice Recording Modal */}
-      <Modal
+      <Dialog
         visible={isRecordingModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsRecordingModalVisible(false)}
+        onClose={() => setIsRecordingModalVisible(false)}
+        dismissible
+        title={isLocked ? 'Recording locked' : 'Hold to record'}
+        footer={<Button label="Close" onPress={() => setIsRecordingModalVisible(false)} variant="secondary" />}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDark ? '#1A1A1A' : '#fff' }]}>
-            <TouchableOpacity 
-              style={styles.closeModal}
-              onPress={() => setIsRecordingModalVisible(false)}
-            >
-              <X size={24} color={colors.textPrimary} weight="bold" />
-            </TouchableOpacity>
-            
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
               {isLocked ? 'Recording Locked' : 'Hold to Record'}
             </Text>
             
             <View style={styles.micContainer}>
-              <Animated.View 
+              <View
                 style={[
                   styles.micButton, 
                   { 
-                    transform: [
-                      { scale: micScaleAnimation },
-                      { translateY: lockAnimation }
-                    ],
                     backgroundColor: isLocked ? colors.primary : colors.card
                   }
                 ]}
@@ -538,7 +511,7 @@ export default function JournalScreen() {
                 ) : (
                   <Microphone size={40} color={colors.primary} weight="fill" />
                 )}
-              </Animated.View>
+              </View>
               
               {!isLocked && (
                 <View style={styles.lockHint}>
@@ -547,9 +520,7 @@ export default function JournalScreen() {
                 </View>
               )}
             </View>
-          </View>
-        </View>
-      </Modal>
+      </Dialog>
 
       {/* Video Recording Modal */}
       <Modal
@@ -574,12 +545,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: spacing.control,
+    paddingVertical: spacing.micro,
   },
-  backButton: {
-    padding: 8,
-    marginLeft: -8,
+  headerSpacer: {
+    width: 48,
   },
   headerTitle: {
     fontSize: 20,
@@ -590,9 +560,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 160, // Space for input
+    paddingHorizontal: spacing.control,
+    paddingTop: spacing.micro,
+    paddingBottom: 240,
   },
   grid: {
     flexDirection: 'row',
@@ -600,80 +570,35 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 100,
-    width: '100%',
+    paddingVertical: spacing.page,
   },
-  emptyText: {
-    fontSize: 16,
-    fontFamily: 'Vercetti-Regular',
+  loadingState: {
+    paddingVertical: spacing.page,
   },
   inputWrapper: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 16,
+    padding: spacing.control,
+    paddingBottom: Platform.OS === 'ios' ? spacing.section : spacing.control,
   },
   inputContainer: {
-    borderRadius: 20,
-    padding: 12,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    gap: spacing.micro,
+    padding: spacing.control,
   },
-  titleInput: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Vercetti-Regular',
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-  },
-  separator: {
-    height: 1,
-    marginVertical: 8,
-    opacity: 0.2,
-  },
-  bodyInput: {
-    fontSize: 15,
-    fontFamily: 'Vercetti-Regular',
-    maxHeight: 100,
-    paddingHorizontal: 4,
-    minHeight: 40,
+  bodyField: {
+    maxHeight: 156,
   },
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.micro,
   },
   mediaButtons: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  iconButton: {
-    padding: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-    minHeight: 300,
-  },
-  closeModal: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    padding: 8,
+    gap: spacing.micro,
   },
   modalTitle: {
     fontSize: 18,

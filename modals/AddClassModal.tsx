@@ -11,7 +11,7 @@ import {
   Platform,
   useColorScheme,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { X } from 'phosphor-react-native';
 import { BlurView } from 'expo-blur';
 import { 
   ClassSchedule, 
@@ -334,7 +334,7 @@ export default function AddClassModal({
         >
           <View style={[styles.header, isDark && styles.darkHeader]}>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#FF7F50" />
+              <X size={24} color="#FF7F50" weight="regular" />
             </TouchableOpacity>
             <Text style={[styles.title, isDark && styles.darkText]}>Add Class</Text>
             <TouchableOpacity 

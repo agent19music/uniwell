@@ -6,7 +6,6 @@ import {
   TouchableOpacity, 
   Image, 
   TextInput, 
-  ImageBackground, 
   Alert,
   ScrollView
 } from 'react-native';
@@ -104,17 +103,7 @@ export default function UserSelectionScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-      <ImageBackground
-        source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-99.png')}
-        style={StyleSheet.absoluteFillObject}
-        resizeMode="cover"
-      >
-        <View style={[styles.overlay, { 
-          backgroundColor: isDark ? 'rgba(28, 24, 21, 0.85)' : 'rgba(254, 253, 251, 0.85)' 
-        }]} />
-      </ImageBackground>
-
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.canvas }]} edges={['top', 'bottom']}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -271,9 +260,6 @@ export default function UserSelectionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
   },
   scrollView: {
     flex: 1,

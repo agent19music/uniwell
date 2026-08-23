@@ -6,7 +6,7 @@ import {
   KeyboardAvoidingView, Platform, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Microphone, Play, Pencil, ArrowLeft, MicrophoneSlash, ArrowCircleUp, X, Stop } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../hooks/useTheme';
@@ -57,12 +57,12 @@ const VoiceStickyNote = ({ item, rotation, backgroundColor, colors }: any) => {
         <Text style={styles.stickyDate}>
           {new Date(item.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
         </Text>
-        <Ionicons name="mic" size={16} color="rgba(0,0,0,0.5)" />
+        <Microphone size={16} color="rgba(0,0,0,0.5)" weight="regular" />
       </View>
       
       <View style={styles.voiceContent}>
         <View style={styles.playButton}>
-          <Ionicons name="play" size={24} color="#333" />
+          <Play size={24} color="#333" weight="fill" />
         </View>
         <Text style={styles.voiceText}>Voice Note</Text>
       </View>
@@ -93,7 +93,7 @@ const StickyNote = ({ item, index, colors }: { item: any, index: number, colors:
         <Text style={styles.stickyDate}>
           {new Date(item.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
         </Text>
-        <Ionicons name="pencil" size={16} color="rgba(0,0,0,0.5)" />
+        <Pencil size={16} color="rgba(0,0,0,0.5)" weight="fill" />
       </View>
       <Text style={styles.stickyText} numberOfLines={6}>
         {item.content}
@@ -380,7 +380,7 @@ export default function JournalScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+            <ArrowLeft size={24} color={colors.textPrimary} weight="regular" />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>My Journal</Text>
           <View style={{ width: 40 }} />
@@ -417,7 +417,7 @@ export default function JournalScreen() {
             />
             <View style={styles.actionButtons}>
               <TouchableOpacity onPress={() => setIsRecordingModalVisible(true)} style={styles.iconButton}>
-                <Ionicons name="mic-outline" size={24} color={colors.textPrimary} />
+                <Microphone size={24} color={colors.textPrimary} weight="regular" />
               </TouchableOpacity>
               
               {inputText.trim().length > 0 && (
@@ -429,7 +429,7 @@ export default function JournalScreen() {
                   {isSaving ? (
                     <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
-                    <Ionicons name="arrow-up-circle" size={28} color={colors.primary} />
+                    <ArrowCircleUp size={28} color={colors.primary} weight="regular" />
                   )}
                 </TouchableOpacity>
               )}
@@ -451,7 +451,7 @@ export default function JournalScreen() {
               style={styles.closeButton} 
               onPress={cancelRecording}
             >
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
+              <X size={24} color={colors.textPrimary} weight="regular" />
             </TouchableOpacity>
             
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
@@ -464,7 +464,7 @@ export default function JournalScreen() {
             <View style={styles.micContainer}>
               {isLocked ? (
                 <TouchableOpacity onPress={stopRecording} style={styles.stopButton}>
-                  <Ionicons name="stop" size={32} color="#fff" />
+                  <Stop size={32} color="#fff" weight="fill" />
                 </TouchableOpacity>
               ) : (
                 <Animated.View
@@ -474,7 +474,7 @@ export default function JournalScreen() {
                   ]}
                   {...panResponder.panHandlers}
                 >
-                  <Ionicons name="mic" size={40} color="#fff" />
+                  <Microphone size={40} color="#fff" weight="fill" />
                 </Animated.View>
               )}
             </View>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Modal, 
   View, 
@@ -8,13 +8,12 @@ import {
   TextInput, 
   Platform, 
   useColorScheme,
-  Animated,
   KeyboardAvoidingView,
   ScrollView,
   Alert
 } from 'react-native';
 import { useRoutine } from '@/contexts/RoutineContext';
-import { Ionicons, Octicons } from '@expo/vector-icons';
+import { X, Calendar, Clock, Trash, Rocket, Fire } from 'phosphor-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { BlurView } from 'expo-blur';
 
@@ -36,10 +35,6 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
   const [title, setTitle] = useState('');
   const [targetCount, setTargetCount] = useState('30');
   
-  // Animation values
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
     if (visible && streakId) {
       const fetchStreak = async () => {
@@ -55,36 +50,6 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
       fetchStreak();
     }
   }, [visible, streakId]);
-
-  React.useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible]);
 
   const handleSave = async () => {
     if (!title.trim()) return;
@@ -159,34 +124,17 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalContainer}
       >
-        <Animated.View 
-          style={[
-            styles.overlay,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
-        >
+        <View style={styles.overlay}>
           <TouchableOpacity 
             style={styles.overlayTouchable}
             onPress={onClose}
           />
-        </Animated.View>
+        </View>
 
-        <Animated.View
+        <View
           style={[
             styles.modalContent,
             isDark && styles.darkModalContent,
-            {
-              transform: [
-                {
-                  translateY: slideAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [600, 0],
-                  }),
-                },
-              ],
-            },
           ]}
         >
           <BlurView
@@ -196,7 +144,7 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
           >
             <View style={styles.header}>
               <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={24} color={isDark ? '#fff' : '#000'} />
+                <X size={24} color={isDark ? '#fff' : '#000'} weight="regular" />
               </TouchableOpacity>
               <Text style={[styles.headerTitle, isDark && styles.darkText]}>Edit Streak</Text>
               <TouchableOpacity 
@@ -249,10 +197,10 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
                   ]}
                   onPress={() => setType('build')}
                 >
-                  <Octicons 
-                    name="rocket" 
-                    size={24} 
-                    color={type === 'build' ? 'white' : isDark ? '#fff' : '#333'} 
+                  <Rocket
+                    size={24}
+                    color={type === 'build' ? 'white' : isDark ? '#fff' : '#333'}
+                    weight="regular"
                   />
                   <Text style={[
                     styles.typeText,
@@ -271,10 +219,10 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
                   ]}
                   onPress={() => setType('break')}
                 >
-                  <Octicons 
-                    name="flame" 
-                    size={24} 
-                    color={type === 'break' ? 'white' : isDark ? '#fff' : '#333'} 
+                  <Fire
+                    size={24}
+                    color={type === 'break' ? 'white' : isDark ? '#fff' : '#333'}
+                    weight="regular"
                   />
                   <Text style={[
                     styles.typeText,
@@ -292,7 +240,7 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
                   style={[styles.dateTimeButton, isDark && styles.darkDateTimeButton]}
                   onPress={() => setShowDatePicker(true)}
                 >
-                  <Ionicons name="calendar-outline" size={24} color={isDark ? '#fff' : '#666'} />
+                  <Calendar size={24} color={isDark ? '#fff' : '#666'} weight="regular" />
                   <Text style={[styles.dateTimeText, isDark && styles.darkText]}>
                     {startDate.toLocaleDateString()}
                   </Text>
@@ -302,7 +250,7 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
                   style={[styles.dateTimeButton, isDark && styles.darkDateTimeButton]}
                   onPress={() => setShowTimePicker(true)}
                 >
-                  <Ionicons name="time-outline" size={24} color={isDark ? '#fff' : '#666'} />
+                  <Clock size={24} color={isDark ? '#fff' : '#666'} weight="regular" />
                   <Text style={[styles.dateTimeText, isDark && styles.darkText]}>
                     {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
@@ -333,12 +281,12 @@ export default function EditStreakModal({ visible, onClose, streakId }: EditStre
                 style={[styles.deleteButton, isDark && styles.darkDeleteButton]}
                 onPress={handleDelete}
               >
-                <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                <Trash size={20} color="#FF3B30" weight="regular" />
                 <Text style={styles.deleteButtonText}>Delete Streak</Text>
               </TouchableOpacity>
             </ScrollView>
           </BlurView>
-        </Animated.View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
