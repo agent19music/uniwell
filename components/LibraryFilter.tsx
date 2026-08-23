@@ -58,18 +58,18 @@ const LibraryFilter = ({ selectedCategory, onSelectCategory }: LibraryFilterProp
 const styles = StyleSheet.create({
   categoryTabsContainer: {
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingTop: 10,
+    paddingBottom: 14,
+    gap: 8,
   },
   categoryTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    marginRight: 8,
-    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 20,
   },
   categoryTabText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });
 
