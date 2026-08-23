@@ -13,6 +13,8 @@ import {
   VideoCamera 
 } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
+import { fetchJournals, createJournal } from '@/features/journals/api';
+import { parseJsonOrNull } from '@/lib/contracts';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../hooks/useTheme';
 import * as Burnt from 'burnt';
@@ -107,41 +109,30 @@ export default function JournalScreen() {
     try {
       setLoading(true);
       // Load from cache first
-      const saved = await AsyncStorage.getItem(JOURNAL_KEY);
-      if (saved) setJournals(JSON.parse(saved));
+      const saved = parseJsonOrNull(await AsyncStorage.getItem(JOURNAL_KEY), (value) => value as JournalEntry[], 'journals');
+      if (saved) setJournals(saved);
 
-      // Fetch from Supabase
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data, error } = await supabase
-          .from('journal_entries')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('is_pinned', { ascending: false })
-          .order('created_at', { ascending: false });
-
-        if (!error && data) {
-          const formattedJournals = data.map((entry: any) => {
-            let type: 'text' | 'voice' | 'video' = 'text';
-            if (entry.content.includes('/audio/')) {
-              type = 'voice';
-            } else if (entry.content.includes('/video/')) {
-              type = 'video';
-            }
-            return {
-              id: entry.id,
-              user_id: entry.user_id,
-              title: entry.title,
-              is_pinned: entry.is_pinned || false,
-              type,
-              content: entry.content,
-              created_at: entry.created_at,
-              timestamp: entry.created_at,
-            };
-          });
-          setJournals(formattedJournals);
-          await AsyncStorage.setItem(JOURNAL_KEY, JSON.stringify(formattedJournals));
-        }
+        const data = await fetchJournals(user.id);
+        const formattedJournals = data.map((entry: any) => {
+          const content = entry.text_content ?? entry.content ?? '';
+          let type: 'text' | 'voice' | 'video' = 'text';
+          if (String(content).includes('/audio/')) type = 'voice';
+          else if (String(content).includes('/video/')) type = 'video';
+          return {
+            id: entry.id,
+            user_id: entry.user_id,
+            title: entry.title,
+            is_pinned: entry.is_pinned || false,
+            type,
+            content,
+            created_at: entry.created_at,
+            timestamp: entry.created_at,
+          };
+        });
+        setJournals(formattedJournals);
+        await AsyncStorage.setItem(JOURNAL_KEY, JSON.stringify(formattedJournals));
       }
     } catch (err) {
       console.error('Error loading journals:', err);
@@ -180,28 +171,18 @@ export default function JournalScreen() {
         setEditingId(null);
         Burnt.toast({ title: 'Journal Updated', preset: 'done' });
       } else {
-        // Create new
-        const { data, error } = await supabase
-          .from('journal_entries')
-          .insert(entryData)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        if (data) {
-          const newEntry: JournalEntry = {
-            id: data.id,
-            user_id: user.id,
-            title: data.title,
-            content: data.content,
-            type: 'text',
-            is_pinned: false,
-            created_at: data.created_at,
-            timestamp: data.created_at,
-          };
-          setJournals(prev => [newEntry, ...prev]);
-        }
+        const data = await createJournal(user.id, { title: titleText, content: bodyText });
+        const newEntry: JournalEntry = {
+          id: data.id,
+          user_id: user.id,
+          title: data.title ?? undefined,
+          content: data.text_content ?? bodyText,
+          type: 'text',
+          is_pinned: false,
+          created_at: data.created_at,
+          timestamp: data.created_at,
+        };
+        setJournals(prev => [newEntry, ...prev]);
         Burnt.toast({ title: 'Journal Saved', preset: 'done' });
       }
 

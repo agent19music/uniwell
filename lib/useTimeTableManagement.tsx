@@ -1,3 +1,4 @@
+/** @deprecated SemesterContext is the only timetable owner. Do not add new consumers. */
 import { useEffect, useState } from 'react';
 import { 
   ClassFrequency, 
