@@ -90,7 +90,15 @@ export default function EditRoutineModal({ visible, onClose, routineId }: EditRo
 
   const renderDaySelector = () => {
     if (frequency === 'daily') return null;
-    const days: DayOfTheWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const days: DayOfTheWeek[] = [
+      DayOfTheWeek.MONDAY,
+      DayOfTheWeek.TUESDAY,
+      DayOfTheWeek.WEDNESDAY,
+      DayOfTheWeek.THURSDAY,
+      DayOfTheWeek.FRIDAY,
+      DayOfTheWeek.SATURDAY,
+      DayOfTheWeek.SUNDAY,
+    ];
     const selected = frequency === 'weekly' ? selectedWeekDay : null;
 
     return (

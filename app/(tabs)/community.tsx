@@ -27,7 +27,7 @@ export default function CommunityScreen() {
 
   useEffect(() => {
     fetchPosts();
-    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
+    supabase.auth.getUser().then(({ data: { user } }: { data: { user: { id: string } | null } }) => setUserId(user?.id ?? null));
   }, []);
 
   const fetchPosts = async (isRefresh = false) => {

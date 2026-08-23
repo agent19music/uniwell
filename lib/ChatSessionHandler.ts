@@ -73,7 +73,7 @@ export class ChatSessionManager {
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
-      return messages?.map(msg => ({
+      return messages?.map((msg: any) => ({
         id: msg.id,
         content: msg.content,
         isAI: msg.is_ai,
@@ -118,7 +118,7 @@ export class ChatSessionManager {
       if (sessions && sessions.length > this.MAX_SESSIONS) {
         // Delete oldest sessions beyond our limit
         const toDelete = sessions.slice(0, sessions.length - this.MAX_SESSIONS);
-        const idsToDelete = toDelete.map(s => s.id);
+        const idsToDelete = toDelete.map((s: { id: string }) => s.id);
         
         await supabase
           .from('chat_sessions')

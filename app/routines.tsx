@@ -9,7 +9,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { Pencil, Trash, Clock, Plus, CheckCircle, Circle, List } from 'phosphor-react-native';
+import { Pencil, Trash, Clock, Plus, CheckCircle, List } from 'phosphor-react-native';
 import { format, addDays, subDays, isToday, isFuture } from 'date-fns';
 import { useRoutine } from '../contexts/RoutineContext';
 import ProgressArchive from '../components/ProgressArchive';
@@ -190,7 +190,7 @@ export default function RoutinesScreen() {
               >
                 {status === 'completed'
                   ? <CheckCircle size={24} color={colors.success} weight="fill" />
-                  : <Circle size={24} color="#FF7F50" weight="regular" />}
+                  : <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#FF7F50' }} />}
               </TouchableOpacity>
             )}
             <TouchableOpacity

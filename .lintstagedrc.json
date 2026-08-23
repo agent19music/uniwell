@@ -1,0 +1,8 @@
+{
+  "constants/theme/**/*.{ts,tsx}": ["eslint --max-warnings=0", "prettier --check"],
+  "components/ui/**/*.{ts,tsx}": ["eslint --max-warnings=50", "prettier --check"],
+  "{babel.config.js,jest.config.js,eslint.config.mjs,.prettierrc.json,.lintstagedrc.json}": [
+    "prettier --check"
+  ],
+  ".github/workflows/*.{yml,yaml}": ["prettier --check"]
+}

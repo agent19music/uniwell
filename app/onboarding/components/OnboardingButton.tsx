@@ -5,14 +5,15 @@ import Animated, {
   withSpring,
   withTiming,
   interpolateColor,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { ArrowRight } from 'phosphor-react-native';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface OnboardingButtonProps {
-  currentIndex: Animated.SharedValue<number>;
-  scrollX: Animated.SharedValue<number>;
+  currentIndex: SharedValue<number>;
+  scrollX: SharedValue<number>;
   dataLength: number;
   onContinue: () => void;
   onGetStarted: () => void;

@@ -94,7 +94,7 @@ export default function PostCard({ post, isOwner }: { post: Post, isOwner: boole
       </View>
 
       {post.title && (
-        <SafeText variant="heading" style={styles.postTitle}>
+        <SafeText variant="heading" style={styles.postContent}>
           {post.title}
         </SafeText>
       )}
@@ -116,8 +116,8 @@ export default function PostCard({ post, isOwner }: { post: Post, isOwner: boole
         >
           <Heart
             size={20}
-            color={post.user_likes?.length > 0 ? colors.danger : colors.textSecondary}
-            weight={post.user_likes?.length > 0 ? "fill" : "regular"}
+            color={(post.user_likes?.length ?? 0) > 0 ? colors.danger : colors.textSecondary}
+            weight={(post.user_likes?.length ?? 0) > 0 ? "fill" : "regular"}
           />
           <SafeText variant="caption" color={colors.textSecondary}>
             {post.post_likes?.[0]?.count || 0}

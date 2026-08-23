@@ -48,7 +48,7 @@ export default function RoutineActivityGraph({ onDayPress }: RoutineActivityGrap
         const completions = await getRoutineCompletionsForRange(dates[0], dates[dates.length - 1]);
         const data = Object.fromEntries(dates.map((date) => [format(date, 'yyyy-MM-dd'), 0]));
         completions.forEach((completion) => {
-          if (data[completion.completionDate] !== undefined) data[completion.completionDate] += 1;
+          if (data[completion.eventDate] !== undefined) data[completion.eventDate] += 1;
         });
         setActivityData(data);
         setStatus('ready');

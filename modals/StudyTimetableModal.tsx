@@ -120,13 +120,14 @@ export const StudyTimetableModal: React.FC<StudyTimetableModalProps> = ({
     if (!validateForm()) return;
 
     const newSchedule: Omit<ClassSchedule, 'id'> = {
+      userId: '',
+      semesterId: '',
       courseName,
       courseCode,
-      classType,
       frequency,
       daysOfWeek: timeSlots.map(slot => slot.day),
-      startTime: timeSlots[0].startTime, // For backward compatibility
-      endTime: timeSlots[0].endTime, // For backward compatibility
+      startTime: timeSlots[0].startTime.toTimeString().slice(0, 5),
+      endTime: timeSlots[0].endTime.toTimeString().slice(0, 5),
       room: location,
       instructor: '',
       type: classType,

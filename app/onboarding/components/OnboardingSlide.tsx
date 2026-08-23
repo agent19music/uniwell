@@ -6,13 +6,14 @@ import Animated, {
   interpolate, 
   useAnimatedStyle,
   useSharedValue,
-  withTiming 
+  withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 interface Props {
   item: OnboardingSlideType;
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   onContinue?: (index: number) => void;
 }
 

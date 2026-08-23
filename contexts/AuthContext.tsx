@@ -257,7 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (await profileCache.getStatus(user.id) === 'stale') {
           void supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-            .then(({ data, error }) => {
+            .then(({ data, error }: { data: CachedProfile | null; error: { message?: string } | null }) => {
               if (!error && data) {
                 void profileCache.setProfile(user.id, data as CachedProfile);
                 applyProfile(data as CachedProfile);
@@ -315,7 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(newSession);
 
       if (newSession) {
-        void registerForPushNotificationsAsync().catch((error) => {
+        void registerForPushNotificationsAsync().catch((error: unknown) => {
           console.warn('Push notification registration failed:', error);
         });
       } else if (event === 'SIGNED_OUT') {
@@ -335,7 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(({ data: { session: initialSession } }: { data: { session: Session | null } }) => {
         setSession(initialSession);
       })
-      .catch((error) => console.error('Unable to restore session:', error))
+      .catch((error: unknown) => console.error('Unable to restore session:', error))
       .finally(() => setAuthResolved(true));
 
     return () => {

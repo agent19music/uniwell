@@ -3,10 +3,11 @@ import { Pressable, Text, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 interface SkipButtonProps {
-  currentIndex: Animated.SharedValue<number>;
+  currentIndex: SharedValue<number>;
   dataLength: number;
   onSkip: () => void;
 }

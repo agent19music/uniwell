@@ -36,7 +36,7 @@ export default function AddPostModal({ visible, onClose }: { visible: boolean, o
         [],
         {
           compress: 0.7,
-        format:   ImageManipulator.SaveFormat.MP4,
+        format: ImageManipulator.SaveFormat.JPEG,
         }
       );
       return compressedFile;

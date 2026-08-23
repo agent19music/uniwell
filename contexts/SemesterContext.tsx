@@ -91,7 +91,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 setSemesters(formattedSemesters);
                 
                 // Set active semester
-                const activeSem = formattedSemesters.find(s => s.status === 'active');
+                const activeSem = formattedSemesters.find((s: { status: string }) => s.status === 'active');
                 const semesterToUse = activeSem || formattedSemesters[0];
                 if (semesterToUse) {
                     setActiveSemester(semesterToUse);
@@ -114,7 +114,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             notificationPreference: JSON.parse(schedule.notification_preference || '{"beforeClass":15}'),
                             frequency: schedule.frequency,
                         }));
-                    setClassSchedules(formatted);
+                    setClassSchedules(formatted as ClassSchedule[]);
                 }
                 
                 // Check if stale and refresh
@@ -152,7 +152,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             // Update cache
             await semesterCache.setSemesterData(currentUser.id, {
-                semesters: data.map(s => ({
+                semesters: data.map((s: any) => ({
                     id: s.id,
                     user_id: s.user_id,
                     name: s.name,
@@ -181,7 +181,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 attendance: [],
             });
 
-            const formattedSemesters = data.map(semester => ({
+            const formattedSemesters = data.map((semester: any) => ({
                 id: semester.id,
                 name: semester.name,
                 type: semester.type as SemesterType,
@@ -195,7 +195,7 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setSemesters(formattedSemesters);
             
             if (formattedSemesters.length > 0 && !activeSemester) {
-                const activeSem = formattedSemesters.find(s => s.status === 'active');
+                const activeSem = formattedSemesters.find((s: { status: string }) => s.status === 'active');
                 const semesterToUse = activeSem || formattedSemesters[0];
                 setActiveSemester(semesterToUse);
                 await loadClassSchedulesForSemester(semesterToUse.id);
@@ -591,7 +591,6 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             
             // Update cache
             await semesterCache.addClassSchedule(user.id, {
-                id: tempId,
                 user_id: user.id,
                 semester_id: activeSemester?.id || '',
                 course_name: schedule.courseName,
@@ -600,11 +599,12 @@ export const SemesterProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 instructor: schedule.instructor,
                 frequency: schedule.frequency,
                 type: schedule.type,
+                days: schedule.daysOfWeek as unknown as import('../lib/cache/SemesterCache').DayOfWeek[],
+                time_slot: { start: schedule.startTime, end: schedule.endTime },
                 start_time: schedule.startTime,
                 end_time: schedule.endTime,
                 days_of_week: JSON.stringify(schedule.daysOfWeek),
                 notification_preference: JSON.stringify(schedule.notificationPreference),
-                created_at: new Date().toISOString(),
             });
             
             return formattedSchedule;

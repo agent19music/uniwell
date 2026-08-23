@@ -126,7 +126,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     marginBottom: 32,
-    padding: 24,
   },
   scoreTitle: {
     fontSize: 16,

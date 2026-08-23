@@ -73,8 +73,8 @@ export function useBootstrap(input: UseBootstrapInput): UseBootstrapReturn {
   const status = useRef<BootstrapStatus>('idle')
   const hardTimedOut = useRef<boolean>(false)
   const startedRef = useRef(false)
-  const resolveRef = useRef<(v: BootstrapResult) => void>()
-  const rejectRef = useRef<(e: unknown) => void>()
+  const resolveRef = useRef<(v: BootstrapResult) => void>(undefined)
+  const rejectRef = useRef<(e: unknown) => void>(undefined)
 
   // Create a stable promise instance whose resolution we control
   const promise = useMemo<Promise<BootstrapResult>>(() => {

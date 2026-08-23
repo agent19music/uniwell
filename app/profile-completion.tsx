@@ -428,8 +428,7 @@ export default function ProfileCompletionScreen() {
         cancelText="Go to Home"
         onConfirm={() => setShowCompletedDialog(false)}
         onCancel={() => router.replace('/(tabs)/home')}
-        icon="checkmark-circle"
-        iconColor="#4CAF50"
+        icon={null}
       />
     </SafeAreaView>
   );

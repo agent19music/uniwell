@@ -47,7 +47,7 @@ export default function NextActivityWidget() {
           };
           
           // Check if any of the days match the current day
-          return daysOfWeek.some(day => dayMap[day.toLowerCase()] === currentDay);
+          return daysOfWeek.some((day: string) => dayMap[day.toLowerCase()] === currentDay);
         } catch (error) {
           console.error('Error parsing daysOfWeek:', error);
           return false;

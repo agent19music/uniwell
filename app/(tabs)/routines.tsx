@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PlusCircle, Plus, Eye, PencilSimple, ArrowCounterClockwise, CheckCircle, Trash, Fire, TrendUp, XCircle, WarningCircle, Warning, Circle } from 'phosphor-react-native';
+import { PlusCircle, Plus, Eye, PencilSimple, ArrowCounterClockwise, CheckCircle, Trash, Fire, TrendUp, XCircle, WarningCircle, Warning } from 'phosphor-react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useRoutine } from '../../contexts/RoutineContext';
@@ -211,7 +211,7 @@ export default function RoutinesScreen() {
       case 'warning': return <WarningCircle size={size} color={color} weight="regular" />;
       case 'urgent': return <Warning size={size} color={color} weight="regular" />;
       case 'due': return <WarningCircle size={size} color={color} weight="regular" />;
-      default: return <Circle size={size} color={color} weight="regular" />;
+      default: return <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: color }} />;
     }
   };
 

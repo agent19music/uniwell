@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Dimensions, Text } from 'react-native';
-import { BottomTabBarProps } from '@react-navigation/bottom-tabs/lib/typescript/src/index';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, {
   useAnimatedStyle,
   withSpring,
