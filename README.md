@@ -25,9 +25,9 @@
   </tr>
 </table>
 
-# UniWell 🌟 - Your Personal Wellness Companion
+# UniWell — student wellness companion
 
-UniWell is a student-first wellness app that combines mood check-ins, routines and streaks, journaling, an academic timetable, and a personalized resource library.
+UniWell helps students track mood, routines, journals, sleep, and campus schedules. Insights are observations, not diagnoses. If you are in crisis, contact local emergency services or a trusted support line.
 
 ## Core Features
 - Mood check-ins and daily reflection journaling
@@ -115,18 +115,28 @@ uniwell/
 - Toasts: use `lib/toast` for cross-platform notifications.
 - Reads: prefer the caching layer in `lib/cache` before hitting Supabase.
 
-## 🤝 Contributing
+## Development commands
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+```sh
+pnpm typecheck
+pnpm lint
+pnpm format:check
+pnpm test --runInBand
+pnpm doctor
+```
+
+`package.json` stays `"private": true` so the app is not published to npm. The GitHub repository is the contribution surface.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [DESIGN.md](DESIGN.md).
+
+## Architecture
+
+Screens talk to feature query hooks. Auth, theme, and toast stay in small contexts. Offline writes go through `lib/sync`. Database row types come from `types/database.ts`.
 
 ## Scripts
 
-- `pnpm update-resources`: refreshes/updates library resources content
-- `pnpm start-scheduler`: starts scheduled background updates
+- `pnpm update-resources`: refreshes library resources
+- `pnpm start-scheduler`: scheduled resource updates
 
 ## 📞 Support
 

@@ -34,6 +34,7 @@ pnpm-debug.*
 # local env files
 .env*.local
 .env
+scripts/.spotify-token-cache.json
 
 # cursor    
 .cursor/
