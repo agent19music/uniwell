@@ -154,8 +154,8 @@ export default function PostScreen() {
         timestamp: reply.created_at,
         user: {
           id: reply.user_id,
-          name: reply.profiles?.username,
-          avatar: reply.profiles?.avatar_url
+          name: 'Anonymous',
+          avatar: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png'
         },
         hasChildren: false,
         children: []
@@ -209,20 +209,13 @@ export default function PostScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
       
-      // Get user profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username, avatar_url')
-        .eq('id', user.id)
-        .single();
-      
       await createReply({
         postId,
         parentId: replyingTo || undefined,
         content: replyContent.trim()
       });
-      
-      // Create optimistic reply to immediately show in the UI
+
+      // Create optimistic reply to immediately show in the UI (always anonymous)
       const optimisticReply: any = {
         id: `temp-${Date.now()}`,
         post_id: postId,
@@ -233,8 +226,8 @@ export default function PostScreen() {
         timestamp: new Date().toISOString(),
         user: {
           id: user.id,
-          name: profile?.username || 'You',
-          avatar: profile?.avatar_url
+          name: 'Anonymous',
+          avatar: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png'
         },
         hasChildren: false,
         children: []
@@ -344,13 +337,13 @@ export default function PostScreen() {
           {post && (
             <View style={[styles.postContainer, isDark && styles.postContainerDark]}>
               <View style={styles.postHeader}>
-                <Image 
-                  source={{ uri: post.profiles?.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }} 
-                  style={styles.avatar} 
+                <Image
+                  source={{ uri: post.is_anonymous ? 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' : (post.profiles?.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png') }}
+                  style={styles.avatar}
                 />
                 <View style={styles.postHeaderText}>
                   <Text style={[styles.username, isDark && styles.usernameDark]}>
-                    {post.profiles?.username}
+                    {post.is_anonymous ? 'Anonymous' : (post.profiles?.username || 'Member')}
                   </Text>
                   <Text style={[styles.timestamp, isDark && styles.timestampDark]}>
                     {format(new Date(post.created_at), 'MMM d, yyyy')}

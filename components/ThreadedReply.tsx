@@ -51,13 +51,13 @@ export default function ThreadedReply({ reply, depth, onReply, onLike }: Threade
       { marginLeft: depth * 16 }
     ]}>
       <View style={styles.replyHeader}>
-        <Image 
-          source={{ uri: reply.user?.avatar || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }} 
-          style={styles.avatar} 
+        <Image
+          source={{ uri: 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }}
+          style={styles.avatar}
         />
         <View style={styles.headerText}>
           <Text style={[styles.username, isDark && styles.usernameDark]}>
-            {reply.user?.name || 'Anonymous'}
+            Anonymous
           </Text>
           <Text style={[styles.timestamp, isDark && styles.timestampDark]}>
             {getTimeAgo()}
