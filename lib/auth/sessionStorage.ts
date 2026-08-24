@@ -2,37 +2,45 @@ import * as SecureStore from 'expo-secure-store';
 
 const CHUNK_SIZE = 1800;
 
+// SecureStore only allows alphanumeric, ".", "-", "_" — sanitize the key before use
+function sanitizeKey(key: string): string {
+  return key.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+}
+
 async function setItem(key: string, value: string) {
+  const base = sanitizeKey(key);
   const count = Math.max(1, Math.ceil(value.length / CHUNK_SIZE));
-  await SecureStore.setItemAsync(`${key}#n`, String(count));
+  await SecureStore.setItemAsync(`${base}_n`, String(count));
   await Promise.all(
     Array.from({ length: count }, (_, index) =>
-      SecureStore.setItemAsync(`${key}#${index}`, value.slice(index * CHUNK_SIZE, (index + 1) * CHUNK_SIZE)),
+      SecureStore.setItemAsync(`${base}_chunk_${index}`, value.slice(index * CHUNK_SIZE, (index + 1) * CHUNK_SIZE)),
     ),
   );
 }
 
 async function getItem(key: string) {
-  const countRaw = await SecureStore.getItemAsync(`${key}#n`);
+  const base = sanitizeKey(key);
+  const countRaw = await SecureStore.getItemAsync(`${base}_n`);
   if (!countRaw) {
-    return SecureStore.getItemAsync(key);
+    return SecureStore.getItemAsync(base);
   }
   const count = Number(countRaw);
   const chunks = await Promise.all(
-    Array.from({ length: count }, (_, index) => SecureStore.getItemAsync(`${key}#${index}`)),
+    Array.from({ length: count }, (_, index) => SecureStore.getItemAsync(`${base}_chunk_${index}`)),
   );
   if (chunks.some((chunk) => chunk == null)) return null;
   return chunks.join('');
 }
 
 async function removeItem(key: string) {
-  const countRaw = await SecureStore.getItemAsync(`${key}#n`);
+  const base = sanitizeKey(key);
+  const countRaw = await SecureStore.getItemAsync(`${base}_n`);
   const count = countRaw ? Number(countRaw) : 1;
   await Promise.all([
-    SecureStore.deleteItemAsync(key).catch(() => undefined),
-    SecureStore.deleteItemAsync(`${key}#n`).catch(() => undefined),
+    SecureStore.deleteItemAsync(base).catch(() => undefined),
+    SecureStore.deleteItemAsync(`${base}_n`).catch(() => undefined),
     ...Array.from({ length: count }, (_, index) =>
-      SecureStore.deleteItemAsync(`${key}#${index}`).catch(() => undefined),
+      SecureStore.deleteItemAsync(`${base}_chunk_${index}`).catch(() => undefined),
     ),
   ]);
 }
