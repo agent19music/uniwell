@@ -3,6 +3,14 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme, Platform, ActivityIndicator, View } from 'react-native';
 import * as Font from 'expo-font';
+import {
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+} from '@expo-google-fonts/manrope';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+} from '@expo-google-fonts/inter';
 import { AuthProvider } from '../contexts/AuthContext';
 import { QueryProvider } from '@/lib/query';
 import { Camera } from 'expo-camera';
@@ -31,21 +39,14 @@ export default function RootLayout() {
 
   // Load fonts
   useEffect(() => {
-    async function loadFonts() {
-      try {
-        await Font.loadAsync({
-          'Vercetti-Regular': require('../assets/fonts/SFUIText-Regular.ttf'),
-          'SF-Regular': require('../assets/fonts/SFUIText-Regular.ttf'),
-        });
-        setIsFontsLoaded(true);
-      } catch (e) {
-        console.warn('Error loading fonts:', e);
-        // Continue anyway
-        setIsFontsLoaded(true);
-      }
-    }
-
-    loadFonts();
+    Font.loadAsync({
+      Manrope_600SemiBold,
+      Manrope_700Bold,
+      Inter_400Regular,
+      Inter_500Medium,
+    })
+      .catch((e) => console.warn('Font load error:', e))
+      .finally(() => setIsFontsLoaded(true));
   }, []);
 
   // Initialize cache system on app startup
