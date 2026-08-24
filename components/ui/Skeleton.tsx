@@ -38,7 +38,7 @@ export function Skeleton({ width, height = 16, radius: r = 8, style }: SkeletonP
   );
 }
 
-/** Pre-shaped skeleton for a flat post row (matches PostCard layout). */
+/** Pre-shaped skeleton for a flat post row — pixel-exact match to PostCard. */
 export function PostRowSkeleton() {
   const { colors } = useTheme();
   return (
@@ -53,20 +53,31 @@ export function PostRowSkeleton() {
         borderBottomColor: colors.divider,
       }}
     >
-      {/* Avatar */}
-      <Skeleton width={32} height={32} radius={16} />
+      {/* Avatar — 32×32 circle, marginTop:2 matches PostCard */}
+      <Skeleton width={32} height={32} radius={9999} style={{ marginTop: 2, flexShrink: 0 }} />
 
-      {/* Content column */}
-      <View style={{ flex: 1, gap: 6 }}>
-        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-          <Skeleton width={100} height={12} />
-          <Skeleton width={44} height={11} />
+      {/* Content column — gap:3 matches PostCard */}
+      <View style={{ flex: 1, gap: 3 }}>
+
+        {/* Author row: username · timestamp · menu dots */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 1 }}>
+          <Skeleton width={90} height={14} radius={4} />
+          <Skeleton width={36} height={13} radius={4} />
+          <View style={{ marginLeft: 'auto' }}>
+            <Skeleton width={16} height={16} radius={4} />
+          </View>
         </View>
-        <Skeleton width="100%" height={13} />
-        <Skeleton width="80%" height={13} />
-        <View style={{ flexDirection: 'row', gap: 20, marginTop: 4 }}>
-          <Skeleton width={28} height={11} />
-          <Skeleton width={28} height={11} />
+
+        {/* Body — 3 lines at fontSize:15 */}
+        <Skeleton width="100%" height={15} radius={4} />
+        <Skeleton width="80%" height={15} radius={4} />
+        <Skeleton width="55%" height={15} radius={4} />
+
+        {/* Actions — 3 icon stubs at 16×16, gap:20, marginTop:6 */}
+        <View style={{ flexDirection: 'row', gap: 20, marginTop: 6 }}>
+          <Skeleton width={16} height={16} radius={9999} />
+          <Skeleton width={16} height={16} radius={9999} />
+          <Skeleton width={16} height={16} radius={9999} />
         </View>
       </View>
     </View>
