@@ -74,14 +74,18 @@ export default function PostCard({ post, isOwner }: { post: Post; isOwner: boole
         style={[styles.avatar, { borderColor: colors.border }]}
       />
 
-      {/* Content */}
+      {/* Content column */}
       <View style={styles.content}>
-        {/* Author row */}
+        {/* Author row: name · timestamp · menu */}
         <View style={styles.authorRow}>
-          <SafeText variant="bodyStrong" style={styles.username} numberOfLines={1}>
+          <SafeText
+            numberOfLines={1}
+            style={[styles.username, { color: colors.text }]}
+          >
             {post.is_anonymous ? 'Anonymous' : (post.profiles?.username ?? 'Member')}
           </SafeText>
-          <SafeText variant="caption" color={colors.textMuted} style={styles.timestamp}>
+          <SafeText style={[styles.dot, { color: colors.textMuted }]}>·</SafeText>
+          <SafeText style={[styles.timestamp, { color: colors.textMuted }]}>
             {format(new Date(post.created_at), 'MMM d')}
           </SafeText>
           <View style={styles.menuWrap}>
@@ -91,20 +95,20 @@ export default function PostCard({ post, isOwner }: { post: Post; isOwner: boole
               items={menuItems}
               trigger={
                 <IconButton accessibilityLabel="Post options" onPress={() => setMenuVisible(true)}>
-                  <DotsThree size={18} color={colors.textMuted} weight="regular" />
+                  <DotsThree size={16} color={colors.textMuted} weight="regular" />
                 </IconButton>
               }
             />
           </View>
         </View>
 
-        {/* Title */}
+        {/* Optional title */}
         {post.title ? (
-          <SafeText variant="bodyStrong" style={styles.title}>{post.title}</SafeText>
+          <SafeText style={[styles.title, { color: colors.text }]}>{post.title}</SafeText>
         ) : null}
 
         {/* Body */}
-        <SafeText variant="body" color={colors.textSecondary} numberOfLines={4} style={styles.body}>
+        <SafeText numberOfLines={5} style={[styles.body, { color: colors.textSecondary }]}>
           {post.content}
         </SafeText>
 
@@ -125,24 +129,24 @@ export default function PostCard({ post, isOwner }: { post: Post; isOwner: boole
             hitSlop={8}
           >
             <Heart
-              size={18}
+              size={16}
               color={liked ? colors.danger : colors.textMuted}
               weight={liked ? 'fill' : 'regular'}
             />
             {likeCount > 0 ? (
-              <SafeText variant="caption" color={colors.textMuted}>{likeCount}</SafeText>
+              <SafeText style={[styles.count, { color: colors.textMuted }]}>{likeCount}</SafeText>
             ) : null}
           </Pressable>
 
           <Pressable style={styles.action} hitSlop={8}>
-            <ChatCircle size={18} color={colors.textMuted} weight="regular" />
+            <ChatCircle size={16} color={colors.textMuted} weight="regular" />
             {replyCount > 0 ? (
-              <SafeText variant="caption" color={colors.textMuted}>{replyCount}</SafeText>
+              <SafeText style={[styles.count, { color: colors.textMuted }]}>{replyCount}</SafeText>
             ) : null}
           </Pressable>
 
           <Pressable style={styles.action} hitSlop={8}>
-            <Export size={18} color={colors.textMuted} weight="regular" />
+            <Export size={16} color={colors.textMuted} weight="regular" />
           </Pressable>
         </View>
       </View>
@@ -154,56 +158,76 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     paddingHorizontal: spacing.control,
-    paddingVertical: 14,
-    gap: spacing.macro,
+    paddingTop: 10,
+    paddingBottom: 8,
+    gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   avatar: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     borderRadius: radius.full,
     borderWidth: StyleSheet.hairlineWidth,
-    marginTop: 2,
+    marginTop: 1,
+    flexShrink: 0,
   },
   content: {
     flex: 1,
-    gap: spacing.optical,
+    gap: 3,
   },
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.micro,
+    gap: 4,
+    marginBottom: 1,
   },
   username: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '700',
     flexShrink: 1,
   },
+  dot: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
   timestamp: {
+    fontSize: 13,
+    lineHeight: 18,
     flexShrink: 0,
   },
   menuWrap: {
     marginLeft: 'auto',
   },
   title: {
-    marginTop: spacing.optical,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
   },
   body: {
-    marginTop: 2,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '400',
   },
   media: {
     width: '100%',
     height: 180,
     borderRadius: radius.control,
     borderWidth: StyleSheet.hairlineWidth,
-    marginTop: spacing.macro,
+    marginTop: 6,
   },
   actions: {
     flexDirection: 'row',
-    gap: spacing.field,
-    marginTop: spacing.macro,
+    gap: 20,
+    marginTop: 6,
   },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.optical,
+    gap: 4,
+  },
+  count: {
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -46,27 +46,27 @@ export function PostRowSkeleton() {
       style={{
         flexDirection: 'row',
         paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingTop: 10,
+        paddingBottom: 8,
         gap: 12,
-        borderBottomWidth: 1,
+        borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: colors.divider,
       }}
     >
       {/* Avatar */}
-      <Skeleton width={42} height={42} radius={21} />
+      <Skeleton width={40} height={40} radius={20} />
 
       {/* Content column */}
-      <View style={{ flex: 1, gap: 8 }}>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          <Skeleton width={110} height={13} />
-          <Skeleton width={60} height={11} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+          <Skeleton width={100} height={12} />
+          <Skeleton width={44} height={11} />
         </View>
         <Skeleton width="100%" height={13} />
-        <Skeleton width="85%" height={13} />
-        <Skeleton width="60%" height={13} />
+        <Skeleton width="80%" height={13} />
         <View style={{ flexDirection: 'row', gap: 20, marginTop: 4 }}>
-          <Skeleton width={32} height={13} />
-          <Skeleton width={32} height={13} />
+          <Skeleton width={28} height={11} />
+          <Skeleton width={28} height={11} />
         </View>
       </View>
     </View>
