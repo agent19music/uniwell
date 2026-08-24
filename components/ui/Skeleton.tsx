@@ -48,13 +48,13 @@ export function PostRowSkeleton() {
         paddingHorizontal: 16,
         paddingTop: 10,
         paddingBottom: 8,
-        gap: 12,
+        gap: 8,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: colors.divider,
       }}
     >
       {/* Avatar */}
-      <Skeleton width={40} height={40} radius={20} />
+      <Skeleton width={32} height={32} radius={16} />
 
       {/* Content column */}
       <View style={{ flex: 1, gap: 6 }}>
