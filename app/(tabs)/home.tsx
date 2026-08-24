@@ -178,7 +178,7 @@ export default function HomeScreen() {
   const renderDailyReflection = () => (
     <View style={styles.reflectionSection}>
       <View style={styles.sectionHeader}>
-        <SafeText variant="title" style={styles.greeting}>
+        <SafeText variant="heading" style={styles.greeting}>
           Hello, {userName || 'Guest'}
         </SafeText>
         <Menu
@@ -192,7 +192,7 @@ export default function HomeScreen() {
           }
         />
       </View>
-      <SafeText variant="heading" style={styles.reflectionHeading}>
+      <SafeText variant="subheading" style={styles.reflectionHeading}>
         How do you feel about your current emotions?
       </SafeText>
       <Input

@@ -1,8 +1,11 @@
 import { Text, type TextProps } from 'react-native';
 
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { typography } from '@/constants/theme';
+import { Typography, typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+
+// Merged variant map: new Typography roles + legacy aliases from typography
+const variants = { ...typography, ...Typography } as Record<string, object>;
 
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
@@ -11,7 +14,7 @@ export type ThemedTextProps = TextProps & {
 };
 
 export type SafeTextProps = TextProps & {
-  variant?: keyof typeof typography;
+  variant?: keyof typeof typography | keyof typeof Typography;
   color?: string;
 };
 
@@ -26,7 +29,7 @@ export function SafeText({
   return (
     <Text
       allowFontScaling
-      style={[typography[variant], { color: color ?? (variant === 'link' ? colors.link : colors.text) }, style]}
+      style={[variants[variant], { color: color ?? (variant === 'link' ? colors.link : colors.text) }, style]}
       {...rest}
     />
   );
