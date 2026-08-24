@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { StatRowSkeleton } from '@/components/ui/Skeleton';
 import {
   View,
   Text,
@@ -207,17 +208,6 @@ export default function ProfileScreen() {
    
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-        <View style={styles.loadingContainer}>
-          <LoadingIndicator containerColor={Colors.primary} animating={true} color={Colors.background} />
-          <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading profile...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -261,18 +251,22 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Fire size={24} color={colors.primary} weight="regular" />
-              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{userData.streakCount}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active Streaks</Text>
+          {loading ? (
+            <StatRowSkeleton />
+          ) : (
+            <View style={styles.statsRow}>
+              <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Fire size={24} color={colors.primary} weight="regular" />
+                <Text style={[styles.statValue, { color: colors.textPrimary }]}>{userData.streakCount}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active Streaks</Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Repeat size={24} color={colors.primary} weight="regular" />
+                <Text style={[styles.statValue, { color: colors.textPrimary }]}>{userData.habitCount}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Habits</Text>
+              </View>
             </View>
-            <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Repeat size={24} color={colors.primary} weight="regular" />
-              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{userData.habitCount}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Habits</Text>
-            </View>
-          </View>
+          )}
 
           <TouchableOpacity 
             style={[styles.editProfileButton, { backgroundColor: colors.card, borderColor: colors.border }]} 
