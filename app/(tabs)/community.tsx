@@ -116,12 +116,13 @@ export default function CommunityScreen() {
 
 
 const styles = StyleSheet.create({
-  screenContent: { paddingBottom: 0 },
+  screenContent: { paddingBottom: 0, paddingHorizontal: 0 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.control,
+    paddingHorizontal: spacing.field,
   },
   list: { paddingBottom: spacing.page },
   emptyList: { flexGrow: 1, justifyContent: 'center' },
