@@ -5,14 +5,15 @@ import Animated, {
   withSpring,
   withTiming,
   interpolateColor,
+  type SharedValue,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowRight } from 'phosphor-react-native';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface OnboardingButtonProps {
-  currentIndex: Animated.SharedValue<number>;
-  scrollX: Animated.SharedValue<number>;
+  currentIndex: SharedValue<number>;
+  scrollX: SharedValue<number>;
   dataLength: number;
   onContinue: () => void;
   onGetStarted: () => void;
@@ -81,7 +82,7 @@ const OnboardingButton: React.FC<OnboardingButtonProps> = ({
         Get Started
       </Animated.Text>
       <Animated.View style={[styles.iconContainer, iconAnimatedStyle]}>
-        <Ionicons name="arrow-forward" size={24} color="white" />
+        <ArrowRight size={24} color="white" weight="regular" />
       </Animated.View>
     </AnimatedPressable>
   );

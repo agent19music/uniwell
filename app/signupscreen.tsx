@@ -1,66 +1,59 @@
-import { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ImageBackground, Animated, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRef, useState } from 'react';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../lib/supabase';
 import * as Notifications from 'expo-notifications';
+import { z } from 'zod';
+import { Envelope, Eye, EyeSlash, GenderFemale, GenderMale, GenderNeuter, GoogleLogo, LockSimple, User } from 'phosphor-react-native';
+
 import CustomDialog from '../components/CustomDialog';
-import { ArrowLeft, Envelope, LockSimple, User, GoogleLogo, Eye, EyeSlash, GenderMale, GenderFemale, GenderNeuter } from 'phosphor-react-native';
-import { useTheme } from '../hooks/useTheme';
+import { SafeText } from '@/components/ThemedText';
+import { Button } from '@/components/ui/Button';
+import { DividerLabel, FormSection, InlineNotice } from '@/components/ui/Form';
+import { IconButton } from '@/components/ui/IconButton';
+import { Input } from '@/components/ui/Input';
+import { BackAction } from '@/components/ui/Navigation';
+import { Screen } from '@/components/ui/Screen';
+import { spacing } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/hooks/useTheme';
+import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
-import { useAuth } from '../contexts/AuthContext';
+
+const signUpSchema = z.object({
+  name: z.string().trim().min(1, 'Enter your full name.'),
+  email: z.string().trim().email('Enter a valid email address.'),
+  password: z.string().min(6, 'Password must be at least 6 characters.'),
+  gender: z.enum(['male', 'female', 'other'], { errorMap: () => ({ message: 'Choose an option or select prefer not to say.' }) }),
+});
+
+type Gender = 'male' | 'female' | 'other' | '';
+type SignUpErrors = Partial<Record<'name' | 'email' | 'password' | 'gender' | 'form', string>>;
 
 export default function SignUpScreen() {
-  const { colors, isDark } = useTheme();
-  const { signInWithGoogle } = useAuth();
+  const { colors } = useTheme();
+  const { signInWithGoogle, googleSignInInProgress } = useAuth();
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('');
+  const [gender, setGender] = useState<Gender>('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showVerificationDialog, setShowVerificationDialog] = useState(false);
+  const [errors, setErrors] = useState<SignUpErrors>({});
+  const nameRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
-  const router = useRouter();
-
-  // Animation refs
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 100,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
-  // Request notification permissions
   async function requestNotificationPermissions() {
     try {
       const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') return false;
 
-      if (status === 'granted') {
-        // Get the push token with the project ID from environment
-        const token = await Notifications.getExpoPushTokenAsync({
-          projectId: process.env.EXPO_PUBLIC_PROJECT_ID || '577b2274-9c11-4801-af8d-a12055a11673',
-        });
-
-        console.log('Push token:', token);
-
-        // You can store this token in your database if needed
-        return true;
-      }
-
-      return false;
+      await Notifications.getExpoPushTokenAsync({
+        projectId: process.env.EXPO_PUBLIC_PROJECT_ID || '577b2274-9c11-4801-af8d-a12055a11673',
+      });
+      return true;
     } catch (error) {
       console.warn('Error requesting notification permissions:', error);
       return false;
@@ -68,501 +61,165 @@ export default function SignUpScreen() {
   }
 
   async function handleSignUp() {
-    if (!name || !email || !password || !gender) {
-      toast.error('Please fill in all fields including gender');
+    if (loading || googleSignInInProgress) return;
+
+    const result = signUpSchema.safeParse({ name, email, password, gender });
+    if (!result.success) {
+      const fieldErrors = result.error.flatten().fieldErrors;
+      const nextErrors: SignUpErrors = {
+        name: fieldErrors.name?.[0],
+        email: fieldErrors.email?.[0],
+        password: fieldErrors.password?.[0],
+        gender: fieldErrors.gender?.[0],
+      };
+      setErrors(nextErrors);
+      if (nextErrors.name) nameRef.current?.focus();
+      else if (nextErrors.email) emailRef.current?.focus();
+      else if (nextErrors.password) passwordRef.current?.focus();
       return;
     }
 
+    setErrors({});
     setLoading(true);
     try {
       await requestNotificationPermissions();
-
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: name, gender }
-        }
+        email: result.data.email,
+        password: result.data.password,
+        options: { data: { full_name: result.data.name, gender: result.data.gender } },
       });
-
       if (error) throw error;
 
       if (data.user) {
-        const avatarUrl = gender === 'male'
+        const avatarUrl = result.data.gender === 'male'
           ? 'https://www.tapback.co/api/avatar/user55?color=3'
           : 'https://www.tapback.co/api/avatar/Ccd8b9';
-
-        const { data: existingProfile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', data.user.id)
-          .maybeSingle();
-
+        const { error: profileError } = await supabase.from('profiles').select('id').eq('id', data.user.id).maybeSingle();
         if (profileError) throw profileError;
-
-        const { error: upsertError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            avatar_url: avatarUrl,
-            gender,
-            profile_completion_percentage: 40,
-            full_name: name,
-            updated_at: new Date()
-          });
-
+        const { error: upsertError } = await supabase.from('profiles').upsert({
+          id: data.user.id,
+          avatar_url: avatarUrl,
+          gender: result.data.gender,
+          profile_completion_percentage: 40,
+          full_name: result.data.name,
+          updated_at: new Date(),
+        });
         if (upsertError) throw upsertError;
-
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: data.user.id,
-            title: 'Complete Your Profile',
-            description: 'Tell us more about yourself...',
-            category: 'profile',
-            is_read: false
-          });
-
-        if (data.session) {
-          // Always route to onboarding after successful signup
-          router.push('/onboarding');
-        } else {
-          setShowVerificationDialog(true);
-        }
+        await supabase.from('notifications').insert({
+          user_id: data.user.id,
+          title: 'Complete Your Profile',
+          description: 'Tell us more about yourself...',
+          category: 'profile',
+          is_read: false,
+        });
+        if (data.session) router.push('/onboarding');
+        else setShowVerificationDialog(true);
       }
     } catch (error) {
-      toast.error((error as Error).message);
+      const message = error instanceof Error ? error.message : 'We could not create your account. Please try again.';
+      setErrors({ form: message });
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleGoogleLogin() {
+    if (loading || googleSignInInProgress) return;
 
-  const handleGoogleLogin = async () => {
     setLoading(true);
     try {
       await requestNotificationPermissions();
       await signInWithGoogle();
     } catch (error: unknown) {
       console.error('Google login error:', error instanceof Error ? error.message : 'Unknown error');
-      // Toast is handled in AuthContext
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  const clearError = (field: keyof SignUpErrors) => setErrors((current) => ({ ...current, [field]: undefined, form: undefined }));
+  const genderOptions: Array<{ value: Exclude<Gender, ''>; label: string; icon: typeof GenderMale }> = [
+    { value: 'male', label: 'Male', icon: GenderMale },
+    { value: 'female', label: 'Female', icon: GenderFemale },
+    { value: 'other', label: 'Prefer not to say', icon: GenderNeuter },
+  ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-      <ImageBackground
-        source={isDark ? require('../assets/mesh-99dark.png') : require('../assets/mesh-99.png')}
-        style={StyleSheet.absoluteFillObject}
-        resizeMode="cover"
-      >
-        <View style={[styles.overlay, {
-          backgroundColor: isDark ? 'rgba(28, 24, 21, 0.85)' : 'rgba(254, 253, 251, 0.85)'
-        }]} />
-      </ImageBackground>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Back Button */}
-          <Animated.View style={[
-            styles.backButtonContainer,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-          ]}>
-            <TouchableOpacity
-              style={[styles.backButton, { backgroundColor: colors.surface }]}
-              onPress={() => router.back()}
-            >
-              <ArrowLeft size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Header */}
-          <Animated.View style={[
-            styles.header,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-          ]}>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>
-              Create Account
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Start your wellness journey today
-            </Text>
-          </Animated.View>
-
-          {/* Form */}
-          <Animated.View style={[
-            styles.form,
-            { opacity: fadeAnim }
-          ]}>
-            {/* Full Name Input */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Full Name</Text>
-              <View style={[styles.inputContainer, {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
-              }]}>
-                <User size={20} color={colors.textSecondary} />
-                <TextInput
-                  style={[styles.input, { color: colors.textPrimary }]}
-                  placeholder="John Doe"
-                  placeholderTextColor={colors.textTertiary}
-                  value={name}
-                  onChangeText={setName}
-                  editable={!loading}
-                />
-              </View>
+    <Screen contentStyle={styles.screenContent}>
+      <View style={styles.content}>
+        <BackAction onPress={() => router.back()} />
+        <View style={styles.header}>
+          <SafeText variant="display">Create account</SafeText>
+          <SafeText variant="body" color={colors.textSecondary}>Start your wellness journey today.</SafeText>
+        </View>
+        <FormSection>
+          {errors.form && <InlineNotice>{errors.form}</InlineNotice>}
+          <Input ref={nameRef} autoCapitalize="words" autoComplete="name" editable={!loading} error={errors.name} label="Full name" leading={<User color={colors.textSecondary} size={20} />} onChangeText={(value) => { setName(value); clearError('name'); }} placeholder="Your name" returnKeyType="next" value={name} onSubmitEditing={() => emailRef.current?.focus()} />
+          <Input ref={emailRef} autoCapitalize="none" autoComplete="email" editable={!loading} error={errors.email} inputMode="email" keyboardType="email-address" label="Email" leading={<Envelope color={colors.textSecondary} size={20} />} onChangeText={(value) => { setEmail(value); clearError('email'); }} placeholder="you@example.com" returnKeyType="next" value={email} onSubmitEditing={() => passwordRef.current?.focus()} />
+          <Input ref={passwordRef} autoComplete="new-password" editable={!loading} error={errors.password} label="Password" leading={<LockSimple color={colors.textSecondary} size={20} />} onChangeText={(value) => { setPassword(value); clearError('password'); }} placeholder="At least 6 characters" returnKeyType="done" secureTextEntry={!showPassword} textContentType="newPassword" value={password} onSubmitEditing={handleSignUp} trailing={<IconButton accessibilityLabel={showPassword ? 'Hide password' : 'Show password'} disabled={loading} onPress={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeSlash color={colors.textSecondary} size={20} /> : <Eye color={colors.textSecondary} size={20} />}</IconButton>} />
+          <View style={styles.genderField} accessibilityRole="radiogroup">
+            <SafeText variant="label">Gender</SafeText>
+            <SafeText variant="caption" color={colors.textSecondary}>Used to personalize your profile.</SafeText>
+            <View style={styles.genderOptions}>
+              {genderOptions.map(({ value, label, icon: GenderIcon }) => {
+                const selected = gender === value;
+                return (
+                  <Pressable
+                    key={value}
+                    accessibilityLabel={label}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected, disabled: loading }}
+                    disabled={loading}
+                    onPress={() => { setGender(value); clearError('gender'); }}
+                    style={[styles.genderOption, { backgroundColor: colors.surface, borderColor: selected ? colors.focusRing : colors.border }]}
+                  >
+                    <GenderIcon color={selected ? colors.accent : colors.textSecondary} size={20} weight={selected ? 'fill' : 'regular'} />
+                    <SafeText variant="caption" color={selected ? colors.text : colors.textSecondary}>{label}</SafeText>
+                  </Pressable>
+                );
+              })}
             </View>
-
-            {/* Email Input */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Email</Text>
-              <View style={[styles.inputContainer, {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
-              }]}>
-                <Envelope size={20} color={colors.textSecondary} />
-                <TextInput
-                  style={[styles.input, { color: colors.textPrimary }]}
-                  placeholder="your@email.com"
-                  placeholderTextColor={colors.textTertiary}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  editable={!loading}
-                />
-              </View>
-            </View>
-
-            {/* Password Input */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Password</Text>
-              <View style={[styles.inputContainer, {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
-              }]}>
-                <LockSimple size={20} color={colors.textSecondary} />
-                <TextInput
-                  style={[styles.input, { color: colors.textPrimary }]}
-                  placeholder="At least 6 characters"
-                  placeholderTextColor={colors.textTertiary}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  editable={!loading}
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  {showPassword ? (
-                    <EyeSlash size={20} color={colors.textSecondary} />
-                  ) : (
-                    <Eye size={20} color={colors.textSecondary} />
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Gender Selection */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Gender</Text>
-              <View style={styles.genderOptions}>
-                <TouchableOpacity
-                  style={[
-                    styles.genderOption,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: gender === 'male' ? colors.primary : colors.border
-                    },
-                    gender === 'male' && styles.selectedGender
-                  ]}
-                  onPress={() => setGender('male')}
-                  disabled={loading}
-                >
-                  <GenderMale
-                    size={24}
-                    color={gender === 'male' ? colors.primary : colors.textSecondary}
-                    weight={gender === 'male' ? 'fill' : 'regular'}
-                  />
-                  <Text style={[
-                    styles.genderText,
-                    { color: gender === 'male' ? colors.primary : colors.textSecondary },
-                    gender === 'male' && styles.selectedGenderText
-                  ]}>Male</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.genderOption,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: gender === 'female' ? colors.primary : colors.border
-                    },
-                    gender === 'female' && styles.selectedGender
-                  ]}
-                  onPress={() => setGender('female')}
-                  disabled={loading}
-                >
-                  <GenderFemale
-                    size={24}
-                    color={gender === 'female' ? colors.primary : colors.textSecondary}
-                    weight={gender === 'female' ? 'fill' : 'regular'}
-                  />
-                  <Text style={[
-                    styles.genderText,
-                    { color: gender === 'female' ? colors.primary : colors.textSecondary },
-                    gender === 'female' && styles.selectedGenderText
-                  ]}>Female</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.genderOption,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: gender === 'other' ? colors.primary : colors.border
-                    },
-                    gender === 'other' && styles.selectedGender
-                  ]}
-                  onPress={() => setGender('other')}
-                  disabled={loading}
-                >
-                  <GenderNeuter
-                    size={24}
-                    color={gender === 'other' ? colors.primary : colors.textSecondary}
-                    weight={gender === 'other' ? 'fill' : 'regular'}
-                  />
-                  <Text style={[
-                    styles.genderText,
-                    { color: gender === 'other' ? colors.primary : colors.textSecondary },
-                    gender === 'other' && styles.selectedGenderText
-                  ]}>Other</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Create Account Button */}
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: colors.primary }]}
-              onPress={handleSignUp}
-              disabled={loading}
-            >
-              <Text style={[styles.buttonText, { color: isDark ? colors.background : '#FFFFFF' }]}>
-                {loading ? 'Creating Account...' : 'Create Account'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-              <Text style={[styles.dividerText, { color: colors.textTertiary }]}>or</Text>
-              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            </View>
-
-            {/* Google Button */}
-            <TouchableOpacity
-              style={[styles.googleButton, {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
-              }]}
-              onPress={handleGoogleLogin}
-              disabled={loading}
-            >
-              <GoogleLogo size={20} color={colors.textPrimary} />
-              <Text style={[styles.googleButtonText, { color: colors.textPrimary }]}>
-                Sign up with Google
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Footer */}
-          <Animated.View style={[
-            styles.footer,
-            { opacity: fadeAnim }
-          ]}>
-            <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-              Already have an account?{' '}
-            </Text>
-            <TouchableOpacity onPress={() => router.push('/loginscreen')}>
-              <Text style={[styles.footerLink, { color: colors.primary }]}>Sign In</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-
+            {errors.gender && <InlineNotice>{errors.gender}</InlineNotice>}
+          </View>
+          <Button label={loading ? 'Creating account…' : 'Create account'} loading={loading} onPress={handleSignUp} />
+          <View style={styles.alternative}>
+            <DividerLabel />
+            <Button label="Continue with Google" leading={<GoogleLogo color={colors.text} size={20} />} loading={loading || googleSignInInProgress} onPress={handleGoogleLogin} variant="secondary" />
+          </View>
+        </FormSection>
+        <View style={styles.footer}>
+          <SafeText variant="body" color={colors.textSecondary}>Already have an account?</SafeText>
+          <Button label="Sign in" onPress={() => router.push('/loginscreen')} variant="link" />
+        </View>
+      </View>
       <CustomDialog
         visible={showVerificationDialog}
-        title="Verify Your Email"
-        message="We've sent a verification link to your email. Please check your inbox and click the link to activate your account."
-        confirmText="Go to Login"
-        onConfirm={() => {
-          setShowVerificationDialog(false);
-          router.push('/loginscreen');
-        }}
+        title="Verify your email"
+        message="We've sent a verification link to your email. Please check your inbox and activate your account."
+        confirmText="Go to login"
+        onConfirm={() => { setShowVerificationDialog(false); router.push('/loginscreen'); }}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 40,
-  },
-  backButtonContainer: {
-    marginBottom: 20,
-  },
-  backButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  header: {
-    marginBottom: 48,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: '700',
-    marginBottom: 12,
-    letterSpacing: -0.5,
-    fontFamily: 'Vercetti-Regular',
-  },
-  subtitle: {
-    fontSize: 17,
-    lineHeight: 24,
-    fontFamily: 'SF-Regular',
-  },
-  form: {
-    gap: 24,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  inputLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    fontFamily: 'SF-Regular',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 56,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'SF-Regular',
-  },
-  genderOptions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  screenContent: { paddingTop: 0 },
+  content: { gap: spacing.field, paddingTop: spacing.field },
+  header: { gap: spacing.micro },
+  genderField: { gap: spacing.micro },
+  genderOptions: { gap: spacing.micro },
   genderOption: {
-    flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    borderWidth: 2,
-    height: 56,
-    gap: 8,
-  },
-  selectedGender: {
-    borderWidth: 2,
-  },
-  genderText: {
-    fontSize: 15,
-    fontWeight: '500',
-    fontFamily: 'SF-Regular',
-  },
-  selectedGenderText: {
-    fontWeight: '600',
-  },
-  primaryButton: {
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'SF-Regular',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    paddingHorizontal: 16,
-    fontSize: 14,
-    fontFamily: 'SF-Regular',
-  },
-  googleButton: {
-    height: 56,
-    borderRadius: 16,
+    borderCurve: 'continuous',
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
+    gap: spacing.micro,
+    minHeight: 48,
+    paddingHorizontal: spacing.control,
   },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    fontFamily: 'SF-Regular',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 32,
-  },
-  footerText: {
-    fontSize: 15,
-    fontFamily: 'SF-Regular',
-  },
-  footerLink: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'SF-Regular',
-  },
+  alternative: { gap: spacing.field },
+  footer: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.micro },
 });

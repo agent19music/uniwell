@@ -2,15 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Smiley, Drop, Pulse, Fire, CloudRain, Lightbulb, CheckCircle, ChartBar, Compass, ArrowLeft, ChartLine } from 'phosphor-react-native';
 import { useMood, MoodType } from '../contexts/MoodContext';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { useTheme } from '../hooks/useTheme';
 import { GlowingMoodChart } from '../components/charts';
+import { ErrorState } from '@/components/ui/EmptyState';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { Button } from '@/components/ui/Button';
 
 const MOOD_CONFIG: Record<MoodType, {
   colors: string[];
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: string;
   title: string;
   value: number;
   insights: string[];
@@ -18,7 +21,7 @@ const MOOD_CONFIG: Record<MoodType, {
 }> = {
   happy: {
     colors: ['#FFE259', '#FFA751', '#FFD700'],
-    icon: 'happy-outline',
+    icon: 'happy',
     title: 'Radiating Happy Vibes! ✨',
     value: 5,
     insights: [
@@ -34,7 +37,7 @@ const MOOD_CONFIG: Record<MoodType, {
   },
   calm: {
     colors: ['#89f7fe', '#66a6ff', '#4682B4'],
-    icon: 'water-outline',
+    icon: 'water',
     title: 'Zen Mode: Activated 🧘‍♂️',
     value: 4,
     insights: [
@@ -50,7 +53,7 @@ const MOOD_CONFIG: Record<MoodType, {
   },
   stressed: {
     colors: ['#A8E063', '#56AB2F', '#7FFFD4'],
-    icon: 'pulse-outline',
+    icon: 'pulse',
     title: 'Stress Detected: Breathe 🌬️',
     value: 2,
     insights: [
@@ -66,7 +69,7 @@ const MOOD_CONFIG: Record<MoodType, {
   },
   angry: {
     colors: ['#FF416C', '#FF4B2B', '#FFA07A'],
-    icon: 'flame-outline',
+    icon: 'flame',
     title: 'Spicy Mood Detected 🌶️',
     value: 1,
     insights: [
@@ -82,7 +85,7 @@ const MOOD_CONFIG: Record<MoodType, {
   },
   sad: {
     colors: ['#4CA1AF', '#2C3E50', '#98FB98'],
-    icon: 'rainy-outline',
+    icon: 'rain',
     title: 'Blue Skies After Rain 🌧️',
     value: 3,
     insights: [
@@ -98,6 +101,17 @@ const MOOD_CONFIG: Record<MoodType, {
   }
 };
 
+const getMoodIcon = (icon: string, size: number, color: string) => {
+  switch (icon) {
+    case 'happy': return <Smiley size={size} color={color} weight="regular" />;
+    case 'water': return <Drop size={size} color={color} weight="regular" />;
+    case 'pulse': return <Pulse size={size} color={color} weight="regular" />;
+    case 'flame': return <Fire size={size} color={color} weight="regular" />;
+    case 'rain': return <CloudRain size={size} color={color} weight="regular" />;
+    default: return <Smiley size={size} color={color} weight="regular" />;
+  }
+};
+
 export default function MoodDetailScreen() {
   const { mood, view } = useLocalSearchParams();
   const router = useRouter();
@@ -105,12 +119,20 @@ export default function MoodDetailScreen() {
   const { width } = Dimensions.get('window');
   const { weeklyMoods, weeklySummary, fetchWeeklyMoods } = useMood();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await fetchWeeklyMoods();
-      setLoading(false);
+      setError(false);
+      try {
+        await fetchWeeklyMoods();
+      } catch (cause) {
+        console.error('Could not load weekly moods:', cause);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, []);
@@ -175,7 +197,7 @@ export default function MoodDetailScreen() {
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Insights</Text>
           {selectedMood.insights.map((insight, index) => (
             <View key={`insight-${index}`} style={styles.insightItem}>
-              <Ionicons name="bulb-outline" size={20} color="#FF7F50" />
+              <Lightbulb size={20} color="#FF7F50" weight="regular" />
               <Text style={[styles.insightText, isDark && styles.darkText]}>
                 {insight}
               </Text>
@@ -187,7 +209,7 @@ export default function MoodDetailScreen() {
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Try This</Text>
           {selectedMood.suggestions.map((suggestion, index) => (
             <View key={`suggestion-${index}`} style={styles.suggestionItem}>
-              <Ionicons name="checkmark-circle-outline" size={20} color="#FF7F50" />
+              <CheckCircle size={20} color="#FF7F50" weight="regular" />
               <Text style={[styles.suggestionText, isDark && styles.darkText]}>
                 {suggestion}
               </Text>
@@ -210,7 +232,7 @@ export default function MoodDetailScreen() {
         </Text>
         
         <View style={[styles.dominantMoodCard, { backgroundColor: dominantMoodConfig.colors[2] + '30' }]}>
-          <Ionicons name={dominantMoodConfig.icon} size={32} color={dominantMoodConfig.colors[1]} />
+          {getMoodIcon(dominantMoodConfig.icon, 32, dominantMoodConfig.colors[1])}
           <View style={styles.dominantMoodContent}>
             <Text style={[styles.dominantMoodLabel, isDark && styles.darkText]}>
               Dominant Mood: {weeklySummary.dominantMood.charAt(0).toUpperCase() + weeklySummary.dominantMood.slice(1)}
@@ -225,7 +247,7 @@ export default function MoodDetailScreen() {
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Insights</Text>
           {weeklySummary.insights.map((insight, index) => (
             <View key={`weekly-insight-${index}`} style={styles.insightItem}>
-              <Ionicons name="analytics-outline" size={20} color="#FF7F50" />
+              <ChartBar size={20} color="#FF7F50" weight="regular" />
               <Text style={[styles.insightText, isDark && styles.darkText]}>
                 {insight}
               </Text>
@@ -237,7 +259,7 @@ export default function MoodDetailScreen() {
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Recommendations</Text>
           {weeklySummary.recommendations.map((recommendation, index) => (
             <View key={`weekly-recommendation-${index}`} style={styles.suggestionItem}>
-              <Ionicons name="compass-outline" size={20} color="#FF7F50" />
+              <Compass size={20} color="#FF7F50" weight="regular" />
               <Text style={[styles.suggestionText, isDark && styles.darkText]}>
                 {recommendation}
               </Text>
@@ -252,7 +274,7 @@ export default function MoodDetailScreen() {
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FF7F50" />
+          <ArrowLeft size={24} color="#FF7F50" weight="regular" />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isDark && styles.darkText]}>
           {isHistoryView ? 'Mood History' : 'Mood Details'}
@@ -260,6 +282,16 @@ export default function MoodDetailScreen() {
         <View style={styles.placeholder} />
       </View>
       
+      {loading ? (
+        <LoadingState label="Loading mood trends…" style={styles.state} />
+      ) : error ? (
+        <ErrorState
+          title="Couldn’t load mood trends"
+          description="Check your connection and try again."
+          action={<Button label="Try again" onPress={() => fetchWeeklyMoods().catch(() => setError(true))} />}
+          style={styles.state}
+        />
+      ) : (
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -298,7 +330,7 @@ export default function MoodDetailScreen() {
 
           {weeklyMoods.length === 0 && (
             <View style={styles.noDataOverlay}>
-              <Ionicons name="analytics-outline" size={48} color={colors.textTertiary} />
+              <ChartBar size={48} color={colors.textTertiary} weight="regular" />
               <Text style={[styles.noDataText, { color: colors.textSecondary }]}>
                 No mood data recorded this week.
               </Text>
@@ -311,6 +343,7 @@ export default function MoodDetailScreen() {
         
         {isHistoryView ? renderWeeklySummary() : renderMoodDetail()}
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -346,6 +379,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
+  },
+  state: {
+    flex: 1,
   },
   chartContainer: {
     marginHorizontal: 20,

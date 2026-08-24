@@ -1,16 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, TrendUp, Medal } from 'phosphor-react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../hooks/useTheme';
 import { useWellnessScore } from '../hooks/useWellnessScore';
+import { Card } from '@/components/ui/Card';
 
 export default function WellnessReportScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { score } = useWellnessScore();
+  const { width } = useWindowDimensions();
 
   const chartConfig = {
     backgroundGradientFrom: isDark ? '#1a1a1a' : '#ffffff',
@@ -40,24 +42,24 @@ export default function WellnessReportScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          <ArrowLeft size={24} color={colors.textPrimary} weight="regular" />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Monthly Progress</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.scoreCard, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Card style={styles.scoreCard}>
           <Text style={[styles.scoreTitle, { color: colors.textSecondary }]}>Current Score</Text>
           <Text style={[styles.scoreValue, { color: colors.primary }]}>{score}%</Text>
           <Text style={[styles.scoreSubtitle, { color: colors.textSecondary }]}>You're doing great!</Text>
-        </View>
+        </Card>
 
         <View style={styles.chartContainer}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Monthly Overview</Text>
           <LineChart
             data={data}
-            width={Dimensions.get("window").width - 48}
+            width={width - 48}
             height={220}
             chartConfig={chartConfig}
             bezier
@@ -70,25 +72,25 @@ export default function WellnessReportScreen() {
 
         <View style={styles.insightsContainer}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Insights</Text>
-          <View style={[styles.insightCard, { backgroundColor: colors.card }]}>
-            <Ionicons name="trending-up" size={24} color={colors.primary} style={styles.insightIcon} />
+          <Card style={styles.insightCard}>
+            <TrendUp size={24} color={colors.primary} weight="regular" style={styles.insightIcon} />
             <View style={styles.insightTextContainer}>
               <Text style={[styles.insightTitle, { color: colors.textPrimary }]}>Consistent Growth</Text>
               <Text style={[styles.insightDescription, { color: colors.textSecondary }]}>
                 Your wellness score has improved by 12% compared to last month.
               </Text>
             </View>
-          </View>
+          </Card>
           
-          <View style={[styles.insightCard, { backgroundColor: colors.card }]}>
-            <Ionicons name="ribbon-outline" size={24} color="#F4D03F" style={styles.insightIcon} />
+          <Card style={styles.insightCard}>
+            <Medal size={24} color={colors.accent} weight="regular" style={styles.insightIcon} />
             <View style={styles.insightTextContainer}>
               <Text style={[styles.insightTitle, { color: colors.textPrimary }]}>Top Performer</Text>
               <Text style={[styles.insightDescription, { color: colors.textSecondary }]}>
                 You've maintained a streak of 5 days! Keep it up.
               </Text>
             </View>
-          </View>
+          </Card>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -104,6 +106,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 24,
+    paddingBottom: 24,
     paddingVertical: 16,
   },
   backButton: {
@@ -123,10 +126,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     marginBottom: 32,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   scoreTitle: {
     fontSize: 16,

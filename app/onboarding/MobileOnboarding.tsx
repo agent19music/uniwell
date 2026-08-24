@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from 'react';
-import { StyleSheet, useWindowDimensions, StatusBar, View, ImageBackground } from 'react-native';
+import { StyleSheet, useWindowDimensions, StatusBar } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -81,16 +81,6 @@ const MobileOnboarding: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ImageBackground
-        source={isDark ? require('../../assets/mesh-99dark.png') : require('../../assets/mesh-99.png')}
-        style={StyleSheet.absoluteFillObject}
-        resizeMode="cover"
-      >
-        <View style={[styles.overlay, { 
-          backgroundColor: isDark ? 'rgba(28, 24, 21, 0.65)' : 'rgba(254, 253, 251, 0.65)' 
-        }]} />
-      </ImageBackground>
-
       <StatusBar
         translucent
         backgroundColor="transparent"
@@ -119,10 +109,7 @@ const MobileOnboarding: React.FC = () => {
 const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.canvas,
   },
   flatList: {
     flex: 1,

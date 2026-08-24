@@ -6,13 +6,14 @@ import Animated, {
   interpolate, 
   useAnimatedStyle,
   useSharedValue,
-  withTiming 
+  withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 interface Props {
   item: OnboardingSlideType;
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   onContinue?: (index: number) => void;
 }
 
@@ -126,10 +127,10 @@ const OnboardingSlide: React.FC<Props> = ({ item, index, scrollX, onContinue }) 
         {/* Main content */}
         <View style={styles.contentContainer}>
           <Animated.View style={[styles.illustrationContainer, animatedImageStyle]}>
-            {/* Using the demo images with fallback to the item image */}
-            <Image 
-              source={demoImages[index] || item.imageSource} 
-              style={styles.image} 
+          {/* Each slide uses its corresponding illustration. */}
+          <Image
+              source={demoImages[index]}
+              style={styles.image}
               resizeMode="contain"
             />
           </Animated.View>

@@ -9,21 +9,21 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, ArrowRight, Fire, Repeat, Pencil, Clock, Bell, Trophy, Calendar, Lightbulb, Lock, Shield, Question, Info, CaretRight } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import * as Burnt from 'burnt'
-import Octicons from '@expo/vector-icons/Octicons';
 import ProgressArchive from '../components/ProgressArchive';
 import { useDialog } from '../hooks/useDialog'; 
 import Dialog from '../components/Dialog';
 import { useTheme } from '../hooks/useTheme';
 import { Colors } from '../constants/Colors';
 import { LoadingIndicator } from '@rn-nui/loading-indicator';
+import { SwitchRow } from '@/components/ui/SwitchRow';
 
 interface SettingItemProps {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   subtitle?: string;
   value?: boolean;
@@ -38,14 +38,14 @@ const SettingItem = ({ icon, title, subtitle, value, onPress, isDark, type = 'na
     onPress={onPress}
   >
     <View style={styles.settingIcon}>
-      <Ionicons name={icon as any} size={24} color="#FF7F50" />
+      {icon}
     </View>
     <View style={styles.settingContent}>
       <Text style={[styles.settingTitle, isDark && styles.darkText]}>{title}</Text>
       {subtitle && <Text style={[styles.settingSubtitle, isDark && styles.darkSubText]}>{subtitle}</Text>}
     </View>
     {type === 'navigate' && (
-      <Ionicons name="chevron-forward" size={24} color={isDark ? '#aaaaaa' : '#666'} />
+      <CaretRight size={24} color={isDark ? '#aaaaaa' : '#666'} weight="regular" />
     )}
     {type === 'toggle' && value !== undefined && (
       <Switch
@@ -272,7 +272,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          <ArrowLeft size={24} color={colors.textPrimary} weight="regular" />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Profile</Text>
         <View style={styles.placeholder} />
@@ -306,19 +306,19 @@ export default function ProfileScreen() {
               </Text>
               <TouchableOpacity style={styles.completionButton} onPress={handleCompleteProfile}>
                 <Text style={styles.completionButtonText}>Continue</Text>
-                <Ionicons name="arrow-forward" size={16} color="#ffffff" />
+                <ArrowRight size={16} color="#ffffff" weight="regular" />
               </TouchableOpacity>
             </View>
           )}
 
           <View style={styles.statsRow}>
             <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Octicons name="flame" size={24} color={colors.primary} />
+              <Fire size={24} color={colors.primary} weight="regular" />
               <Text style={[styles.statValue, { color: colors.textPrimary }]}>{userData.streakCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active Streaks</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Ionicons name="repeat" size={24} color={colors.primary} />
+              <Repeat size={24} color={colors.primary} weight="regular" />
               <Text style={[styles.statValue, { color: colors.textPrimary }]}>{userData.habitCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Habits</Text>
             </View>
@@ -329,7 +329,7 @@ export default function ProfileScreen() {
             onPress={handleEditProfile}
           >
             <Text style={[styles.editProfileText, { color: colors.textPrimary }]}>Edit Profile</Text>
-            <Ionicons name="pencil" size={20} color={colors.textPrimary} />
+            <Pencil size={20} color={colors.textPrimary} weight="fill" />
           </TouchableOpacity>
         </View>
 
@@ -341,67 +341,43 @@ export default function ProfileScreen() {
             onPress={() => setShowArchiveModal(true)}
           >
             <View style={styles.menuItemContent}>
-              <Ionicons name="time-outline" size={24} color={colors.textPrimary} />
+              <Clock size={24} color={colors.textPrimary} weight="regular" />
               <Text style={[styles.menuItemText, { color: colors.textPrimary }]}>View Progress Archive</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            <CaretRight size={20} color={colors.textSecondary} weight="regular" />
           </TouchableOpacity>
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Notification Preferences</Text>
           
-          <View style={styles.preferenceItem}>
-            <View style={styles.preferenceInfo}>
-              <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
-              <Text style={[styles.preferenceText, { color: colors.textPrimary }]}>Daily Reminders</Text>
-            </View>
-            <Switch
-              value={notifications.reminders}
-              onValueChange={(value) => handleNotificationToggle('reminders', value)}
-              trackColor={{ false: '#767577', true: colors.primary }}
-              thumbColor="#f4f3f4"
-            />
-          </View>
+          <SwitchRow
+            icon={<Bell size={24} color={colors.textPrimary} weight="regular" />}
+            label="Daily reminders"
+            onValueChange={(value) => handleNotificationToggle('reminders', value)}
+            value={notifications.reminders}
+          />
           
-          <View style={styles.preferenceItem}>
-            <View style={styles.preferenceInfo}>
-              <Ionicons name="trophy-outline" size={24} color={colors.textPrimary} />
-              <Text style={[styles.preferenceText, { color: colors.textPrimary }]}>Achievements</Text>
-            </View>
-            <Switch
-              value={notifications.achievements}
-              onValueChange={(value) => handleNotificationToggle('achievements', value)}
-              trackColor={{ false: '#767577', true: colors.primary }}
-              thumbColor="#f4f3f4"
-            />
-          </View>
+          <SwitchRow
+            icon={<Trophy size={24} color={colors.textPrimary} weight="regular" />}
+            label="Achievements"
+            onValueChange={(value) => handleNotificationToggle('achievements', value)}
+            value={notifications.achievements}
+          />
           
-          <View style={styles.preferenceItem}>
-            <View style={styles.preferenceInfo}>
-              <Ionicons name="calendar-outline" size={24} color={colors.textPrimary} />
-              <Text style={[styles.preferenceText, { color: colors.textPrimary }]}>Weekly Report</Text>
-            </View>
-            <Switch
-              value={notifications.weeklyReport}
-              onValueChange={(value) => handleNotificationToggle('weeklyReport', value)}
-              trackColor={{ false: '#767577', true: colors.primary }}
-              thumbColor="#f4f3f4"
-            />
-          </View>
+          <SwitchRow
+            icon={<Calendar size={24} color={colors.textPrimary} weight="regular" />}
+            label="Weekly report"
+            onValueChange={(value) => handleNotificationToggle('weeklyReport', value)}
+            value={notifications.weeklyReport}
+          />
           
-          <View style={styles.preferenceItem}>
-            <View style={styles.preferenceInfo}>
-              <Ionicons name="bulb-outline" size={24} color={colors.textPrimary} />
-              <Text style={[styles.preferenceText, { color: colors.textPrimary }]}>Tips & Advice</Text>
-            </View>
-            <Switch
-              value={notifications.tips}
-              onValueChange={(value) => handleNotificationToggle('tips', value)}
-              trackColor={{ false: '#767577', true: colors.primary }}
-              thumbColor="#f4f3f4"
-            />
-          </View>
+          <SwitchRow
+            icon={<Lightbulb size={24} color={colors.textPrimary} weight="regular" />}
+            label="Tips and advice"
+            onValueChange={(value) => handleNotificationToggle('tips', value)}
+            value={notifications.tips}
+          />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card }]}>
@@ -409,34 +385,34 @@ export default function ProfileScreen() {
           
           <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.divider }]} onPress={() => router.push('/change-password')}>
             <View style={styles.menuItemContent}>
-              <Ionicons name="lock-closed-outline" size={24} color={colors.textPrimary} />
+              <Lock size={24} color={colors.textPrimary} weight="regular" />
               <Text style={[styles.menuItemText, { color: colors.textPrimary }]}>Change Password</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            <CaretRight size={20} color={colors.textSecondary} weight="regular" />
           </TouchableOpacity>
           
           <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.divider }]} onPress={() => router.push('/privacy-settings')}>
             <View style={styles.menuItemContent}>
-              <Ionicons name="shield-outline" size={24} color={colors.textPrimary} />
+              <Shield size={24} color={colors.textPrimary} weight="regular" />
               <Text style={[styles.menuItemText, { color: colors.textPrimary }]}>Privacy Settings</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            <CaretRight size={20} color={colors.textSecondary} weight="regular" />
           </TouchableOpacity>
           
           <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.divider }]} onPress={() => router.push('/help-support')}>
             <View style={styles.menuItemContent}>
-              <Ionicons name="help-circle-outline" size={24} color={colors.textPrimary} />
+              <Question size={24} color={colors.textPrimary} weight="regular" />
               <Text style={[styles.menuItemText, { color: colors.textPrimary }]}>Help & Support</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            <CaretRight size={20} color={colors.textSecondary} weight="regular" />
           </TouchableOpacity>
           
           <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.divider }]} onPress={() => router.push('/about')}>
             <View style={styles.menuItemContent}>
-              <Ionicons name="information-circle-outline" size={24} color={colors.textPrimary} />
+              <Info size={24} color={colors.textPrimary} weight="regular" />
               <Text style={[styles.menuItemText, { color: colors.textPrimary }]}>About UniWell</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            <CaretRight size={20} color={colors.textSecondary} weight="regular" />
           </TouchableOpacity>
         </View>
         

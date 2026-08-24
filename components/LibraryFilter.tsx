@@ -1,6 +1,8 @@
 import React, { memo } from 'react';
-import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { useTheme } from '../hooks/useTheme';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { SafeText } from '@/components/ThemedText';
+import { radius, spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 // Categories for content
 const CONTENT_CATEGORIES = [
@@ -17,7 +19,7 @@ interface LibraryFilterProps {
 }
 
 const LibraryFilter = ({ selectedCategory, onSelectCategory }: LibraryFilterProps) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <ScrollView 
@@ -28,28 +30,24 @@ const LibraryFilter = ({ selectedCategory, onSelectCategory }: LibraryFilterProp
       snapToAlignment="center"
     >
       {CONTENT_CATEGORIES.map(category => (
-        <TouchableOpacity
+        <Pressable
           key={category.id}
-          style={[
-            styles.categoryTab,
-            { backgroundColor: colors.input.background },
-            selectedCategory === category.id && { backgroundColor: colors.primary }
-          ]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: selectedCategory === category.id }}
           onPress={() => onSelectCategory(category.id)}
-          activeOpacity={0.7}
+          style={({ pressed }) => [
+            styles.categoryTab,
+            {
+              backgroundColor: selectedCategory === category.id ? colors.accent : colors.surface,
+              borderColor: selectedCategory === category.id ? colors.accent : colors.border,
+              opacity: pressed ? 0.78 : 1,
+            },
+          ]}
         >
-          <Text 
-            style={[
-              styles.categoryTabText,
-              { 
-                color: selectedCategory === category.id ? colors.background : colors.textSecondary,
-                fontFamily: 'Vercetti-Regular'
-              }
-            ]}
-          >
+          <SafeText variant="label" color={selectedCategory === category.id ? colors.textOnAccent : colors.textSecondary}>
             {category.label}
-          </Text>
-        </TouchableOpacity>
+          </SafeText>
+        </Pressable>
       ))}
     </ScrollView>
   );
@@ -57,19 +55,18 @@ const LibraryFilter = ({ selectedCategory, onSelectCategory }: LibraryFilterProp
 
 const styles = StyleSheet.create({
   categoryTabsContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 14,
-    gap: 8,
+    gap: spacing.micro,
+    paddingHorizontal: spacing.control,
+    paddingBottom: spacing.control,
+    paddingTop: spacing.micro,
   },
   categoryTab: {
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: 20,
-  },
-  categoryTabText: {
-    fontSize: 14,
-    fontWeight: '600',
+    borderCurve: 'continuous',
+    borderRadius: radius.full,
+    borderWidth: 1,
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.control,
   },
 });
 

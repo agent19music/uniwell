@@ -76,7 +76,7 @@ export class ChatSessionManager {
 
       if (error) throw error;
 
-      return messages.map(msg => ({
+      return messages.map((msg: any) => ({
         id: msg.id,
         content: msg.content,
         isAI: msg.is_ai,

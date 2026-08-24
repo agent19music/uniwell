@@ -1,7 +1,8 @@
 import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Animated, Vibration } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { CloudRain, Leaf, Drop, SpeakerLow, SpeakerHigh, Barbell, CaretRight } from 'phosphor-react-native';
+import React from 'react';
 import { useState, useRef, useEffect } from 'react';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import BreathingExercise from '@/app/BreathingExercise';
@@ -19,14 +20,14 @@ const COLORING_PALETTE = [
 interface SoundItem {
   id: string;
   name: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: (size: number, color: string) => React.ReactNode;
   source: any;
 }
 
 const NATURE_SOUNDS: SoundItem[] = [
-  { id: '1', name: 'Rain', icon: 'rainy-outline', source: require('@/assets/nature-sounds/rain.mp3') },
-  { id: '2', name: 'Forest', icon: 'leaf-outline', source: require('@/assets/nature-sounds/forest.mp3') },
-  { id: '3', name: 'Waves', icon: 'water-outline', source: require('@/assets/nature-sounds/waves.mp3') },
+  { id: '1', name: 'Rain', icon: (s, c) => <CloudRain size={s} color={c} weight="regular" />, source: require('@/assets/nature-sounds/rain.mp3') },
+  { id: '2', name: 'Forest', icon: (s, c) => <Leaf size={s} color={c} weight="regular" />, source: require('@/assets/nature-sounds/forest.mp3') },
+  { id: '3', name: 'Waves', icon: (s, c) => <Drop size={s} color={c} weight="regular" />, source: require('@/assets/nature-sounds/waves.mp3') },
 ];
 
 export default function GamesScreen() {
@@ -144,11 +145,7 @@ export default function GamesScreen() {
           ]}
           onPress={() => playSound(soundItem)}
         >
-          <Ionicons
-            name={soundItem.icon}
-            size={24}
-            color={selectedSound === soundItem.name && isPlaying ? '#FF7F50' : '#666'}
-          />
+          {soundItem.icon(24, selectedSound === soundItem.name && isPlaying ? '#FF7F50' : '#666')}
           <Text style={styles.soundText}>{soundItem.name}</Text>
           {selectedSound === soundItem.name && isPlaying && (
             <View style={styles.playingIndicator} />
@@ -185,7 +182,7 @@ export default function GamesScreen() {
           
           {selectedSound && (
             <View style={styles.volumeControl}>
-              <Ionicons name="volume-low" size={20} color="#666" />
+              <SpeakerLow size={20} color="#666" weight="regular" />
               <Slider
                 style={styles.slider}
                 minimumValue={0}
@@ -196,7 +193,7 @@ export default function GamesScreen() {
                 maximumTrackTintColor="#ddd"
                 thumbTintColor="#FF7F50"
               />
-              <Ionicons name="volume-high" size={20} color="#666" />
+              <SpeakerHigh size={20} color="#666" weight="regular" />
             </View>
           )}
         </View> */}
@@ -212,9 +209,9 @@ export default function GamesScreen() {
               style={[styles.breathingWidgetButton, { backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5' }]}
               onPress={handleBreathingExercisePress}
             >
-              <Ionicons name="fitness-outline" size={24} color="#4A90E2" />
+              <Barbell size={24} color="#4A90E2" weight="regular" />
               <Text style={[styles.breathingWidgetText, isDark && styles.darkText]}>Start Breathing Exercise</Text>
-              <Ionicons name="chevron-forward" size={20} color="#4A90E2" />
+              <CaretRight size={20} color="#4A90E2" weight="regular" />
             </TouchableOpacity>
           </View>
         </View>

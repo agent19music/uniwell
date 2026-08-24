@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Modal, 
   View, 
@@ -8,12 +8,11 @@ import {
   TextInput, 
   Platform, 
   useColorScheme,
-  Animated,
   KeyboardAvoidingView,
   ScrollView
 } from 'react-native';
 import { useRoutine } from '@/contexts/RoutineContext';
-import { Ionicons, Octicons } from '@expo/vector-icons';
+import { X, Calendar, Rocket, Fire } from 'phosphor-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { BlurView } from 'expo-blur';
 import { TimePickerInteraction } from '@/components/TimePickerInteraction';
@@ -34,50 +33,6 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
   const [startTime, setStartTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   
-  // Animation values
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const typeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible]);
-
-  useEffect(() => {
-    Animated.spring(typeAnim, {
-      toValue: type === 'build' ? 0 : 1,
-      useNativeDriver: true,
-      tension: 50,
-      friction: 7
-    }).start();
-  }, [type]);
-
   const onDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
@@ -119,34 +74,17 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalContainer}
       >
-        <Animated.View 
-          style={[
-            styles.overlay,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
-        >
+        <View style={styles.overlay}>
           <TouchableOpacity 
             style={styles.overlayTouchable}
             onPress={onClose}
           />
-        </Animated.View>
+        </View>
 
-        <Animated.View
+        <View
           style={[
             styles.modalContent,
             isDark && styles.darkModalContent,
-            {
-              transform: [
-                {
-                  translateY: slideAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [600, 0],
-                  }),
-                },
-              ],
-            },
           ]}
         >
           <BlurView
@@ -156,7 +94,7 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
           >
             <View style={styles.header}>
               <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={24} color={isDark ? '#fff' : '#000'} />
+                <X size={24} color={isDark ? '#fff' : '#000'} weight="regular" />
               </TouchableOpacity>
               <Text style={[styles.headerTitle, isDark && styles.darkText]}>New Streak</Text>
               <TouchableOpacity 
@@ -201,31 +139,21 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
 
               <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Streak Type</Text>
               <View style={styles.typeContainer}>
-                <Animated.View
+                <View
                   style={[
                     styles.typeButton,
                     type === 'build' && styles.selectedType,
                     isDark && styles.darkTypeButton,
-                    {
-                      transform: [
-                        {
-                          scale: typeAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [1.05, 0.95]
-                          })
-                        }
-                      ]
-                    }
                   ]}
                 >
                   <TouchableOpacity 
                     style={styles.typeButtonContent}
                     onPress={() => setType('build')}
                   >
-                    <Octicons 
-                      name="rocket" 
-                      size={24} 
-                      color={type === 'build' ? 'white' : isDark ? '#fff' : '#333'} 
+                    <Rocket
+                      size={24}
+                      color={type === 'build' ? 'white' : isDark ? '#fff' : '#333'}
+                      weight="regular"
                     />
                     <Text style={[
                       styles.typeText,
@@ -235,33 +163,23 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
                       Build Habit
                     </Text>
                   </TouchableOpacity>
-                </Animated.View>
+                </View>
 
-                <Animated.View
+                <View
                   style={[
                     styles.typeButton,
                     type === 'break' && styles.selectedType,
                     isDark && styles.darkTypeButton,
-                    {
-                      transform: [
-                        {
-                          scale: typeAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.95, 1.05]
-                          })
-                        }
-                      ]
-                    }
                   ]}
                 >
                   <TouchableOpacity 
                     style={styles.typeButtonContent}
                     onPress={() => setType('break')}
                   >
-                    <Octicons 
-                      name="flame" 
-                      size={24} 
-                      color={type === 'break' ? 'white' : isDark ? '#fff' : '#333'} 
+                    <Fire
+                      size={24}
+                      color={type === 'break' ? 'white' : isDark ? '#fff' : '#333'}
+                      weight="regular"
                     />
                     <Text style={[
                       styles.typeText,
@@ -271,7 +189,7 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
                       Break Habit
                     </Text>
                   </TouchableOpacity>
-                </Animated.View>
+                </View>
               </View>
 
               <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Start Date & Time</Text>
@@ -280,7 +198,7 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
                   style={[styles.dateTimeButton, styles.dateButton, isDark && styles.darkDateTimeButton, {backgroundColor: isDark ? '#2c2c2e' : '#fff'}]}
                   onPress={() => setShowDatePicker(true)}
                 >
-                  <Ionicons name="calendar-outline" size={24} color={isDark ? '#fff' : '#666'} />
+                  <Calendar size={24} color={isDark ? '#fff' : '#666'} weight="regular" />
                   <Text style={[styles.dateTimeText, isDark && styles.darkText]}>
                     {startDate.toLocaleDateString()}
                   </Text>
@@ -303,7 +221,7 @@ export default function AddStreakModal({ visible, onClose }: AddStreakModalProps
               )}
             </ScrollView>
           </BlurView>
-        </Animated.View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );

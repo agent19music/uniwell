@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { CaretDown, CaretUp, Heart, ChatCircle } from 'phosphor-react-native';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Reply {
@@ -65,11 +65,10 @@ export default function ThreadedReply({ reply, depth, onReply, onLike }: Threade
         </View>
         {reply.hasChildren && (
           <TouchableOpacity onPress={() => setIsCollapsed(!isCollapsed)}>
-            <Ionicons 
-              name={isCollapsed ? 'chevron-down' : 'chevron-up'} 
-              size={20} 
-              color={isDark ? "#aaa" : "#666"} 
-            />
+            {isCollapsed
+              ? <CaretDown size={20} color={isDark ? "#aaa" : "#666"} weight="regular" />
+              : <CaretUp size={20} color={isDark ? "#aaa" : "#666"} weight="regular" />
+            }
           </TouchableOpacity>
         )}
       </View>
@@ -104,10 +103,10 @@ export default function ThreadedReply({ reply, depth, onReply, onLike }: Threade
               style={styles.actionButton}
               onPress={() => onLike(reply.id)}
             >
-              <Ionicons 
-                name={reply.isLiked ? "heart" : "heart-outline"} 
-                size={20} 
-                color={reply.isLiked ? "#FF4D4D" : isDark ? "#aaa" : "#666"} 
+              <Heart
+                size={20}
+                color={reply.isLiked ? "#FF4D4D" : isDark ? "#aaa" : "#666"}
+                weight={reply.isLiked ? "fill" : "regular"}
               />
               <Text style={[styles.actionText, isDark && styles.actionTextDark]}>
                 {reply.likes || 0}
@@ -118,10 +117,10 @@ export default function ThreadedReply({ reply, depth, onReply, onLike }: Threade
               style={styles.actionButton}
               onPress={() => onReply(reply.id)}
             >
-              <Ionicons 
-                name="chatbubble-outline" 
-                size={20} 
-                color={isDark ? "#aaa" : "#666"} 
+              <ChatCircle
+                size={20}
+                color={isDark ? "#aaa" : "#666"}
+                weight="regular"
               />
               <Text style={[styles.actionText, isDark && styles.actionTextDark]}>
                 Reply

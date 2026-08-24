@@ -43,7 +43,7 @@ export async function scheduleLocalNotification(
     });
   } else {
     // Fallback to toast notifications
-    toast(body, { title });
+    toast.show(title ? `${title}: ${body}` : body);
   }
 }
 
@@ -155,7 +155,7 @@ export async function notifyAboutNewLibraryContent(
         : `Check out: ${resource.title}`;
       
       // Use toast for immediate feedback on web
-      toast.success(notificationBody, { title: notificationTitle });
+      toast.success(`${notificationTitle}: ${notificationBody}`);
       
       // Also create in-app notification
       return await createInAppNotification(

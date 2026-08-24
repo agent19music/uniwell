@@ -1,3 +1,4 @@
+/** @deprecated SemesterContext is the only timetable owner. Do not add new consumers. */
 import { useEffect, useState } from 'react';
 import { 
   ClassFrequency, 
@@ -53,7 +54,7 @@ export const useTimetableManagement = () => {
             }
             
             // Transform from Supabase snake_case to frontend camelCase
-            const formattedSemesters = data.map(semester => ({
+            const formattedSemesters = data.map((semester: any) => ({
                 id: semester.id,
                 name: semester.name,
                 type: semester.type as SemesterType,
@@ -68,7 +69,7 @@ export const useTimetableManagement = () => {
             
             // Find an active semester if one exists, otherwise use the most recent one
             if (formattedSemesters.length > 0 && !activeSemester) {
-                const activeSem = formattedSemesters.find(s => s.status === 'active');
+                const activeSem = formattedSemesters.find((s: { status: string }) => s.status === 'active');
                 const semesterToUse = activeSem || formattedSemesters[0]; // Use active or most recent
                 setActiveSemester(semesterToUse);
             }
@@ -105,7 +106,7 @@ export const useTimetableManagement = () => {
                     throw scheduleError;
                 }
                 
-                const formattedSchedules: ClassSchedule[] = scheduleData.map(schedule => ({
+                const formattedSchedules: ClassSchedule[] = scheduleData.map((schedule: any) => ({
                     ...schedule,
                     startTime: new Date(schedule.startTime),
                     endTime: new Date(schedule.endTime),
@@ -453,7 +454,7 @@ export const useTimetableManagement = () => {
                 throw error;
             }
             
-            const formattedSchedules: ClassSchedule[] = data.map(schedule => ({
+            const formattedSchedules: ClassSchedule[] = data.map((schedule: any) => ({
                 ...schedule,
                 startTime: new Date(schedule.startTime),
                 endTime: new Date(schedule.endTime),

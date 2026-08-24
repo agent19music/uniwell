@@ -1,29 +1,24 @@
 /**
- * Supabase Client Module
- * 
- * This module provides platform-specific Supabase client implementations.
- * Expo's metro bundler will automatically select the correct version:
- * - supabase.web.ts for web platform
- * - supabase.native.ts for iOS and Android
- * 
- * This file serves as a fallback for environments that don't support
- * platform-specific extensions.
+ * Platform fallback. Metro selects supabase.web.ts / supabase.native.ts first.
  */
+import { createClient } from '@supabase/supabase-js';
 
-import { Platform } from 'react-native';
+import { getSupabaseEnv } from '@/lib/contracts/env';
+import type { Database } from '@/types/database';
 
-// Conditionally import based on platform
-const isWeb = Platform.OS === 'web';
+const { EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY } = getSupabaseEnv();
 
-// Use dynamic imports to ensure proper bundling
-let supabaseModule;
+export const supabaseClient = createClient<Database>(
+  EXPO_PUBLIC_SUPABASE_URL,
+  EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  },
+);
 
-if (isWeb) {
-  // Web implementation - uses localStorage
-  supabaseModule = require('./supabase.web');
-} else {
-  // Native implementation - uses AsyncStorage
-  supabaseModule = require('./supabase.native');
-}
-
-export const supabase = supabaseModule.supabase;
+/** Compatibility alias while remaining call sites migrate onto generated table types. */
+export const supabase = supabaseClient as any;

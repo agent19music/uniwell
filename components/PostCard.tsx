@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { DotsThree, Heart, ChatCircle, Export } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
+import { SafeText } from '@/components/ThemedText';
+import { Card } from '@/components/ui/Card';
+import { IconButton } from '@/components/ui/IconButton';
+import { radius, spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { Post } from '@/types/community';
 import { useCommunity } from '@/contexts/CommunityContext';
 import { usePostNavigation } from '@/contexts/PostNavigationContext';
@@ -10,7 +15,7 @@ import { Menu } from '@/components/Menu';
 
 export default function PostCard({ post, isOwner }: { post: Post, isOwner: boolean }) {
   const router = useRouter();
-  const isDark = useColorScheme() === 'dark';
+  const { colors } = useTheme();
   const { deletePost, mutePost, notInterestedPost, likePost } = useCommunity();
   const { navigateToPost } = usePostNavigation();
   const [menuVisible, setMenuVisible] = useState(false);
@@ -51,10 +56,10 @@ export default function PostCard({ post, isOwner }: { post: Post, isOwner: boole
   const handlePostPress = () => {
     navigateToPost(post);
   };
-console.log('Rendering PostCard for post:', post.id);
   return (
-    <TouchableOpacity
-      style={[styles.postCard, isDark && styles.darkCard]}
+    <Card
+      accessibilityLabel={`Open post by ${post.is_anonymous ? 'Anonymous' : (post.profiles?.username || 'Member')}`}
+      style={styles.postCard}
       onPress={handlePostPress}
     >
       <View style={styles.postHeader}>
@@ -65,15 +70,15 @@ console.log('Rendering PostCard for post:', post.id);
                 ? 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png'
                 : (post.profiles?.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png')
             }} 
-            style={styles.userImage} 
+            style={[styles.userImage, { borderColor: colors.border }]}
           />
           <View>
-            <Text style={[styles.userName, isDark && styles.darkText]}>
+            <SafeText variant="bodyStrong">
               {post.is_anonymous ? 'Anonymous' : (post.profiles?.username || 'Member')}
-            </Text>
-            <Text style={[styles.timestamp, isDark && styles.darkSubText]}>
+            </SafeText>
+            <SafeText variant="caption" color={colors.textMuted}>
               {format(new Date(post.created_at), 'MMM d, yyyy')}
-            </Text>
+            </SafeText>
           </View>
         </View>
         <Menu
@@ -81,25 +86,25 @@ console.log('Rendering PostCard for post:', post.id);
           onDismiss={() => setMenuVisible(false)}
           items={menuItems}
           trigger={
-            <TouchableOpacity onPress={() => setMenuVisible(true)}>
-              <Ionicons name="ellipsis-horizontal" size={20} color={isDark ? '#ffffff' : '#000000'} />
-            </TouchableOpacity>
+            <IconButton accessibilityLabel="Post options" onPress={() => setMenuVisible(true)}>
+              <DotsThree size={20} color={colors.text} weight="regular" />
+            </IconButton>
           }
         />
       </View>
 
       {post.title && (
-        <Text style={[styles.postTitle, isDark && styles.darkText]}>
+        <SafeText variant="heading" style={styles.postContent}>
           {post.title}
-        </Text>
+        </SafeText>
       )}
 
-      <Text style={[styles.postContent, isDark && styles.darkText]}>{post.content}</Text>
+      <SafeText variant="caption" style={styles.postContent}>{post.content}</SafeText>
 
       {post.media_url && post.media_url.length > 0 && (
         <Image 
           source={{ uri: post.media_url[0] }} 
-          style={styles.postMedia}
+          style={[styles.postMedia, { borderColor: colors.border }]}
           resizeMode="cover"
         />
       )}
@@ -109,98 +114,71 @@ console.log('Rendering PostCard for post:', post.id);
           style={styles.actionButton}
           onPress={() => likePost(post.id)}
         >
-          <Ionicons 
-            name={post.user_likes?.length > 0 ? "heart" : "heart-outline"} 
-            size={20} 
-            color={post.user_likes?.length > 0 ? "#FF7F50" : isDark ? '#aaaaaa' : '#666666'} 
+          <Heart
+            size={20}
+            color={(post.user_likes?.length ?? 0) > 0 ? colors.danger : colors.textSecondary}
+            weight={(post.user_likes?.length ?? 0) > 0 ? "fill" : "regular"}
           />
-          <Text style={[styles.actionText, isDark && styles.darkSubText]}>
+          <SafeText variant="caption" color={colors.textSecondary}>
             {post.post_likes?.[0]?.count || 0}
-          </Text>
+          </SafeText>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="chatbubble-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
-          <Text style={[styles.actionText, isDark && styles.darkSubText]}>
+          <ChatCircle size={20} color={colors.textSecondary} weight="regular" />
+          <SafeText variant="caption" color={colors.textSecondary}>
             {post.post_replies?.[0]?.count || 0}
-          </Text>
+          </SafeText>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="share-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
+          <Export size={20} color={colors.textSecondary} weight="regular" />
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   postCard: {
-    backgroundColor: 'white',
-    padding: 16,
     margin: 16,
-    borderRadius: 16,
-  },
-  
-  darkCard: {
-    backgroundColor: '#1e1e1e',
   },
   postHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.macro,
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.macro,
   },
   userImage: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    fontFamily: 'Vercetti-Regular',
-  },
-  timestamp: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Vercetti-Regular',
+    borderWidth: 1,
+    borderRadius: radius.full,
   },
   postContent: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
-    marginBottom: 12,
-    fontFamily: 'Vercetti-Regular',
+    marginBottom: spacing.macro,
   },
   postMedia: {
     width: '100%',
     height: 200,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  darkText: {
-    color: '#ffffff',
-  },
-  darkSubText: {
-    color: '#aaaaaa',
+    borderCurve: 'continuous',
+    borderRadius: radius.control,
+    borderWidth: 1,
+    marginBottom: spacing.macro,
   },
   postActions: {
     flexDirection: 'row',
-    gap: 24,
-    marginTop: 8,
+    gap: spacing.field,
+    marginTop: spacing.micro,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-  },
-  actionText: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: 'Vercetti-Regular',
+    gap: spacing.optical,
+    minHeight: 48,
+    minWidth: 48,
+    paddingVertical: spacing.optical,
   }
 }); 

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, useColorScheme, ScrollView, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { format } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
+import { X, Calendar, Moon, Sun, Coffee, Wine, Barbell, DeviceMobile } from 'phosphor-react-native';
 import { SleepData } from '../lib/services/sleepService';
+import { Button } from '@/components/ui/Button';
+import { useTheme } from '@/hooks/useTheme';
 
 interface SleepEntryModalProps {
   visible: boolean;
@@ -14,10 +16,10 @@ interface SleepEntryModalProps {
 }
 
 const SLEEP_FACTORS = [
-  { id: 'caffeine_consumed', label: 'Caffeine', icon: 'cafe-outline' },
-  { id: 'alcohol_consumed', label: 'Alcohol', icon: 'wine-outline' },
-  { id: 'exercise_before_sleep', label: 'Exercise', icon: 'fitness-outline' },
-  { id: 'screen_time_before_sleep', label: 'Screen Time', icon: 'phone-portrait-outline' },
+  { id: 'caffeine_consumed', label: 'Caffeine', Icon: Coffee },
+  { id: 'alcohol_consumed', label: 'Alcohol', Icon: Wine },
+  { id: 'exercise_before_sleep', label: 'Exercise', Icon: Barbell },
+  { id: 'screen_time_before_sleep', label: 'Screen Time', Icon: DeviceMobile },
 ];
 
 export default function SleepEntryModal({ visible, onClose, onSave, initialData }: SleepEntryModalProps) {
@@ -44,8 +46,7 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
   const [showWakePicker, setShowWakePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTheme();
 
   // Calculate total hours
   const calculateTotalHours = () => {
@@ -144,18 +145,18 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, isDark && styles.darkModalContent]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
           <View style={styles.header}>
             <Text style={[styles.modalTitle, isDark && styles.darkText]}>
               Record Sleep
             </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={isDark ? '#ffffff' : '#333333'} />
+            <TouchableOpacity accessibilityLabel="Close sleep entry" accessibilityRole="button" onPress={onClose} style={styles.closeButton}>
+              <X size={24} color={colors.text} weight="regular" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={styles.scrollView}>
             {/* Date Selection */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
@@ -164,8 +165,10 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
               <TouchableOpacity 
                 style={[styles.datePickerButton, isDark && styles.darkInput]} 
                 onPress={() => setShowDatePicker(true)}
+                accessibilityLabel={`Sleep date, ${format(sleepDate, 'EEEE, MMMM d, yyyy')}`}
+                accessibilityRole="button"
               >
-                <Ionicons name="calendar-outline" size={20} color={isDark ? '#ffffff' : '#333333'} />
+                <Calendar size={20} color={isDark ? '#ffffff' : '#333333'} weight="regular" />
                 <Text style={[styles.dateText, isDark && styles.darkText]}>
                   {format(sleepDate, 'EEEE, MMMM d, yyyy')}
                 </Text>
@@ -194,8 +197,10 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                   <TouchableOpacity 
                     style={[styles.timePickerButton, isDark && styles.darkInput]} 
                     onPress={() => setShowSleepPicker(true)}
+                    accessibilityLabel={`Bedtime, ${format(sleepTime, 'h:mm a')}`}
+                    accessibilityRole="button"
                   >
-                    <Ionicons name="moon-outline" size={18} color={isDark ? '#ffffff' : '#333333'} />
+                    <Moon size={18} color={isDark ? '#ffffff' : '#333333'} weight="regular" />
                     <Text style={[styles.timeText, isDark && styles.darkText]}>
                       {format(sleepTime, 'h:mm a')}
                     </Text>
@@ -207,8 +212,10 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                   <TouchableOpacity 
                     style={[styles.timePickerButton, isDark && styles.darkInput]} 
                     onPress={() => setShowWakePicker(true)}
+                    accessibilityLabel={`Wake time, ${format(wakeTime, 'h:mm a')}`}
+                    accessibilityRole="button"
                   >
-                    <Ionicons name="sunny-outline" size={18} color={isDark ? '#ffffff' : '#333333'} />
+                    <Sun size={18} color={isDark ? '#ffffff' : '#333333'} weight="regular" />
                     <Text style={[styles.timeText, isDark && styles.darkText]}>
                       {format(wakeTime, 'h:mm a')}
                     </Text>
@@ -256,9 +263,11 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                 step={1}
                 value={quality}
                 onValueChange={setQuality}
-                minimumTrackTintColor="#3F70F4"
-                maximumTrackTintColor={isDark ? '#666' : '#ddd'}
-                thumbTintColor="#3F70F4"
+                accessibilityLabel="Sleep quality"
+                accessibilityValue={{ min: 1, max: 10, now: quality, text: `${quality} of 10` }}
+                minimumTrackTintColor={colors.accent}
+                maximumTrackTintColor={colors.border}
+                thumbTintColor={colors.accent}
               />
               <View style={styles.sliderLabels}>
                 <Text style={[styles.sliderLabel, isDark && styles.darkSubText]}>Poor</Text>
@@ -279,9 +288,11 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                 step={1}
                 value={environment}
                 onValueChange={setEnvironment}
-                minimumTrackTintColor="#3F70F4"
-                maximumTrackTintColor={isDark ? '#666' : '#ddd'}
-                thumbTintColor="#3F70F4"
+                accessibilityLabel="Sleep environment"
+                accessibilityValue={{ min: 1, max: 10, now: environment, text: `${environment} of 10` }}
+                minimumTrackTintColor={colors.accent}
+                maximumTrackTintColor={colors.border}
+                thumbTintColor={colors.accent}
               />
               <View style={styles.sliderLabels}>
                 <Text style={[styles.sliderLabel, isDark && styles.darkSubText]}>Uncomfortable</Text>
@@ -302,9 +313,11 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                 step={1}
                 value={stressLevel}
                 onValueChange={setStressLevel}
-                minimumTrackTintColor="#3F70F4"
-                maximumTrackTintColor={isDark ? '#666' : '#ddd'}
-                thumbTintColor="#3F70F4"
+                accessibilityLabel="Stress level"
+                accessibilityValue={{ min: 1, max: 10, now: stressLevel, text: `${stressLevel} of 10` }}
+                minimumTrackTintColor={colors.accent}
+                maximumTrackTintColor={colors.border}
+                thumbTintColor={colors.accent}
               />
               <View style={styles.sliderLabels}>
                 <Text style={[styles.sliderLabel, isDark && styles.darkSubText]}>Relaxed</Text>
@@ -329,14 +342,17 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                       factors[factor.id as keyof typeof factors] && isDark && styles.darkFactorItemActive
                     ]}
                     onPress={() => toggleFactor(factor.id)}
+                    accessibilityLabel={factor.label}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: factors[factor.id as keyof typeof factors] }}
                   >
-                    <Ionicons 
-                      name={factor.icon as any} 
-                      size={24} 
-                      color={factors[factor.id as keyof typeof factors] 
-                        ? (isDark ? '#000000' : '#ffffff') 
+                    <factor.Icon
+                      size={24}
+                      color={factors[factor.id as keyof typeof factors]
+                        ? (isDark ? '#000000' : '#ffffff')
                         : (isDark ? '#ffffff' : '#333333')
-                      } 
+                      }
+                      weight="regular"
                     />
                     <Text style={[
                       styles.factorLabel,
@@ -361,6 +377,7 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                 <View style={styles.metricField}>
                   <Text style={[styles.metricLabel, isDark && styles.darkSubText]}>Deep Sleep (min)</Text>
                   <TextInput
+                    accessibilityLabel="Deep sleep minutes"
                     style={[styles.metricInput, isDark && styles.darkInput]}
                     value={deepSleep}
                     onChangeText={setDeepSleep}
@@ -373,6 +390,7 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                 <View style={styles.metricField}>
                   <Text style={[styles.metricLabel, isDark && styles.darkSubText]}>REM Sleep (min)</Text>
                   <TextInput
+                    accessibilityLabel="REM sleep minutes"
                     style={[styles.metricInput, isDark && styles.darkInput]}
                     value={remSleep}
                     onChangeText={setRemSleep}
@@ -387,6 +405,7 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                 <View style={styles.metricField}>
                   <Text style={[styles.metricLabel, isDark && styles.darkSubText]}>Light Sleep (min)</Text>
                   <TextInput
+                    accessibilityLabel="Light sleep minutes"
                     style={[styles.metricInput, isDark && styles.darkInput]}
                     value={lightSleep}
                     onChangeText={setLightSleep}
@@ -399,6 +418,7 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                 <View style={styles.metricField}>
                   <Text style={[styles.metricLabel, isDark && styles.darkSubText]}>Awake (min)</Text>
                   <TextInput
+                    accessibilityLabel="Awake minutes"
                     style={[styles.metricInput, isDark && styles.darkInput]}
                     value={awakeTime}
                     onChangeText={setAwakeTime}
@@ -413,6 +433,7 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                 <View style={styles.metricField}>
                   <Text style={[styles.metricLabel, isDark && styles.darkSubText]}>Avg Heart Rate (bpm)</Text>
                   <TextInput
+                    accessibilityLabel="Average heart rate"
                     style={[styles.metricInput, isDark && styles.darkInput]}
                     value={heartRate}
                     onChangeText={setHeartRate}
@@ -432,6 +453,7 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
                 Notes
               </Text>
               <TextInput
+                accessibilityLabel="Sleep notes"
                 style={[styles.notesInput, isDark && styles.darkInput]}
                 value={notes}
                 onChangeText={setNotes}
@@ -444,22 +466,12 @@ export default function SleepEntryModal({ visible, onClose, onSave, initialData 
             </View>
           </ScrollView>
 
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={onClose}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={handleSave}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
+          <View style={[styles.actions, { borderTopColor: colors.divider }]}>
+            <Button label="Cancel" onPress={onClose} style={styles.action} variant="secondary" />
+            <Button label="Save sleep" onPress={handleSave} style={styles.action} />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -471,7 +483,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: 'white',
+    borderWidth: 1,
+    borderCurve: 'continuous',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '85%',
@@ -492,7 +505,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#333',
   },
   closeButton: {
-    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 48,
   },
   scrollView: {
     flex: 1,
@@ -617,6 +633,7 @@ const styles = StyleSheet.create({
     width: '48%',
     backgroundColor: '#f8f8f8',
     borderRadius: 12,
+    minHeight: 56,
     padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -679,6 +696,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     gap: 12,
+  },
+  action: {
+    flex: 1,
   },
   darkActions: {
     borderTopColor: '#333',

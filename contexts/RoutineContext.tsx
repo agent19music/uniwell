@@ -907,7 +907,7 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return (data ?? []).map((row) => formatUrgeLog(row as Parameters<typeof formatUrgeLog>[0]));
+      return (data ?? []).map((row: Parameters<typeof formatUrgeLog>[0]) => formatUrgeLog(row));
     } catch (err) {
       setError((err as Error).message);
       return [];

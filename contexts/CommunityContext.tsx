@@ -180,11 +180,11 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     setPosts(currentPosts => 
       currentPosts.map(post => {
         if (post.id === postId) {
-          const currentLikes = post.post_likes?.count || 0;
+          const currentLikes = post.post_likes?.[0]?.count || 0;
           const isLiked = post.user_likes?.some(like => like.user_id === user.id);
           return {
             ...post,
-            post_likes: { count: isLiked ? currentLikes - 1 : currentLikes + 1 },
+            post_likes: [{ count: isLiked ? currentLikes - 1 : currentLikes + 1 }],
             user_likes: isLiked 
               ? post.user_likes?.filter(like => like.user_id !== user.id) || []
               : [...(post.user_likes || []), { user_id: user.id }]

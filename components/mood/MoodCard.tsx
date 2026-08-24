@@ -11,7 +11,7 @@ import Animated, {
   runOnUI,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-import { Ionicons } from "@expo/vector-icons";
+import { DotsThree, CaretDown } from 'phosphor-react-native';
 import { format, formatDistanceToNow } from "date-fns";
 
 import { MoodShape } from "./MoodShape";
@@ -168,7 +168,7 @@ export function MoodCard({
           items={menuItems}
           trigger={
             <TouchableOpacity onPress={() => setMenuVisible(true)}>
-              <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
+              <DotsThree size={24} color={colors.textPrimary} weight="regular" />
             </TouchableOpacity>
           }
         />
@@ -198,7 +198,7 @@ export function MoodCard({
               </Animated.Text>
             </View>
           </View>
-          <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+          <CaretDown size={20} color={colors.textSecondary} weight="regular" />
         </TouchableOpacity>
       )}
 

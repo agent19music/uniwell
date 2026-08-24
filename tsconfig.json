@@ -6,7 +6,7 @@
     "skipLibCheck": true,
     "target": "ES2020",
     "moduleResolution": "bundler",
-    "types": ["node", "react-native"],
+    "types": ["node", "react-native", "jest"],
     "paths": {
       "@/*": [
         "./*"
@@ -19,5 +19,23 @@
     "**/*.ts",
     "**/*.tsx",
     "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "legacy",
+    "__tests__",
+    "__mocks__",
+    "scripts",
+    "supabase/functions",
+    "visualisation",
+    "e2e",
+    "lib/toast/example.tsx",
+    "lib/toast/test-native-adapter.tsx",
+    "lib/toast/test-web-adapter.tsx",
+    "lib/toast/toast.ts",
+    "dist",
+    "dist-ui-check-final",
+    "android",
+    "ios"
   ]
 }

@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, StyleSheet, useColorScheme, TouchableOpacity, Image, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { PaperPlaneTilt, Heart, ChatCircle } from 'phosphor-react-native';
 
 // Detailed post data
 const POST_DETAILS = {
@@ -103,7 +103,7 @@ export default function PostScreen() {
             multiline
           />
           <TouchableOpacity style={styles.sendButton}>
-            <Ionicons name="send" size={24} color="#FF7F50" />
+            <PaperPlaneTilt size={24} color="#FF7F50" weight="fill" />
           </TouchableOpacity>
         </View>
 
@@ -121,11 +121,11 @@ export default function PostScreen() {
               <Text style={[styles.replyContent, isDark && styles.darkText]}>{reply.content}</Text>
               <View style={styles.replyActions}>
                 <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="heart-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
+                  <Heart size={20} color={isDark ? '#aaaaaa' : '#666666'} weight="regular" />
                   <Text style={[styles.actionText, isDark && styles.darkSubText]}>{reply.likes}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="chatbubble-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
+                  <ChatCircle size={20} color={isDark ? '#aaaaaa' : '#666666'} weight="regular" />
                 </TouchableOpacity>
               </View>
             </View>

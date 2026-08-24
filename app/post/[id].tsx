@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, DotsThree, XCircle, PaperPlaneTilt } from 'phosphor-react-native';
 import { supabase } from '../../lib/supabase';
 import { useCommunity } from '../../contexts/CommunityContext';
 import { usePostNavigation } from '../../contexts/PostNavigationContext';
@@ -317,10 +317,10 @@ export default function PostScreen() {
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
       <View style={[styles.header, isDark && styles.headerDark]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
+          <ArrowLeft size={24} color={isDark ? '#fff' : '#000'} weight="regular" />
         </TouchableOpacity>
         <TouchableOpacity onPress={handlePostOptions}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={isDark ? '#fff' : '#000'} />
+          <DotsThree size={24} color={isDark ? '#fff' : '#000'} weight="regular" />
         </TouchableOpacity>
       </View>
 
@@ -394,7 +394,7 @@ export default function PostScreen() {
                 Replying to a comment
               </Text>
               <TouchableOpacity onPress={() => setReplyingTo(null)}>
-                <Ionicons name="close-circle" size={20} color={isDark ? '#aaa' : '#666'} />
+                <XCircle size={20} color={isDark ? '#aaa' : '#666'} weight="fill" />
               </TouchableOpacity>
             </View>
           )}
@@ -412,10 +412,10 @@ export default function PostScreen() {
               onPress={handleReply}
               disabled={!replyContent.trim()}
             >
-              <Ionicons 
-                name="send" 
-                size={24} 
-                color={!replyContent.trim() ? (isDark ? '#444' : '#ccc') : "#FF7F50"} 
+              <PaperPlaneTilt
+                size={24}
+                color={!replyContent.trim() ? (isDark ? '#444' : '#ccc') : "#FF7F50"}
+                weight="fill"
               />
             </TouchableOpacity>
           </View>

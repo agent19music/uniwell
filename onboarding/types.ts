@@ -1,10 +1,7 @@
-import { ImageSourcePropType } from 'react-native';
-
 export interface OnboardingSlide {
   id: string;
   title: string;
   description: string;
-  imageSource: ImageSourcePropType;
   backgroundColor: string;
   icon?: string;
 }

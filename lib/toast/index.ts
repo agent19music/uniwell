@@ -10,6 +10,8 @@
 
 import { Platform } from 'react-native';
 
+export type ToastState = 'default' | 'loading' | 'error' | 'success' | 'destructive';
+
 // Type definitions for toast options
 export interface ToastOptions {
   /** Toast title (main message) */
@@ -22,6 +24,8 @@ export interface ToastOptions {
   icon?: string;
   /** Preset style for the toast */
   preset?: 'done' | 'error' | 'none' | 'custom' | 'heart';
+  /** Semantic presentation state. `destructive` maps to the error preset. */
+  state?: ToastState;
   /** Haptic feedback setting (native only) */
   haptic?: 'success' | 'warning' | 'error' | 'none';
   /** Custom layout for native (iOS only) */
@@ -69,27 +73,32 @@ if (Platform.OS === 'web') {
           icon: options?.icon,
         };
         
-        if (options?.preset === 'error') {
+        if (options?.preset === 'error' || options?.state === 'error' || options?.state === 'destructive') {
           hotToast.error(message, toastOptions);
-        } else if (options?.preset === 'done') {
+        } else if (options?.preset === 'done' || options?.state === 'success') {
           hotToast.success(message, toastOptions);
         } else {
           hotToast(message, toastOptions);
         }
       } else {
         // Full options object
-        const { title, message, preset, duration = 4000, position = 'bottom-center', icon } = messageOrOptions;
+        const { title, message, preset, state, duration, position = 'bottom-center', icon } = messageOrOptions;
         const displayMessage = title && message ? `${title}\n${message}` : title || message || '';
+        const resolvedPreset = state === 'error' || state === 'destructive'
+          ? 'error'
+          : state === 'success'
+            ? 'done'
+            : preset;
         
         const toastOptions = {
-          duration,
+          duration: duration ?? (resolvedPreset === 'error' ? 8000 : 4000),
           position,
           icon,
         };
         
-        if (preset === 'error') {
+        if (resolvedPreset === 'error') {
           hotToast.error(displayMessage, toastOptions);
-        } else if (preset === 'done') {
+        } else if (resolvedPreset === 'done') {
           hotToast.success(displayMessage, toastOptions);
         } else {
           hotToast(displayMessage, toastOptions);
@@ -106,7 +115,7 @@ if (Platform.OS === 'web') {
       },
       error: (message: string, options?: Omit<ToastOptions, 'message' | 'preset'>) => {
         hotToast.error(message, {
-          duration: options?.duration || 4000,
+          duration: options?.duration || 8000,
           position: options?.position || 'bottom-center',
           icon: options?.icon,
         });
@@ -154,19 +163,27 @@ if (Platform.OS === 'web') {
         // Simple string message
         burnt.toast({
           title: messageOrOptions,
-          preset: options?.preset || 'none',
-          haptic: options?.haptic || 'none',
+          preset: options?.state === 'error' || options?.state === 'destructive'
+            ? 'error'
+            : options?.state === 'success'
+              ? 'done'
+              : options?.preset || 'none',
+          haptic: options?.haptic || (options?.state === 'error' || options?.state === 'destructive'
+            ? 'error'
+            : options?.state === 'success'
+              ? 'success'
+              : 'none'),
           layout: options?.layout,
         });
       } else {
         // Full options object
-        const { title, message, preset = 'none', haptic = 'none', layout } = messageOrOptions;
+        const { title, message, preset = 'none', state, haptic, layout } = messageOrOptions;
         
         burnt.toast({
           title: title || message || '',
           message: title && message ? message : undefined,
-          preset,
-          haptic,
+          preset: state === 'error' || state === 'destructive' ? 'error' : state === 'success' ? 'done' : preset,
+          haptic: haptic ?? (state === 'error' || state === 'destructive' ? 'error' : state === 'success' ? 'success' : 'none'),
           layout,
         });
       }

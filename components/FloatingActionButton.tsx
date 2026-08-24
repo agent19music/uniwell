@@ -1,13 +1,10 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface FloatingActionButtonProps {
   onPress: () => void;
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  icon: React.ReactNode;
   color?: string;
-  iconSize?: number;
-  iconColor?: string;
   style?: object;
 }
 
@@ -15,8 +12,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   onPress,
   icon,
   color = '#FF7F50',
-  iconSize = 24,
-  iconColor = '#FFFFFF',
   style
 }) => {
   return (
@@ -28,11 +23,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
       ]}
       onPress={onPress}
     >
-      <MaterialCommunityIcons 
-        name={icon}
-        size={iconSize}
-        color={iconColor}
-      />
+      {icon}
     </TouchableOpacity>
   );
 };

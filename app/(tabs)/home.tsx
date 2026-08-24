@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, TextInput } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Octicons } from '@expo/vector-icons';
+import { DotsThree, ArrowRight, Moon, Book, ChatCircle, Fire, Bell } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useMood, MoodType } from '../../contexts/MoodContext';
@@ -11,6 +11,12 @@ import { useWellnessScore } from '../../hooks/useWellnessScore';
 import { LoadingIndicator } from '@rn-nui/loading-indicator';
 import { Menu } from '../../components/Menu';
 import { MoodCard } from '../../components/mood';
+import { HeaderAction } from '@/components/ui/Navigation';
+import { SafeText } from '@/components/ThemedText';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { IconButton } from '@/components/ui/IconButton';
+import { spacing } from '@/constants/theme';
 
 
 export default function HomeScreen() {
@@ -172,47 +178,39 @@ export default function HomeScreen() {
   const renderDailyReflection = () => (
     <View style={styles.reflectionSection}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.greeting, { color: colors.textPrimary, marginBottom: 0, fontSize: 24 }]}>
+        <SafeText variant="title" style={styles.greeting}>
           Hello, {userName || 'Guest'}
-        </Text>
+        </SafeText>
         <Menu
           visible={journalMenuVisible}
           onDismiss={() => setJournalMenuVisible(false)}
           items={journalMenuItems}
           trigger={
-            <TouchableOpacity onPress={() => setJournalMenuVisible(true)}>
-              <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
+            <IconButton accessibilityLabel="Journal options" onPress={() => setJournalMenuVisible(true)}>
+              <DotsThree size={20} color={colors.text} weight="regular" />
+            </IconButton>
           }
         />
       </View>
-      <Text style={[styles.reflectionHeading, { color: colors.textPrimary }]}>
-        How do you feel{'\n'}about your <Text style={styles.boldText}>current{'\n'}emotions</Text>?
-      </Text>
-      <View style={[styles.reflectionInputContainer, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}>
-        <TextInput
-          style={[styles.reflectionInput, { color: colors.textPrimary }]}
+      <SafeText variant="heading" style={styles.reflectionHeading}>
+        How do you feel about your current emotions?
+      </SafeText>
+      <Input
+          label="Today’s reflection"
           placeholder="Your reflection.."
-          placeholderTextColor={colors.textSecondary}
           value={reflectionText}
           onChangeText={setReflectionText}
-          multiline={false}
+          trailing={
+            <IconButton
+              accessibilityLabel="Save reflection"
+              disabled={savingReflection || !reflectionText.trim()}
+              onPress={handleReflectionSubmit}
+              variant="ghost"
+            >
+              {savingReflection ? <LoadingIndicator size="small" /> : <ArrowRight size={20} color={colors.accent} weight="regular" />}
+            </IconButton>
+          }
         />
-        <TouchableOpacity
-          onPress={handleReflectionSubmit}
-          disabled={savingReflection || !reflectionText.trim()}
-        >
-          {savingReflection ? (
-            <LoadingIndicator size="small" />
-          ) : (
-            <Ionicons
-              name="arrow-forward"
-              size={24}
-              color={colors.textPrimary}
-            />
-          )}
-        </TouchableOpacity>
-      </View>
     </View>
   );
 
@@ -230,17 +228,15 @@ export default function HomeScreen() {
   const renderWellnessProgress = () => (
     <View style={styles.progressSection}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-          Your progress
-        </Text>
+        <SafeText variant="heading">Your progress</SafeText>
         <Menu
           visible={progressMenuVisible}
           onDismiss={() => setProgressMenuVisible(false)}
           items={progressMenuItems}
           trigger={
-            <TouchableOpacity onPress={() => setProgressMenuVisible(true)}>
-              <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
+            <IconButton accessibilityLabel="Progress options" onPress={() => setProgressMenuVisible(true)}>
+              <DotsThree size={20} color={colors.text} weight="regular" />
+            </IconButton>
           }
         />
       </View>
@@ -249,12 +245,12 @@ export default function HomeScreen() {
           <LoadingIndicator size="large" />
         ) : (
           <>
-            <Text style={[styles.progressPercentage, { color: colors.textPrimary }]}>
+            <SafeText variant="display" style={styles.progressPercentage}>
               {wellnessScore}%
-            </Text>
-            <Text style={[styles.progressSubtitle, { color: colors.textSecondary }]}>
-              Of the weekly{'\n'}plan completed
-            </Text>
+            </SafeText>
+            <SafeText variant="caption" color={colors.textSecondary} style={styles.progressSubtitle}>
+              Of the weekly plan completed
+            </SafeText>
           </>
         )}
       </View>
@@ -265,73 +261,56 @@ export default function HomeScreen() {
   const renderHomeCards = () => (
     <View style={styles.cardsContainer}>
       {/* Sleep Card */}
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
+      <Card
+        style={styles.card}
         onPress={handleSleepCardPress}
+        accessibilityLabel="Open sleep tracking"
       >
         <View style={styles.cardHeader}>
-          <Ionicons name="moon-outline" size={24} color={colors.primary} />
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Sleep</Text>
+          <Moon size={24} color={colors.primary} weight="regular" />
+          <SafeText variant="bodyStrong">Sleep</SafeText>
         </View>
-        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-          Track your sleep patterns
-        </Text>
-      </TouchableOpacity>
+        <SafeText variant="caption" color={colors.textSecondary}>Track your sleep patterns</SafeText>
+      </Card>
 
       {/*Library Card */}
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
+      <Card
+        style={styles.card}
         onPress={handleLibraryPress}
+        accessibilityLabel="Open library"
       >
         <View style={styles.cardHeader}>
-          <Ionicons name="book-outline" size={24} color={colors.primary} />
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Library</Text>
+          <Book size={24} color={colors.primary} weight="regular" />
+          <SafeText variant="bodyStrong">Library</SafeText>
         </View>
-        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-          Read and listen to articles
-        </Text>
-      </TouchableOpacity>
+        <SafeText variant="caption" color={colors.textSecondary}>Read and listen to articles</SafeText>
+      </Card>
 
       {/* Chat Card */}
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
+      <Card
+        style={styles.card}
         onPress={handleChatCardPress}
+        accessibilityLabel="Open chat"
       >
         <View style={styles.cardHeader}>
-          <Ionicons name="chatbubble-outline" size={24} color={colors.primary} />
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Chat</Text>
+          <ChatCircle size={24} color={colors.primary} weight="regular" />
+          <SafeText variant="bodyStrong">Chat</SafeText>
         </View>
-        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-          Chat with your wellness companion
-        </Text>
-      </TouchableOpacity>
+        <SafeText variant="caption" color={colors.textSecondary}>Chat with your wellness companion</SafeText>
+      </Card>
 
       {/* Streaks Card */}
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow.medium }]}
+      <Card
+        style={styles.card}
         onPress={handleStreakCardPress}
+        accessibilityLabel="Open streaks"
       >
         <View style={styles.cardHeader}>
-          <Octicons name="flame" size={24} color={colors.primary} />
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Streaks</Text>
+          <Fire size={24} color={colors.primary} weight="regular" />
+          <SafeText variant="bodyStrong">Streaks</SafeText>
         </View>
-        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-          Track your progress
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  // Render decorative floating circles
-  const renderDecorativeCircles = () => (
-    <View style={styles.decorativeCircles}>
-      <View style={[styles.circle, { bottom: 32, left: 32, width: 64, height: 64, backgroundColor: 'rgba(168, 184, 150, 0.3)' }]} />
-      <View style={[styles.circle, { bottom: 96, left: 80, width: 48, height: 48, backgroundColor: 'rgba(255, 255, 255, 0.4)' }]} />
-      <View style={[styles.circle, { bottom: 48, left: 128, width: 56, height: 56, backgroundColor: 'rgba(168, 184, 150, 0.2)' }]} />
-      <View style={[styles.circle, { bottom: 80, left: 192, width: 40, height: 40, backgroundColor: 'rgba(255, 255, 255, 0.3)' }]} />
-      <View style={[styles.circle, { bottom: 32, right: 128, width: 80, height: 80, backgroundColor: 'rgba(255, 255, 255, 0.5)' }]} />
-      <View style={[styles.circle, { bottom: 64, right: 64, width: 56, height: 56, backgroundColor: 'rgba(168, 184, 150, 0.25)' }]} />
-      <View style={[styles.circle, { bottom: 16, right: 32, width: 48, height: 48, backgroundColor: 'rgba(255, 255, 255, 0.4)' }]} />
+        <SafeText variant="caption" color={colors.textSecondary}>Track your progress</SafeText>
+      </Card>
     </View>
   );
 
@@ -345,17 +324,17 @@ export default function HomeScreen() {
         {/* Header with profile and notifications */}
         <View style={styles.header}>
           <View style={styles.profileRow}>
-            <TouchableOpacity onPress={handlePreferencesPress}>
+            <HeaderAction accessibilityLabel="Open preferences" onPress={handlePreferencesPress}>
               <Image
                 source={{
                   uri: avatarUrl || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png'
                 }}
                 style={styles.avatar}
               />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleNotificationsPress}>
-              <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
+            </HeaderAction>
+            <HeaderAction accessibilityLabel="Open notifications" onPress={handleNotificationsPress}>
+              <Bell size={24} color={colors.textPrimary} weight="regular" />
+            </HeaderAction>
           </View>
         </View>
 
@@ -370,9 +349,6 @@ export default function HomeScreen() {
 
         {/* Cards Section */}
         {renderHomeCards()}
-
-        {/* Decorative Circles */}
-        {renderDecorativeCircles()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -422,25 +398,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     fontFamily: 'Vercetti-Regular',
   },
-  boldText: {
-    fontWeight: 'bold',
-  },
-  reflectionInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderRadius: 24,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  reflectionInput: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'Vercetti-Regular',
-  },
   // Section styles (shared)
   sectionHeader: {
     flexDirection: 'row',
@@ -460,18 +417,20 @@ const styles = StyleSheet.create({
   },
   progressContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: spacing.macro,
   },
   progressPercentage: {
     fontSize: 72,
     fontWeight: 'bold',
     fontFamily: 'Vercetti-Regular',
+    flexShrink: 0,
   },
   progressSubtitle: {
-    fontSize: 14,
-    textAlign: 'right',
-    marginTop: 16,
+    flexBasis: 128,
+    flexGrow: 1,
+    flexShrink: 1,
     fontFamily: 'Vercetti-Regular',
   },
   // Cards Section
@@ -484,13 +443,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    borderRadius: 24,
-    padding: 20,
     marginBottom: 16,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -506,19 +459,6 @@ const styles = StyleSheet.create({
   cardSubtitle: {
     fontSize: 13,
     fontFamily: 'Vercetti-Regular',
-  },
-  // Decorative Circles
-  decorativeCircles: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 192,
-    pointerEvents: 'none',
-  },
-  circle: {
-    position: 'absolute',
-    borderRadius: 999,
   },
 });
 

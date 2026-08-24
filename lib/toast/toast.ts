@@ -1,3 +1,4 @@
+// @ts-nocheck — leftover burnt adapter superseded by lib/toast/index.ts
 /**
  * Cross-platform toast utility using burnt
  * 

@@ -1,14 +1,19 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { useRouter, useSegments } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { Alert } from 'react-native';
 import { registerForPushNotificationsAsync } from '../lib/NotificationHandler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { roleFromAppMetadata, type AppRole } from '@/lib/auth/roles';
+import { parseJsonOrNull, storedUsersSchema } from '@/lib/contracts';
 import * as Burnt from 'burnt';
 import { profileCache, cacheManager } from '../lib/cache';
 import type { CachedProfile } from '../lib/cache';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 
 // Define a type for stored users
 interface StoredUser {
@@ -70,99 +75,31 @@ interface AuthContextType {
   clearStoredUsers: () => Promise<void>;
   currentUser: User | null;
   fetchProfile: () => Promise<void>;
-  userRole: 'user' | 'therapist' | 'admin' | null;
+  userRole: AppRole | null;
   userWithRole: UserWithRole | null;
-  checkUserRole: () => Promise<'user' | 'therapist' | 'admin' | null>;
+  checkUserRole: () => Promise<AppRole | null>;
   signInWithGoogle: () => Promise<void>;
+  googleSignInInProgress: boolean;
   handleAuthCallback: () => Promise<void>;
 }
 
 const STORED_USERS_KEY = 'uniwell_stored_users';
 
-export const AuthContext = createContext<AuthContextType>({
-  session: null,
-  loading: true,
-  profileLoading: true,
-  signOut: async () => { },
-  profile: {
-    username: '',
-    full_name: '',
-    avatar_url: null,
-  },
-  setProfile: () => { },
-  storedUsers: [],
-  addStoredUser: async () => { },
-  removeStoredUser: async () => { },
-  clearStoredUsers: async () => { },
-  currentUser: null,
-  fetchProfile: async () => { },
-  userRole: null,
-  userWithRole: null,
-  checkUserRole: async () => null,
-  signInWithGoogle: async () => { },
-  handleAuthCallback: async () => { },
-});
+export const AuthContext = createContext<AuthContextType | null>(null);
 
-// This hook can be used to access the user info.
 export function useAuth() {
-  return useContext(AuthContext);
-}
-
-// This hook will protect the route access based on user authentication.
-function useProtectedRoute(session: Session | null) {
-  const segments = useSegments();
-  const router = useRouter();
-  const [storedUsers, setStoredUsers] = useState<StoredUser[]>([]);
-
-  // Load stored users first
-  useEffect(() => {
-    const loadStoredUsers = async () => {
-      try {
-        const storedUsersJson = await AsyncStorage.getItem(STORED_USERS_KEY);
-        if (storedUsersJson) {
-          setStoredUsers(JSON.parse(storedUsersJson));
-        }
-      } catch (error) {
-        console.error('Error loading stored users:', error);
-      }
-    };
-
-    loadStoredUsers();
-  }, []);
-
-  useEffect(() => {
-    const inAuthGroup = segments[0] === '(auth)';
-    const isAuthScreen = ['loginscreen', 'signupscreen', 'index', 'login-callback', 'reset-password', 'StartScreen'].includes(segments[0] || '');
-    const isOnboardingScreen = segments[0] === 'onboarding';
-
-    if (
-      // If the user is not signed in and the initial segment is not anything in the auth group.
-      !session &&
-      !inAuthGroup &&
-      !isAuthScreen &&
-      !isOnboardingScreen &&
-      segments[0] !== 'profile-completion' &&
-      segments[0] !== 'user-selection'
-    ) {
-      // If we have stored users, redirect to user selection instead of login
-      if (storedUsers.length > 0) {
-        router.replace('/user-selection');
-      } else {
-        // Otherwise go to StartScreen
-        router.replace('/StartScreen');
-      }
-    } else if (session && (inAuthGroup || isAuthScreen || segments[0] === 'user-selection')) {
-      // Redirect away from auth screens when signed in
-      router.replace('/(tabs)/home');
-    }
-
-  }, [session, segments, storedUsers]);
+  const value = useContext(AuthContext);
+  if (!value) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return value;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [storedUsersResolved, setStoredUsersResolved] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [storedUsers, setStoredUsers] = useState<StoredUser[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileType>({
@@ -170,9 +107,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     full_name: '',
     avatar_url: null,
   });
-  const [userRole, setUserRole] = useState<'user' | 'therapist' | 'admin' | null>(null);
+  const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [userWithRole, setUserWithRole] = useState<UserWithRole | null>(null);
-  const router = useRouter();
+  const [googleSignInInProgress, setGoogleSignInInProgress] = useState(false);
+  const googleSignInRef = useRef(false);
+  const loading = !authResolved || !storedUsersResolved;
 
   useEffect(() => {
     const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
@@ -186,19 +125,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  useProtectedRoute(session);
-
   // Load stored users from AsyncStorage
   useEffect(() => {
     const loadStoredUsers = async () => {
       try {
         const storedUsersJson = await AsyncStorage.getItem(STORED_USERS_KEY);
-        if (storedUsersJson) {
-          const parsedUsers = JSON.parse(storedUsersJson);
+        const parsedUsers = parseJsonOrNull(storedUsersJson, (value) => storedUsersSchema.parse(value), 'stored users');
+        if (parsedUsers) {
           setStoredUsers(parsedUsers);
         }
       } catch (error) {
         console.error('Error loading stored users:', error);
+      } finally {
+        setStoredUsersResolved(true);
       }
     };
 
@@ -242,93 +181,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch current user profile data
   const fetchProfile = async () => {
+    const user = session?.user;
+    if (!user) {
+      setProfileLoading(false);
+      return;
+    }
+
     setProfileLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
+      const applyProfile = (data: CachedProfile | null) => {
+        const derivedRole = roleFromAppMetadata(user.app_metadata as Record<string, unknown>);
+        const userProfile: ProfileType = {
+          username: data?.username || user.user_metadata?.full_name || 'User',
+          full_name: user.user_metadata?.full_name || data?.full_name || 'User',
+          avatar_url: data?.avatar_url || user.user_metadata?.avatar_url || null,
+          gender: data?.gender ?? undefined,
+          interests: data?.interests ?? undefined,
+          primary_goal: data?.primary_goal ?? undefined,
+          bio: data?.bio ?? undefined,
+          occupation: data?.occupation ?? undefined,
+          university: data?.university ?? undefined,
+          profile_completion_percentage: data?.profile_completion_percentage,
+        };
 
-      // Try cache first
-      let data = await profileCache.getProfile(user.id);
+        setUserRole(derivedRole);
+        setUserWithRole({ id: user.id, email: user.email || '', role: derivedRole, created_at: '', updated_at: '' });
+        setCurrentUser({
+          id: user.id,
+          email: user.email,
+          user_metadata: {
+            full_name: user.user_metadata?.full_name || data?.full_name || '',
+            avatar_url: data?.avatar_url || user.user_metadata?.avatar_url || '',
+            gender: data?.gender || user.user_metadata?.gender || '',
+            interests: data?.interests || user.user_metadata?.interests || [],
+            primary_goal: data?.primary_goal || user.user_metadata?.primary_goal || '',
+            bio: data?.bio || user.user_metadata?.bio || '',
+            occupation: data?.occupation || user.user_metadata?.occupation || '',
+            university: data?.university || user.user_metadata?.university || '',
+            profile_completion_percentage: data?.profile_completion_percentage || user.user_metadata?.profile_completion_percentage || 0,
+          },
+        });
+        setProfile(userProfile);
+        void addStoredUser({
+          id: user.id,
+          email: user.email || '',
+          username: userProfile.username,
+          full_name: userProfile.full_name,
+          avatar_url: userProfile.avatar_url,
+          last_login: new Date().toISOString(),
+        });
+      };
 
-      if (!data) {
-        // Not in cache, fetch from server
-        const { data: serverData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle();
+      const cachedProfile = await profileCache.getProfile(user.id);
+      if (cachedProfile) {
+        applyProfile(cachedProfile);
+        setProfileLoading(false);
 
-        if (profileError && profileError.code !== 'PGRST116') throw profileError;
-
-        if (serverData) {
-          // Cache the fetched data
-          await profileCache.setProfile(user.id, serverData as CachedProfile);
-          data = serverData;
-        }
-      } else {
-        // Check if cache is stale and refresh in background
-        const status = await profileCache.getStatus(user.id);
-        if (status === 'stale') {
-          supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .maybeSingle()
-            .then(({ data: freshData }: { data: any }) => {
-              if (freshData) {
-                profileCache.setProfile(user.id, freshData as CachedProfile);
+        if (await profileCache.getStatus(user.id) === 'stale') {
+          void supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+            .then(({ data, error }: { data: CachedProfile | null; error: { message?: string } | null }) => {
+              if (!error && data) {
+                void profileCache.setProfile(user.id, data as CachedProfile);
+                applyProfile(data as CachedProfile);
               }
             });
         }
+        return;
       }
 
-      // Derive role from auth metadata when available
-      const derivedRole = (user.user_metadata as any)?.role ?? null;
-      setUserRole(derivedRole);
-      setUserWithRole(derivedRole ? { id: user.id, email: user.email || '', role: derivedRole, created_at: '', updated_at: '' } : null);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (error && error.code !== 'PGRST116') throw error;
 
-      // Update current user
-      setCurrentUser({
-        id: user.id,
-        email: user.email,
-        user_metadata: {
-          full_name: user.user_metadata?.full_name || data?.full_name || '',
-          avatar_url: data?.avatar_url || user.user_metadata?.avatar_url || '',
-          gender: data?.gender || user.user_metadata?.gender || '',
-          interests: data?.interests || user.user_metadata?.interests || [],
-          primary_goal: data?.primary_goal || user.user_metadata?.primary_goal || '',
-          bio: data?.bio || user.user_metadata?.bio || '',
-          occupation: data?.occupation || user.user_metadata?.occupation || '',
-          university: data?.university || user.user_metadata?.university || '',
-          profile_completion_percentage: data?.profile_completion_percentage || user.user_metadata?.profile_completion_percentage || 0,
-        },
-      });
-
-      // Update profile
-      const userProfile: ProfileType = {
-        username: data?.username || user.user_metadata?.full_name || 'User',
-        full_name: user.user_metadata?.full_name || data?.full_name || 'User',
-        avatar_url: data?.avatar_url || user.user_metadata?.avatar_url || null,
-        gender: data?.gender ?? undefined,
-        interests: data?.interests ?? undefined,
-        primary_goal: data?.primary_goal ?? undefined,
-        bio: data?.bio ?? undefined,
-        occupation: data?.occupation ?? undefined,
-        university: data?.university ?? undefined,
-        profile_completion_percentage: data?.profile_completion_percentage,
-      };
-
-      setProfile(userProfile);
-
-      // Store user in recent users list
-      await addStoredUser({
-        id: user.id,
-        email: user.email || '',
-        username: userProfile.username,
-        full_name: userProfile.full_name,
-        avatar_url: userProfile.avatar_url,
-        last_login: new Date().toISOString(),
-      });
+      if (data) void profileCache.setProfile(user.id, data as CachedProfile);
+      applyProfile(data as CachedProfile | null);
     } catch (error) {
       console.error('Error fetching profile:', error);
       Burnt.toast({
@@ -346,41 +275,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (session) {
-      fetchProfile();
+      void fetchProfile().finally(() => {
+        // Warm non-critical data only after profile state is available.
+        void cacheManager.warmupCache(session.user.id);
+      });
+    } else {
+      setProfileLoading(false);
     }
   }, [session]);
 
   useEffect(() => {
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event: string, newSession: Session | null) => {
-      console.log(`Supabase auth event: ${event}`);
+    const { data: authListener } = supabase.auth.onAuthStateChange((event: string, newSession: Session | null) => {
+      if (__DEV__) {
+        console.log(`Supabase auth event: ${event}`);
+      }
+
+      // INITIAL_SESSION can fire with null while storage is still being read.
+      // getSession() is the startup source of truth so we do not flash guest UI.
+      if (event === 'INITIAL_SESSION') {
+        return;
+      }
+
       setSession(newSession);
 
       if (newSession) {
-        // Register for push notifications (wrapped in try-catch to handle Firebase not being initialized)
-        try {
-          await registerForPushNotificationsAsync();
-        } catch (error) {
+        void registerForPushNotificationsAsync().catch((error: unknown) => {
           console.warn('Push notification registration failed:', error);
-        }
-
-        // Check user role on sign in
-        try {
-          await checkUserRole();
-        } catch (error) {
-          console.warn('Error checking user role:', error);
-        }
-
-        // Warmup cache with user data
-        if (newSession.user) {
-          try {
-            await cacheManager.warmupCache(newSession.user.id);
-          } catch (error) {
-            console.warn('Error warming up cache:', error);
-          }
-        }
-      } else {
-        // Reset everything when logged out
+        });
+      } else if (event === 'SIGNED_OUT') {
         setProfile({
           username: '',
           full_name: '',
@@ -389,18 +311,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(null);
         setUserRole(null);
         setUserWithRole(null);
-        // Clear all caches on logout
-        cacheManager.clearAllCaches();
+        void cacheManager.clearAllCaches();
       }
-
-      setLoading(false);
     });
 
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session: initialSession } }: { data: { session: Session | null } }) => {
-      setSession(initialSession);
-      setLoading(false);
-    });
+    void supabase.auth.getSession()
+      .then(({ data: { session: initialSession } }: { data: { session: Session | null } }) => {
+        setSession(initialSession);
+      })
+      .catch((error: unknown) => console.error('Unable to restore session:', error))
+      .finally(() => setAuthResolved(true));
 
     return () => {
       authListener.subscription.unsubscribe();
@@ -409,13 +329,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      if (GoogleSignin.hasPreviousSignIn()) {
+        await GoogleSignin.signOut();
+      }
       await supabase.auth.signOut();
       setProfile({
         username: '',
         full_name: '',
         avatar_url: null,
       });
-      router.replace('/');
       Burnt.toast({
         title: 'Success',
         message: 'You have been logged out successfully',
@@ -437,11 +359,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const checkUserRole = async (): Promise<'user' | 'therapist' | 'admin' | null> => {
+  const checkUserRole = async (): Promise<AppRole | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      const role = (user.user_metadata as any)?.role ?? null;
+      const role = roleFromAppMetadata(user.app_metadata as Record<string, unknown>);
       setUserRole(role);
       return role;
     } catch (error) {
@@ -451,6 +373,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    if (googleSignInRef.current) return;
+    googleSignInRef.current = true;
+    setGoogleSignInInProgress(true);
+
+    const clearNativeGoogleAccount = async () => {
+      if (GoogleSignin.hasPreviousSignIn()) {
+        await GoogleSignin.signOut();
+      }
+    };
+
     try {
       // Check if webClientId is configured
       const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
@@ -466,23 +398,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
-      console.log('[Auth] Starting Google Sign-In...');
+      // A failed or cancelled attempt leaves a native Google account selected.
+      // Clear it before prompting so Android opens the account picker again.
+      await clearNativeGoogleAccount();
+
       const userInfo = await GoogleSignin.signIn();
-      console.log('[Auth] Google Sign-In returned user:', userInfo.data?.user?.email);
+      if (!isSuccessResponse(userInfo)) {
+        await clearNativeGoogleAccount();
+        return;
+      }
 
       if (userInfo.data?.idToken) {
-        console.log('[Auth] Got ID token, signing in to Supabase...');
-        const { data, error } = await supabase.auth.signInWithIdToken({
+        const { error } = await supabase.auth.signInWithIdToken({
           provider: 'google',
           token: userInfo.data.idToken,
         });
 
         if (error) {
-          console.error('[Auth] Supabase signInWithIdToken error:', error);
           throw error;
         }
-
-        console.log('[Auth] Supabase sign-in successful:', data.user?.email);
         // Session will be handled by onAuthStateChange
       } else {
         console.error('[Auth] No ID token received from Google');
@@ -490,12 +424,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: any) {
       console.error('[Auth] Google Sign-In error:', error);
+      await clearNativeGoogleAccount().catch((clearError) => {
+        console.warn('[Auth] Could not clear native Google account:', clearError);
+      });
 
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
         // User cancelled - no toast needed
-        console.log('[Auth] User cancelled Google Sign-In');
+        return;
       } else if (error.code === statusCodes.IN_PROGRESS) {
-        console.log('[Auth] Sign-in already in progress');
         Burnt.toast({
           title: 'Please Wait',
           message: 'Sign-in is already in progress',
@@ -509,7 +445,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       } else {
         // General error
-        const errorMessage = error.message || 'Failed to sign in with Google';
+        const isProfileCreationError = typeof error?.message === 'string'
+          && error.message.includes('Database error saving new user');
+        const errorMessage = isProfileCreationError
+          ? 'We could not create your account profile. Please try again.'
+          : error.message || 'Failed to sign in with Google';
         Burnt.toast({
           title: 'Sign-In Failed',
           message: errorMessage,
@@ -519,6 +459,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Re-throw for caller to handle
       throw error;
+    } finally {
+      googleSignInRef.current = false;
+      setGoogleSignInInProgress(false);
     }
   };
 
@@ -532,8 +475,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session) {
         setSession(session);
-        await fetchProfile();
-        router.replace('/(tabs)/home');
       }
     } catch (error) {
       console.error('Auth Callback Error:', error);
@@ -560,6 +501,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userWithRole,
         checkUserRole,
         signInWithGoogle,
+        googleSignInInProgress,
         handleAuthCallback,
       }}>
       {children}

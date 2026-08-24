@@ -1,21 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, FlatList, Keyboard, Image, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, FlatList, Keyboard, Image, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, ChatCircleDots, ClockCounterClockwise, PaperPlaneRight, X, Plus, DotsThree } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { format } from 'date-fns';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Burnt from 'burnt';
-import { LoadingIndicator } from '@rn-nui/loading-indicator';
 
 import { ChatService } from '../lib/services/chatservice';
 import { ChatSessionManager } from '@/lib/ChatSessionHandler';
 import { useMood, MoodType } from '../contexts/MoodContext';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../hooks/useTheme';
+import { Dialog } from '@/components/ui/Dialog';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { IconButton } from '@/components/ui/IconButton';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { spacing } from '@/constants/theme';
 
 // Define message types
 interface Message {
@@ -309,12 +311,9 @@ const ChatUI = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-        <TouchableOpacity 
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
+        <IconButton accessibilityLabel="Go back" onPress={() => router.back()}>
           <ArrowLeft size={24} color={colors.textPrimary} weight="regular" />
-        </TouchableOpacity>
+        </IconButton>
         
         <View style={styles.headerCenter}>
           <View style={styles.titleRow}>
@@ -325,32 +324,18 @@ const ChatUI = () => {
         </View>
         
         <View style={styles.headerRight}>
-          <TouchableOpacity 
-            onPress={() => setShowSessionsModal(true)}
-            style={styles.iconButton}
-          >
+          <IconButton accessibilityLabel="Open chat history" onPress={() => setShowSessionsModal(true)}>
             <ClockCounterClockwise size={24} color={colors.textPrimary} weight="regular" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={handleNewChat} 
-            style={styles.iconButton}
-          >
+          </IconButton>
+          <IconButton accessibilityLabel="Start a new chat" onPress={handleNewChat}>
             <Plus size={24} color={colors.textPrimary} weight="bold" />
-          </TouchableOpacity>
+          </IconButton>
         </View>
       </View>
 
       {/* Chat Messages */}
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <LoadingIndicator 
-            containerSize={50} 
-            containerColor={colors.success} 
-            animating={true} 
-            color={colors.background} 
-          />
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading chat...</Text>
-        </View>
+        <LoadingState label="Loading your conversation…" style={styles.loadingContainer} />
       ) : (
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -441,32 +426,27 @@ const ChatUI = () => {
       )}
 
       {/* Sessions Modal */}
-      <Modal
+      <Dialog
         visible={showSessionsModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowSessionsModal(false)}
+        onClose={() => setShowSessionsModal(false)}
+        dismissible
+        title="Chat history"
+        description="Choose a previous conversation to continue."
       >
-        <View style={[styles.modalContainer, { backgroundColor: colors.modalBackground }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <View style={styles.modalTitleRow}>
-                <ClockCounterClockwise size={24} color={colors.success} weight="fill" />
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Chat History</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowSessionsModal(false)}>
-                <X size={24} color={colors.textPrimary} weight="bold" />
-              </TouchableOpacity>
+              <ClockCounterClockwise size={24} color={colors.success} weight="fill" />
+              <IconButton accessibilityLabel="Close chat history" onPress={() => setShowSessionsModal(false)}>
+                <X size={22} color={colors.textPrimary} weight="bold" />
+              </IconButton>
             </View>
             
             <ScrollView style={styles.sessionsList} showsVerticalScrollIndicator={false}>
               {userSessions.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <ChatCircleDots size={48} color={colors.textTertiary} weight="thin" />
-                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                    No previous conversations
-                  </Text>
-                </View>
+                <EmptyState
+                  description="New conversations will appear here."
+                  icon={<ChatCircleDots size={48} color={colors.textMuted} weight="thin" />}
+                  title="No previous conversations"
+                />
               ) : (
                 userSessions.map(session => (
                   <TouchableOpacity
@@ -499,9 +479,7 @@ const ChatUI = () => {
                 ))
               )}
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </Dialog>
     </SafeAreaView>
   );
 };

@@ -1,21 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
-  View, 
-  Text, 
-  Modal, 
-  TouchableOpacity, 
-  StyleSheet, 
-  useColorScheme,
   Dimensions,
-  TouchableWithoutFeedback,
-  Platform
+  Modal,
+  Pressable,
+  StyleSheet,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+
+import { SafeText } from '@/components/ThemedText';
+import { radius, shadows, spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 interface MenuItem {
   label: string;
-  icon: string;
+  icon?: React.ReactNode;
   onPress: () => void;
+  state?: 'default' | 'destructive';
 }
 
 interface MenuProps {
@@ -26,19 +26,19 @@ interface MenuProps {
 }
 
 export function Menu({ visible, onDismiss, items, trigger }: MenuProps) {
-  const isDark = useColorScheme() === 'dark';
+  const { colors } = useTheme();
   const triggerRef = useRef<View>(null);
-  const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
+  const [position, setPosition] = useState<{ top: number; right: number; maxHeight: number } | null>(null);
 
   useEffect(() => {
     if (visible && triggerRef.current) {
       triggerRef.current.measureInWindow((x, y, width, height) => {
         const windowWidth = Dimensions.get('window').width;
-        // Calculate position: align right edge of menu with right edge of trigger
-        // and place it below the trigger
+        const windowHeight = Dimensions.get('window').height;
         setPosition({
-          top: y + height + 8, // 8px gap
-          right: windowWidth - (x + width),
+          top: Math.min(y + height + spacing.micro, windowHeight - 56),
+          right: Math.max(spacing.micro, windowWidth - (x + width)),
+          maxHeight: Math.max(56, windowHeight - (y + height + spacing.field)),
         });
       });
     }
@@ -50,53 +50,59 @@ export function Menu({ visible, onDismiss, items, trigger }: MenuProps) {
       <Modal
         visible={visible}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={onDismiss}
+        statusBarTranslucent
       >
-        <TouchableWithoutFeedback onPress={onDismiss}>
-          <View style={styles.overlay}>
+        <View style={styles.overlay}>
+          <Pressable
+            accessibilityLabel="Dismiss menu"
+            accessibilityRole="button"
+            onPress={onDismiss}
+            style={StyleSheet.absoluteFill}
+          />
             {position && (
-              <View style={[
-                styles.menu,
-                isDark && styles.menuDark,
-                {
-                  top: position.top,
-                  right: position.right,
-                }
-              ]}>
+              <View
+                accessibilityRole="menu"
+                style={[
+                  styles.menu,
+                  shadows.overlay,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.border,
+                    maxHeight: position.maxHeight,
+                    top: position.top,
+                    right: position.right,
+                  },
+                ]}
+              >
                 {items.map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
+                  <Pressable
+                    accessibilityHint={`Runs ${item.label}`}
+                    accessibilityLabel={item.label}
+                    accessibilityRole="menuitem"
                     style={[
                       styles.menuItem,
-                      index < items.length - 1 && styles.menuItemBorder,
-                      isDark && styles.menuItemBorderDark
+                      index < items.length - 1 ? { borderBottomColor: colors.divider, borderBottomWidth: 1 } : undefined,
                     ]}
                     onPress={() => {
                       onDismiss();
-                      // Small delay to allow ripple/animation to finish if needed, 
-                      // but mostly to ensure modal closes before navigation
-                      setTimeout(() => item.onPress(), 100);
+                      requestAnimationFrame(item.onPress);
                     }}
                   >
-                    <Ionicons 
-                      name={item.icon as any} 
-                      size={20} 
-                      color={isDark ? '#fff' : '#000'} 
-                      style={styles.menuIcon} 
-                    />
-                    <Text style={[
-                      styles.menuText,
-                      isDark && styles.menuTextDark
-                    ]}>
+                    {item.icon ? item.icon : null}
+                    <SafeText
+                      style={styles.menuText}
+                      variant="body"
+                      color={item.state === 'destructive' ? colors.danger : colors.text}
+                    >
                       {item.label}
-                    </Text>
-                  </TouchableOpacity>
+                    </SafeText>
+                  </Pressable>
                 ))}
               </View>
             )}
-          </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </View>
   );
@@ -105,49 +111,25 @@ export function Menu({ visible, onDismiss, items, trigger }: MenuProps) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'transparent', // No dimming for tooltip feel, or 'rgba(0,0,0,0.1)'
+    backgroundColor: 'transparent',
   },
   menu: {
     position: 'absolute',
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderRadius: radius.control,
+    borderWidth: 1,
     minWidth: 200,
     overflow: 'hidden',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  menuDark: {
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#333',
   },
   menuItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-  },
-  menuItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  menuItemBorderDark: {
-    borderBottomColor: '#333',
-  },
-  menuIcon: {
-    marginRight: 12,
+    flexDirection: 'row',
+    gap: spacing.macro,
+    minHeight: 48,
+    paddingHorizontal: spacing.control,
+    paddingVertical: spacing.micro,
   },
   menuText: {
-    fontSize: 15,
-    color: '#000',
-    fontFamily: 'Vercetti-Regular',
+    flexShrink: 1,
   },
-  menuTextDark: {
-    color: '#fff',
-  },
-}); 
+});

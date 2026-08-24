@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRoutine } from '../contexts/RoutineContext';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, PencilSimple } from 'phosphor-react-native';
 import { useTheme } from '../hooks/useTheme';
 
 export default function RoutineDetailsScreen() {
@@ -34,11 +34,11 @@ export default function RoutineDetailsScreen() {
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderBottomColor: colors.divider }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FF7F50" />
+          <ArrowLeft size={24} color="#FF7F50" weight="regular" />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.textPrimary }]}>{habit.title}</Text>
         <TouchableOpacity onPress={() => router.push('/modals/edit-routine')}>
-          <Ionicons name="create-outline" size={24} color="#FF7F50" />
+          <PencilSimple size={24} color="#FF7F50" weight="regular" />
         </TouchableOpacity>
       </View>
 

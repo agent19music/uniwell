@@ -1,32 +1,32 @@
 import { createClient } from '@supabase/supabase-js';
-import { AppState } from 'react-native'
-import 'react-native-url-polyfill/auto'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import { AppState } from 'react-native';
+import 'react-native-url-polyfill/auto';
+import { secureAuthStorage } from '@/lib/auth/sessionStorage';
+import { getSupabaseEnv } from '@/lib/contracts/env';
+import type { Database } from '@/types/database';
 
-// Get the environment variables from Expo's Constants
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const { EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY } = getSupabaseEnv();
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey,
+export const supabaseClient = createClient<Database>(
+  EXPO_PUBLIC_SUPABASE_URL,
+  EXPO_PUBLIC_SUPABASE_ANON_KEY,
   {
     auth: {
-      storage: AsyncStorage,
+      storage: secureAuthStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
     },
-  })
+  },
+);
 
-  AppState.addEventListener('change', (state) => {
-    if (state === 'active') {
-      supabase.auth.startAutoRefresh()
-    } else {
-      supabase.auth.stopAutoRefresh()
-    }
-  })
+/** Compatibility alias while remaining call sites migrate onto generated table types. */
+export const supabase = supabaseClient as any;
+
+AppState.addEventListener('change', (state) => {
+  if (state === 'active') {
+    supabase.auth.startAutoRefresh();
+  } else {
+    supabase.auth.stopAutoRefresh();
+  }
+});

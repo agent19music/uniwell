@@ -9,7 +9,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { CheckCircle, NotePencil, Moon, X, Smiley } from 'phosphor-react-native';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useRoutine } from '../contexts/RoutineContext';
 import { useMood } from '../contexts/MoodContext';
@@ -71,13 +71,13 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
           </Text>
           <View style={styles.archiveIcons}>
             {item.hasRoutineCompletion && (
-              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+              <CheckCircle size={16} color={colors.success} weight="fill" />
             )}
             {item.hasJournalEntry && (
-              <Ionicons name="journal" size={16} color={colors.warning} />
+              <NotePencil size={16} color={colors.warning} weight="fill" />
             )}
             {item.hasSleepEntry && (
-              <Ionicons name="moon" size={16} color="#5856D6" />
+              <Moon size={16} color="#5856D6" weight="fill" />
             )}
           </View>
         </View>
@@ -101,7 +101,7 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
             {format(selectedDate, 'EEEE, MMMM d')}
           </Text>
           <TouchableOpacity onPress={() => setSelectedDate(null)}>
-            <Ionicons name="close" size={24} color={colors.textPrimary} />
+            <X size={24} color={colors.textPrimary} weight="regular" />
           </TouchableOpacity>
         </View>
 
@@ -110,11 +110,9 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Routines</Text>
             {routineCompletions.map((completion) => (
               <View key={completion.id} style={[styles.completionItem, { backgroundColor: colors.card }]}>
-                <Ionicons
-                  name={completion.status === 'completed' ? 'checkmark-circle' : 'close-circle'}
-                  size={20}
-                  color={completion.status === 'completed' ? colors.success : colors.error}
-                />
+                {completion.status === 'completed'
+                  ? <CheckCircle size={20} color={colors.success} weight="fill" />
+                  : <X size={20} color={colors.error} weight="regular" />}
                 <Text style={[styles.completionText, { color: colors.textPrimary }]}>
                   {completion.routine.title}
                 </Text>
@@ -126,7 +124,7 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
             <View style={styles.detailSection}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Journal</Text>
               <View style={[styles.journalPreview, { backgroundColor: colors.card }]}>
-                <Ionicons name="journal" size={24} color={colors.warning} />
+                <NotePencil size={24} color={colors.warning} weight="fill" />
                 <Text style={[styles.journalText, { color: colors.textPrimary }]}>
                   Journal entry recorded
                 </Text>
@@ -138,7 +136,7 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
             <View style={styles.detailSection}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Sleep</Text>
               <View style={[styles.sleepPreview, { backgroundColor: colors.card }]}>
-                <Ionicons name="moon" size={24} color="#5856D6" />
+                <Moon size={24} color="#5856D6" weight="fill" />
                 <Text style={[styles.sleepText, { color: colors.textPrimary }]}>
                   {archive.sleepQualityRating ? `${archive.sleepQualityRating}/10` : 'Sleep recorded'}
                 </Text>
@@ -150,7 +148,7 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
             <View style={styles.detailSection}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Mood</Text>
               <View style={[styles.moodPreview, { backgroundColor: colors.card }]}>
-                <Ionicons name="happy" size={24} color={colors.warning} />
+                <Smiley size={24} color={colors.warning} weight="fill" />
                 <Text style={[styles.moodText, { color: colors.textPrimary }]}>
                   {archive.moodRating}/10
                 </Text>
@@ -172,7 +170,7 @@ export default function ProgressArchive({ visible, onClose }: ProgressArchivePro
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { borderBottomColor: colors.divider }]}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={colors.textPrimary} />
+            <X size={24} color={colors.textPrimary} weight="regular" />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Progress Archive</Text>
           <View style={styles.placeholder} />

@@ -8,8 +8,8 @@ import {
   RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { CalendarDotsIcon, ClockIcon, BookOpenIcon } from 'phosphor-react-native';
+import { CalendarDotsIcon, ClockIcon, BookOpenIcon, Plus, Leaf, NotePencil, Book, Barbell, Clock } from 'phosphor-react-native';
+import { HeaderAction } from '@/components/ui/Navigation';
 import { useTheme } from '../../hooks/useTheme';
 import { useRouter } from 'expo-router';
 
@@ -83,18 +83,13 @@ export default function SessionsScreen() {
     });
   };
 
-  const getTypeIcon = (type: StudySession['type']) => {
+  const getTypeIcon = (type: StudySession['type'], size: number, color: string) => {
     switch (type) {
-      case 'meditation':
-        return 'leaf-outline';
-      case 'study':
-        return 'book-outline';
-      case 'exercise':
-        return 'fitness-outline';
-      case 'journaling':
-        return 'journal-outline';
-      default:
-        return 'time-outline';
+      case 'meditation': return <Leaf size={size} color={color} weight="regular" />;
+      case 'study': return <Book size={size} color={color} weight="regular" />;
+      case 'exercise': return <Barbell size={size} color={color} weight="regular" />;
+      case 'journaling': return <NotePencil size={size} color={color} weight="regular" />;
+      default: return <Clock size={size} color={color} weight="regular" />;
     }
   };
 
@@ -145,12 +140,9 @@ export default function SessionsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>My Sessions</Text>
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: colors.surface }]}
-            onPress={() => console.log('Add session')}
-          >
-            <Ionicons name="add" size={24} color={colors.primary} />
-          </TouchableOpacity>
+          <HeaderAction accessibilityLabel="Add session" onPress={() => console.log('Add session')}>
+            <Plus size={24} color={colors.primary} weight="regular" />
+          </HeaderAction>
         </View>
 
         {/* Today's Schedule */}
@@ -177,11 +169,7 @@ export default function SessionsScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={[styles.sessionIcon, { backgroundColor: `${getTypeColor(session.type)}20` }]}>
-                    <Ionicons
-                      name={getTypeIcon(session.type)}
-                      size={24}
-                      color={getTypeColor(session.type)}
-                    />
+                    {getTypeIcon(session.type, 24, getTypeColor(session.type))}
                   </View>
 
                   <View style={styles.sessionInfo}>
@@ -228,7 +216,7 @@ export default function SessionsScreen() {
               onPress={() => router.push('/BreathingExercise')}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: '#A8B89620' }]}>
-                <Ionicons name="leaf-outline" size={24} color="#A8B896" />
+                <Leaf size={24} color="#A8B896" weight="regular" />
               </View>
               <Text style={[styles.quickActionText, { color: colors.textPrimary }]}>
                 Breathe
@@ -240,7 +228,7 @@ export default function SessionsScreen() {
               onPress={() => router.push('/journals')}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: '#B8B3C820' }]}>
-                <Ionicons name="journal-outline" size={24} color="#B8B3C8" />
+                <NotePencil size={24} color="#B8B3C8" weight="regular" />
               </View>
               <Text style={[styles.quickActionText, { color: colors.textPrimary }]}>
                 Journal
@@ -252,7 +240,7 @@ export default function SessionsScreen() {
               onPress={() => router.push('/library')}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: '#8ABADB20' }]}>
-                <Ionicons name="book-outline" size={24} color="#8ABADB" />
+                <Book size={24} color="#8ABADB" weight="regular" />
               </View>
               <Text style={[styles.quickActionText, { color: colors.textPrimary }]}>
                 Library
@@ -287,18 +275,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     fontFamily: 'Vercetti-Regular',
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   section: {
     paddingHorizontal: 24,

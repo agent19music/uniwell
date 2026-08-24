@@ -1,3 +1,5 @@
+import { colorThemes } from './theme';
+
 /**
  * Comprehensive color system for Uniwell Mental Wellness Platform
  * Warm minimal aesthetic with accessible contrast ratios for light and dark modes
@@ -205,6 +207,10 @@ export const DarkColors = {
 // Export for any legacy references
 export const LightColors = Colors;
 export const getColors = (scheme?: 'light' | 'dark') => scheme === 'dark' ? DarkColors : Colors;
+
+// The semantic theme is the public source of truth for new UI. Legacy exports
+// remain while the rest of the app migrates.
+export { colorThemes };
 
 /**
  * ACCESSIBILITY NOTES:

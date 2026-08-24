@@ -1,6 +1,6 @@
-import { View, Text, TextInput, StyleSheet, useColorScheme, TouchableOpacity, Alert, Image, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, User, At, Briefcase, GraduationCap, GenderMale, GenderFemale } from 'phosphor-react-native';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useRouter } from 'expo-router';
@@ -8,11 +8,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { useAuth } from '@/contexts/AuthContext';
 import * as Burnt from 'burnt';
+import { Button } from '@/components/ui/Button';
+import { FormSection } from '@/components/ui/Form';
+import { Input } from '@/components/ui/Input';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const { profile, setProfile } = useAuth();
@@ -153,16 +157,20 @@ export default function EditProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.canvas }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffff' : '#000000'} />
+          <ArrowLeft size={24} color={colors.text} weight="regular" />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, isDark && styles.darkText]}>Edit Profile</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Profile</Text>
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.avatarContainer}>
           <Image
             source={{ uri: profile.avatar_url || 'https://pub-abe4a6405e724602a7fac9bf761e290c.r2.dev/default-avatar.png' }}
@@ -181,166 +189,60 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.formContainer}>
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, isDark && styles.darkText]}>Full Name</Text>
-            <View style={[styles.inputContainer, isDark && styles.darkInputContainer]}>
-              <Ionicons name="person-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
-              <TextInput
-                style={[styles.input, isDark && styles.darkInput]}
-                placeholder="Your full name"
-                placeholderTextColor={isDark ? '#777777' : '#999999'}
-                value={formData.full_name}
-                onChangeText={(text) => setFormData({ ...formData, full_name: text })}
-              />
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, isDark && styles.darkText]}>Username</Text>
-            <View style={[styles.inputContainer, isDark && styles.darkInputContainer]}>
-              <Ionicons name="at" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
-              <TextInput
-                style={[styles.input, isDark && styles.darkInput]}
-                placeholder="Your username"
-                placeholderTextColor={isDark ? '#777777' : '#999999'}
-                value={formData.username}
-                onChangeText={(text) => setFormData({ ...formData, username: text })}
-              />
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, isDark && styles.darkText]}>Bio</Text>
-            <View style={[styles.textAreaContainer, isDark && styles.darkInputContainer]}>
-              <TextInput
-                style={[styles.textArea, isDark && styles.darkInput]}
-                placeholder="Tell us about yourself"
-                placeholderTextColor={isDark ? '#777777' : '#999999'}
-                value={formData.bio}
-                onChangeText={(text) => setFormData({ ...formData, bio: text })}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, isDark && styles.darkText]}>Occupation</Text>
-            <View style={[styles.inputContainer, isDark && styles.darkInputContainer]}>
-              <Ionicons name="briefcase-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
-              <TextInput
-                style={[styles.input, isDark && styles.darkInput]}
-                placeholder="Your occupation"
-                placeholderTextColor={isDark ? '#777777' : '#999999'}
-                value={formData.occupation}
-                onChangeText={(text) => setFormData({ ...formData, occupation: text })}
-              />
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, isDark && styles.darkText]}>University/School</Text>
-            <View style={[styles.inputContainer, isDark && styles.darkInputContainer]}>
-              <Ionicons name="school-outline" size={20} color={isDark ? '#aaaaaa' : '#666666'} />
-              <TextInput
-                style={[styles.input, isDark && styles.darkInput]}
-                placeholder="Your university or school"
-                placeholderTextColor={isDark ? '#777777' : '#999999'}
-                value={formData.university}
-                onChangeText={(text) => setFormData({ ...formData, university: text })}
-              />
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, isDark && styles.darkText]}>Gender</Text>
-            <View style={styles.genderOptions}>
-              <TouchableOpacity 
-                style={[
-                  styles.genderOption, 
-                  formData.gender === 'male' && styles.selectedGender,
-                  isDark && styles.darkInputContainer
-                ]}
-                onPress={() => setFormData({ ...formData, gender: 'male' })}
-              >
-                <Ionicons 
-                  name="male" 
-                  size={20} 
-                  color={formData.gender === 'male' ? "#FF7F50" : isDark ? '#aaaaaa' : '#666666'} 
-                />
-                <Text style={[
-                  styles.genderText,
-                  formData.gender === 'male' && styles.selectedGenderText,
-                  isDark && styles.darkText
-                ]}>Male</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[
-                  styles.genderOption, 
-                  formData.gender === 'female' && styles.selectedGender,
-                  isDark && styles.darkInputContainer
-                ]}
-                onPress={() => setFormData({ ...formData, gender: 'female' })}
-              >
-                <Ionicons 
-                  name="female" 
-                  size={20} 
-                  color={formData.gender === 'female' ? "#FF7F50" : isDark ? '#aaaaaa' : '#666666'} 
-                />
-                <Text style={[
-                  styles.genderText,
-                  formData.gender === 'female' && styles.selectedGenderText,
-                  isDark && styles.darkText
-                ]}>Female</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[
-                  styles.genderOption, 
-                  formData.gender === 'other' && styles.selectedGender,
-                  isDark && styles.darkInputContainer
-                ]}
-                onPress={() => setFormData({ ...formData, gender: 'other' })}
-              >
-                <Ionicons 
-                  name="person-outline" 
-                  size={20} 
-                  color={formData.gender === 'other' ? "#FF7F50" : isDark ? '#aaaaaa' : '#666666'} 
-                />
-                <Text style={[
-                  styles.genderText,
-                  formData.gender === 'other' && styles.selectedGenderText,
-                  isDark && styles.darkText
-                ]}>Other</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        <FormSection>
+          <Input
+            label="Full name"
+            leading={<User size={20} color={colors.textSecondary} weight="regular" />}
+            onChangeText={(text) => setFormData({ ...formData, full_name: text })}
+            placeholder="Your full name"
+            value={formData.full_name}
+          />
+          <Input
+            autoCapitalize="none"
+            label="Username"
+            leading={<At size={20} color={colors.textSecondary} weight="regular" />}
+            onChangeText={(text) => setFormData({ ...formData, username: text })}
+            placeholder="Your username"
+            value={formData.username}
+          />
+          <Input
+            label="Bio"
+            multiline
+            numberOfLines={4}
+            onChangeText={(text) => setFormData({ ...formData, bio: text })}
+            placeholder="Tell us about yourself"
+            value={formData.bio}
+          />
+          <Input
+            label="Occupation"
+            leading={<Briefcase size={20} color={colors.textSecondary} weight="regular" />}
+            onChangeText={(text) => setFormData({ ...formData, occupation: text })}
+            placeholder="Your occupation"
+            value={formData.occupation}
+          />
+          <Input
+            label="University or school"
+            leading={<GraduationCap size={20} color={colors.textSecondary} weight="regular" />}
+            onChangeText={(text) => setFormData({ ...formData, university: text })}
+            placeholder="Your university or school"
+            value={formData.university}
+          />
+          <SegmentedControl
+            label="Gender"
+            onChange={(gender) => setFormData({ ...formData, gender })}
+            options={[
+              { label: 'Male', value: 'male', icon: <GenderMale size={18} color={colors.textSecondary} weight="regular" /> },
+              { label: 'Female', value: 'female', icon: <GenderFemale size={18} color={colors.textSecondary} weight="regular" /> },
+              { label: 'Other', value: 'other', icon: <User size={18} color={colors.textSecondary} weight="regular" /> },
+            ]}
+            value={formData.gender as 'male' | 'female' | 'other' | ''}
+          />
+        </FormSection>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.cancelButton, isDark && styles.darkButton]} 
-          onPress={() => router.back()}
-          disabled={loading}
-        >
-          <Text style={[styles.cancelButtonText, isDark && styles.darkButtonText]}>Cancel</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.saveButton} 
-          onPress={updateProfile}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save Changes</Text>
-          )}
-        </TouchableOpacity>
+      <View style={[styles.footer, { borderTopColor: colors.border, backgroundColor: colors.canvas }]}>
+        <Button label="Cancel" variant="secondary" onPress={() => router.back()} disabled={loading} style={styles.footerButton} />
+        <Button label="Save changes" loading={loading} onPress={updateProfile} style={styles.footerButton} />
       </View>
     </SafeAreaView>
   );
@@ -481,9 +383,13 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
+    gap: 8,
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  footerButton: {
+    flex: 1,
   },
   cancelButton: {
     flex: 1,

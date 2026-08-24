@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, Modal, TouchableOpacity, ViewProps, Dimensions } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { PencilSimple, CheckCircle, Trash, MapPin } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
 
 
@@ -189,11 +189,7 @@ export interface ClassInfo {
                   </Text>
                   {classInfo.location && (
                     <View style={styles.classLocationContainer}>
-                      <Ionicons
-                        name="location-outline"
-                        size={12}
-                        color={isDark ? "#CCCCCC" : "#666666"}
-                      />
+                      <MapPin size={12} color={isDark ? "#CCCCCC" : "#666666"} weight="regular" />
                       <Text style={styles.classBlockLocation} numberOfLines={1}>
                         {classInfo.location}
                       </Text>
@@ -235,7 +231,7 @@ export interface ClassInfo {
                   onEdit(classInfo);
                 }}
               >
-                <Feather name="edit-2" size={18} color={isDark ? '#FFFFFF' : '#333333'} />
+                <PencilSimple size={18} color={isDark ? '#FFFFFF' : '#333333'} weight="regular" />
                 <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Edit</Text>
               </TouchableOpacity>
               
@@ -248,7 +244,7 @@ export interface ClassInfo {
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 }}
               >
-                <Feather name="check-circle" size={18} color={isDark ? '#FFFFFF' : '#333333'} />
+                <CheckCircle size={18} color={isDark ? '#FFFFFF' : '#333333'} weight="regular" />
                 <Text style={[styles.menuText, isDark && styles.darkMenuText]}>Mark Completed</Text>
               </TouchableOpacity>
               
@@ -261,7 +257,7 @@ export interface ClassInfo {
                   onDelete(classInfo.id);
                 }}
               >
-                <Feather name="trash-2" size={18} color={isDark ? '#FF453A' : '#FF3B30'} />
+                <Trash size={18} color={isDark ? '#FF453A' : '#FF3B30'} weight="regular" />
                 <Text style={styles.deleteText}>Delete</Text>
               </TouchableOpacity>
             </Animated.View>

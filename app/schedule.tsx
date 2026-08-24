@@ -1,4 +1,4 @@
-import { Pressable, View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Animated, Modal } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { ChartLine, X, Plus } from 'phosphor-react-native';
@@ -83,10 +83,6 @@ export default function ClassScheduleScreen() {
     return !isLoading && activeSemester && hasClasses;
   }, [isLoading, activeSemester, hasClasses]);
   
-  // Animation values for view transitions
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  
   useEffect(() => {
     // Show semester selection modal if no active semester is found after loading
     if (!isLoading && !activeSemester) {
@@ -136,160 +132,32 @@ export default function ClassScheduleScreen() {
     return currentDate.getDay();
   };
 
-  // Navigate to previous/next day
+  // Navigate to previous/next day without decorative screen motion.
   const navigateDay = (direction: number): void => {
-    // Begin animation
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: direction > 0 ? 0.95 : 1.05,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Update date
-      const newDate = new Date(currentDate);
-      if (viewMode === 'day') {
-        newDate.setDate(currentDate.getDate() + direction);
-      } else {
-        // For week view, jump 7 days
-        newDate.setDate(currentDate.getDate() + (direction * 7));
-      }
-      setCurrentDate(newDate);
-      
-      // Animate back in
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
+    const newDate = new Date(currentDate);
+    newDate.setDate(currentDate.getDate() + (viewMode === 'day' ? direction : direction * 7));
+    setCurrentDate(newDate);
   };
   
-  // Toggle between day and week views with animation
+  // Toggle between day and week views.
   const toggleViewMode = (newMode: 'day' | 'week'): void => {
     if (newMode === viewMode) return;
-    
-    // Haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    // Animate transition
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: newMode === 'day' ? 1.1 : 0.9,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setViewMode(newMode);
-      
-      // Animate new view in
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
+    setViewMode(newMode);
   };
   
   // Navigate to today
   const goToToday = (): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    // Animate out
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0.5,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Set to today
-      setCurrentDate(new Date());
-      
-      // Animate in
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
+    setCurrentDate(new Date());
   };
 
   // Select a specific day from week view
   const handleDaySelect = (date: Date): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Animate zoom effect
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0.7,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1.1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Set the selected date and switch to day view
-      setCurrentDate(date);
-      setViewMode('day');
-      
-      // Animate in day view
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
+    setCurrentDate(date);
+    setViewMode('day');
   };
 
   // Calculate overall attendance rate
@@ -614,10 +482,8 @@ export default function ClassScheduleScreen() {
       {activeSemester && (
         <FloatingActionButton
           onPress={() => setIsAddModalVisible(true)}
-          icon="plus"
+          icon={<Plus size={24} color="#FFFFFF" weight="regular" />}
           color="#FF7F50"
-          iconSize={24}
-          iconColor="#FFFFFF"
         />
       )}
       

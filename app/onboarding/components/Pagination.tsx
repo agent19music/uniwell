@@ -5,10 +5,11 @@ import Animated, {
   interpolate,
   Extrapolate,
   interpolateColor,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 interface PaginationProps {
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   data: Array<any>;
 }
 
