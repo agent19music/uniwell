@@ -9,11 +9,13 @@ import { SafeText } from '@/components/ThemedText';
 import { Button } from '@/components/ui/Button';
 import { EmptyState, ErrorState } from '@/components/ui/EmptyState';
 import { HeaderAction } from '@/components/ui/Navigation';
-import { LoadingState } from '@/components/ui/LoadingState';
+import { PostRowSkeleton } from '@/components/ui/Skeleton';
 import { Screen } from '@/components/ui/Screen';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { Post } from '@/types/community';
+
+const SKELETON_COUNT = 6;
 
 export default function CommunityScreen() {
   const { colors } = useTheme();
@@ -58,7 +60,9 @@ export default function CommunityScreen() {
       </View>
 
       {loading ? (
-        <LoadingState label="Loading community posts…" style={styles.state} />
+        <View style={styles.skeletons}>
+          {Array.from({ length: SKELETON_COUNT }).map((_, i) => <PostRowSkeleton key={i} />)}
+        </View>
       ) : error ? (
         <ErrorState
           title="Couldn’t load the community"
@@ -112,14 +116,16 @@ export default function CommunityScreen() {
 
 
 const styles = StyleSheet.create({
-  screenContent: { paddingBottom: 0 },
+  screenContent: { paddingBottom: 0, paddingHorizontal: 0 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.control,
+    paddingHorizontal: spacing.field,
   },
   list: { paddingBottom: spacing.page },
   emptyList: { flexGrow: 1, justifyContent: 'center' },
   state: { flex: 1 },
+  skeletons: { flex: 1 },
 });
