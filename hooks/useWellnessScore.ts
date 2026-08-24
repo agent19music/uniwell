@@ -20,9 +20,11 @@ export function useWellnessScore(): WellnessScoreResult {
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
-        throw new Error('No authenticated user');
+        setScore(0);
+        setLoading(false);
+        return;
       }
 
       // Call the database function to calculate wellness score

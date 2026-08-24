@@ -198,13 +198,13 @@ export default function BreathingExercise({ onComplete }: BreathingExerciseProps
 
   const animatedWidgetStyle = useAnimatedStyle(() => {
     return {
-      width: withTiming(widgetExpansion.value ? 280 : 200, { 
+      width: withTiming(widgetExpansion.value ? 280 : 200, {
         duration: 300,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1)
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       }),
-      height: withTiming(widgetExpansion.value ? (showControls ? 120 : 48) : 48, {
+      height: withTiming(widgetExpansion.value ? 120 : 48, {
         duration: 300,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1)
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       }),
     };
   });

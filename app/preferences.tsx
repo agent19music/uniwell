@@ -70,21 +70,20 @@ const SettingsSection = ({ title, children, isDark }: { title: string; children:
 export default function ProfileScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { profile, signOut, setProfile, currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [userData, setUserData] = useState({
-    name: '',
-    email: '',
+    name: currentUser?.user_metadata?.full_name || profile?.full_name || '',
+    email: currentUser?.email || '',
     joinDate: '',
     streakCount: 0,
     habitCount: 0,
-    gender: '',
-    university: '',
-    occupation: '',
-    profileCompletion: 0,
+    gender: profile?.gender || '',
+    university: profile?.university || '',
+    occupation: profile?.occupation || '',
+    profileCompletion: profile?.profile_completion_percentage || 0,
   });
-  
-  const { profile, signOut, setProfile, currentUser } = useAuth();
   
   const [notifications, setNotifications] = useState({
     reminders: true,
@@ -100,79 +99,30 @@ export default function ProfileScreen() {
   }, [currentUser?.id]);
 
   async function fetchUserData() {
+    if (!currentUser?.id) return;
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        console.log('user', user);
-        // Format join date
-        const joinDate = new Date(user.created_at).toLocaleDateString('en-US', {
-          month: 'long',
-          year: 'numeric'
-        });
+      if (!user) return;
 
-        // Get profile data
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id);
-          
-        if (profileError) throw profileError;
-        
-        // If no profile exists, create a default one
-        let profile = profileData?.[0];
-        if (!profile) {
-          console.log('No profile found for user:', user.id);
-         
-        }
-        
-        // Get habit and streak counts
-        const { data: habitsData, error: habitsError } = await supabase
-          .from('habits')
-          .select('id')
-          .eq('user_id', user.id);
-          
-        if (habitsError) throw habitsError;
-        
-        const { data: streaksData, error: streaksError } = await supabase
-          .from('streaks')
-          .select('id')
-          .eq('user_id', user.id);
-          
-        if (streaksError) throw streaksError;
-        
-        // Get notification preferences
-        const notificationPrefs = profile?.notification_preferences || {
-          reminders: true,
-          achievements: true,
-          weeklyReport: true,
-          tips: false,
-        };
-        
-        setNotifications(notificationPrefs);
-        
-        setUserData({
-          name: user.user_metadata?.full_name || 'User',
-          email: user.email || '',
-          joinDate,
-          streakCount: streaksData?.length || 0,
-          habitCount: habitsData?.length || 0,
-          gender: profile?.gender || '',
-          university: profile?.university || '',
-          occupation: profile?.occupation || '',
-          profileCompletion: profile?.profile_completion_percentage || 40,
-        });
-      }
+      const joinDate = new Date(user.created_at).toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      });
+
+      const [{ data: habitsData }, { data: streaksData }] = await Promise.all([
+        supabase.from('habits').select('id').eq('user_id', user.id),
+        supabase.from('streaks').select('id').eq('user_id', user.id),
+      ]);
+
+      setUserData((prev) => ({
+        ...prev,
+        joinDate,
+        streakCount: streaksData?.length ?? 0,
+        habitCount: habitsData?.length ?? 0,
+      }));
     } catch (error) {
       console.error('Error fetching user data:', error);
-      Burnt.toast({
-        title: 'Error',
-        message: 'Failed to load profile data',
-        preset: 'error',
-        duration: 2,
-        from: 'top',
-        shouldDismissByDrag: true
-      });
     } finally {
       setLoading(false);
     }
